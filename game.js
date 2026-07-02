@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { t, LANGS } = require('./public/i18n.js');
 
 const SPEED = Number(process.env.GAME_SPEED || 5); // multiplies production and divides build times
 const MAP_SIZE = 40;
@@ -211,12 +212,12 @@ function canAfford(island, cost) {
 
 // Queue an upgrade. Returns { ok } or { error }.
 function tryBuild(world, island, key, now) {
-  if (!BUILDINGS[key]) return { error: 'Unknown building.' };
+  if (!BUILDINGS[key]) return { error: 'err.unknownBuilding' };
   resolveIsland(island, now);
-  if (island.queue.length >= QUEUE_MAX) return { error: 'Build queue is full.' };
+  if (island.queue.length >= QUEUE_MAX) return { error: 'err.queueFull' };
   const target = pendingLevel(island, key) + 1;
   const cost = upgradeCost(key, target);
-  if (!canAfford(island, cost)) return { error: 'Not enough resources.' };
+  if (!canAfford(island, cost)) return { error: 'err.noResources' };
   for (const r of RESOURCES) island.resources[r] -= cost[r];
   const start = island.queue.length ? island.queue[island.queue.length - 1].finish : now;
   const duration = upgradeTime(key, target, island.buildings.hall) * 1000;
@@ -257,15 +258,21 @@ function scaleUnits(units, frac) {
   return out;
 }
 
-function fmtUnits(units) {
-  const parts = Object.entries(units)
-    .filter(([, n]) => n > 0)
-    .map(([k, n]) => `${n} ${n === 1 ? UNITS[k].name : UNITS[k].plural || UNITS[k].name + 's'}`);
-  return parts.join(', ') || 'no troops';
+// Language a player reads reports and errors in.
+function langOf(world, playerId) {
+  const p = world.players.find((x) => x.id === playerId);
+  return (p && p.lang) || 'en';
 }
 
-function fmtRes(res) {
-  return `${res.wood} wood, ${res.stone} stone, ${res.gold} gold`;
+function fmtUnits(units, lang) {
+  const parts = Object.entries(units)
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${n} ${t(lang, n === 1 ? `unit.${k}.name` : `unit.${k}.plural`)}`);
+  return parts.join(', ') || t(lang, 'units.none');
+}
+
+function fmtRes(res, lang) {
+  return `${res.wood} ${t(lang, 'res.wood')}, ${res.stone} ${t(lang, 'res.stone')}, ${res.gold} ${t(lang, 'res.gold')}`;
 }
 
 // Seconds per unit to train, given the level of the building that trains it.
@@ -275,16 +282,18 @@ function trainTime(key, buildingLevel) {
 }
 
 function tryTrain(world, island, key, count, now) {
-  if (!UNITS[key]) return { error: 'Unknown unit.' };
+  if (!UNITS[key]) return { error: 'err.unknownUnit' };
   count = Math.floor(Number(count));
-  if (!(count >= 1 && count <= 500)) return { error: 'Count must be 1-500.' };
+  if (!(count >= 1 && count <= 500)) return { error: 'err.count' };
   resolveIsland(island, now);
   const need = UNITS[key].building || 'barracks';
-  if (island.buildings[need] < 1) return { error: `Build a ${BUILDINGS[need].name} first.` };
-  if (island.trainQueue.length >= TRAIN_QUEUE_MAX) return { error: 'Training queue is full.' };
+  if (island.buildings[need] < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: `@building.${need}.name` } };
+  }
+  if (island.trainQueue.length >= TRAIN_QUEUE_MAX) return { error: 'err.trainQueueFull' };
   const cost = {};
   for (const r of RESOURCES) cost[r] = UNITS[key].cost[r] * count;
-  if (!canAfford(island, cost)) return { error: 'Not enough resources.' };
+  if (!canAfford(island, cost)) return { error: 'err.noResources' };
   for (const r of RESOURCES) island.resources[r] -= cost[r];
   const start = island.trainQueue.length
     ? island.trainQueue[island.trainQueue.length - 1].finish
@@ -312,22 +321,24 @@ function sendAttack(world, attacker, island, target, units, now) {
   const army = zeroUnits();
   for (const k of Object.keys(UNITS)) {
     const n = Math.floor(Number((units && units[k]) || 0));
-    if (n < 0 || !Number.isFinite(n)) return { error: 'Invalid unit count.' };
-    if (n > island.units[k]) return { error: 'Not enough troops at home.' };
-    if (n > 0 && UNITS[k].ship) return { error: `${UNITS[k].plural} cannot join attacks.` };
+    if (n < 0 || !Number.isFinite(n)) return { error: 'err.invalidUnits' };
+    if (n > island.units[k]) return { error: 'err.noTroops' };
+    if (n > 0 && UNITS[k].ship) {
+      return { error: 'err.shipsNoAttack', errorParams: { unit: `@unit.${k}.plural` } };
+    }
     army[k] = n;
   }
-  if (totalUnits(army) < 1) return { error: 'Send at least one unit.' };
-  if (target.ownerId == null) return { error: 'That island is uninhabited — colonize it instead.' };
-  if (target.ownerId === attacker.id) return { error: 'You cannot attack your own island.' };
-  if (target.id === island.id) return { error: 'You cannot attack your own island.' };
+  if (totalUnits(army) < 1) return { error: 'err.sendSomething' };
+  if (target.ownerId == null) return { error: 'err.uninhabited' };
+  if (target.ownerId === attacker.id) return { error: 'err.ownIsland' };
+  if (target.id === island.id) return { error: 'err.ownIsland' };
   const targetOwner = world.players.find((p) => p.id === target.ownerId);
   if (attacker.allianceId && targetOwner && targetOwner.allianceId === attacker.allianceId) {
-    return { error: 'You cannot attack an alliance member.' };
+    return { error: 'err.ally' };
   }
   if (targetOwner && !targetOwner.protectionBroken &&
       playerPoints(world, targetOwner.id) < PROTECTED_POINTS) {
-    return { error: 'That player is under beginner protection.' };
+    return { error: 'err.protected' };
   }
   // Attacking a human forfeits your own protection.
   if (targetOwner && !targetOwner.isBot) attacker.protectionBroken = true;
@@ -348,8 +359,8 @@ function sendAttack(world, attacker, island, target, units, now) {
 
 function sendColonize(world, player, island, target, now) {
   resolveIsland(island, now);
-  if (target.ownerId != null) return { error: 'That island is already inhabited.' };
-  if (island.units.colonyship < 1) return { error: 'You need a Colony Ship at this island.' };
+  if (target.ownerId != null) return { error: 'err.inhabited' };
+  if (island.units.colonyship < 1) return { error: 'err.needColonyShip' };
   island.units.colonyship -= 1;
   const fleet = zeroUnits();
   fleet.colonyship = 1;
@@ -378,12 +389,12 @@ function allianceOf(world, playerId) {
 function createAlliance(world, player, name, tag) {
   name = String(name || '').trim();
   tag = String(tag || '').trim().toUpperCase();
-  if (player.allianceId) return { error: 'You are already in an alliance.' };
-  if (!/^[\w .'-]{3,30}$/.test(name)) return { error: 'Alliance name must be 3-30 characters.' };
-  if (!/^[A-Z0-9]{2,5}$/.test(tag)) return { error: 'Tag must be 2-5 letters or digits.' };
+  if (player.allianceId) return { error: 'err.inAlliance' };
+  if (!/^[\w .'-]{3,30}$/.test(name)) return { error: 'err.allianceName' };
+  if (!/^[A-Z0-9]{2,5}$/.test(tag)) return { error: 'err.allianceTag' };
   if (world.alliances.some((a) =>
     a.name.toLowerCase() === name.toLowerCase() || a.tag === tag)) {
-    return { error: 'That name or tag is already taken.' };
+    return { error: 'err.allianceTaken' };
   }
   const alliance = { id: world.nextId++, name, tag, members: [player.id], invites: [] };
   world.alliances.push(alliance);
@@ -393,23 +404,23 @@ function createAlliance(world, player, name, tag) {
 
 function inviteToAlliance(world, inviter, targetName, now) {
   const alliance = allianceOf(world, inviter.id);
-  if (!alliance) return { error: 'You are not in an alliance.' };
+  if (!alliance) return { error: 'err.noAlliance' };
   const target = world.players.find(
     (p) => !p.isBot && p.name.toLowerCase() === String(targetName || '').trim().toLowerCase()
   );
-  if (!target) return { error: 'No such player.' };
-  if (target.allianceId) return { error: 'They are already in an alliance.' };
-  if (alliance.invites.includes(target.id)) return { error: 'Already invited.' };
+  if (!target) return { error: 'err.noPlayer' };
+  if (target.allianceId) return { error: 'err.theyInAlliance' };
+  if (alliance.invites.includes(target.id)) return { error: 'err.alreadyInvited' };
   alliance.invites.push(target.id);
   sendMessage(world, inviter, target.name,
-    `You are invited to join [${alliance.tag}] ${alliance.name}. Open the Alliance tab to accept.`, now);
+    t(langOf(world, target.id), 'mail.invite', { tag: alliance.tag, name: alliance.name }), now);
   return { ok: true };
 }
 
 function acceptInvite(world, player, allianceId) {
-  if (player.allianceId) return { error: 'You are already in an alliance.' };
+  if (player.allianceId) return { error: 'err.inAlliance' };
   const alliance = world.alliances.find((a) => a.id === Number(allianceId));
-  if (!alliance || !alliance.invites.includes(player.id)) return { error: 'No such invitation.' };
+  if (!alliance || !alliance.invites.includes(player.id)) return { error: 'err.noInvite' };
   alliance.invites = alliance.invites.filter((id) => id !== player.id);
   alliance.members.push(player.id);
   player.allianceId = alliance.id;
@@ -418,14 +429,14 @@ function acceptInvite(world, player, allianceId) {
 
 function declineInvite(world, player, allianceId) {
   const alliance = world.alliances.find((a) => a.id === Number(allianceId));
-  if (!alliance) return { error: 'No such alliance.' };
+  if (!alliance) return { error: 'err.noSuchAlliance' };
   alliance.invites = alliance.invites.filter((id) => id !== player.id);
   return { ok: true };
 }
 
 function leaveAlliance(world, player) {
   const alliance = allianceOf(world, player.id);
-  if (!alliance) return { error: 'You are not in an alliance.' };
+  if (!alliance) return { error: 'err.noAlliance' };
   alliance.members = alliance.members.filter((id) => id !== player.id);
   player.allianceId = null;
   if (alliance.members.length === 0) {
@@ -436,13 +447,13 @@ function leaveAlliance(world, player) {
 
 function sendMessage(world, from, toName, body, now) {
   body = String(body || '').trim();
-  if (!body || body.length > 500) return { error: 'Message must be 1-500 characters.' };
+  if (!body || body.length > 500) return { error: 'err.msgLength' };
   const to = world.players.find(
     (p) => p.name.toLowerCase() === String(toName || '').trim().toLowerCase()
   );
-  if (!to) return { error: 'No such player.' };
-  if (to.isBot) return { error: 'The islanders there do not answer letters.' };
-  if (to.id === from.id) return { error: 'Talking to yourself is free.' };
+  if (!to) return { error: 'err.noPlayer' };
+  if (to.isBot) return { error: 'err.botMail' };
+  if (to.id === from.id) return { error: 'err.selfMail' };
   world.messages.push({
     id: world.nextId++, fromId: from.id, toId: to.id, time: now, body, read: false,
   });
@@ -471,12 +482,16 @@ function applyMovement(world, m) {
   if (!dest) return;
   resolveIsland(dest, m.arrive);
 
+  const at = (i) => `${i.name} (${i.x}:${i.y})`;
+  const originFor = (lang) => (origin ? at(origin) : t(lang, 'origin.unknown'));
+
   if (m.type === 'return') {
+    const L = langOf(world, m.ownerId);
     // The island may have changed hands while they were away.
     if (dest.ownerId !== m.ownerId) {
-      addReport(world, m.ownerId, m.arrive, `Nowhere to return`, [
-        `Your ${fmtUnits(m.units)} reached ${dest.name} (${dest.x}:${dest.y}), but the island is no longer yours.`,
-        'They scattered to the winds.',
+      addReport(world, m.ownerId, m.arrive, t(L, 'report.disband.title'), [
+        t(L, 'report.disband.l1', { units: fmtUnits(m.units, L), island: at(dest) }),
+        t(L, 'report.disband.l2'),
       ]);
       return;
     }
@@ -487,16 +502,18 @@ function applyMovement(world, m) {
         dest.resources[r] = Math.min(cap, dest.resources[r] + m.loot[r]);
       }
     }
-    addReport(world, m.ownerId, m.arrive, `Troops returned to ${dest.name}`, [
-      `Returned: ${fmtUnits(m.units)}.`,
-      m.loot ? `Loot delivered: ${fmtRes(m.loot)}.` : '',
-    ].filter(Boolean));
+    addReport(world, m.ownerId, m.arrive,
+      t(L, 'report.return.title', { island: dest.name }), [
+        t(L, 'report.return.units', { units: fmtUnits(m.units, L) }),
+        m.loot ? t(L, 'report.return.loot', { loot: fmtRes(m.loot, L) }) : '',
+      ].filter(Boolean));
     return;
   }
 
   if (m.type === 'colonize') {
     const settler = world.players.find((p) => p.id === m.ownerId);
     const coords = `(${dest.x}:${dest.y})`;
+    const L = langOf(world, m.ownerId);
     if (dest.ownerId == null && settler) {
       dest.ownerId = settler.id;
       dest.name = `${settler.name}'s Colony`;
@@ -509,19 +526,21 @@ function applyMovement(world, m) {
       dest.queue = [];
       dest.trainQueue = [];
       dest.lastUpdate = m.arrive;
-      addReport(world, m.ownerId, m.arrive, `New colony founded at ${coords}`, [
-        `Your settlers landed and founded ${dest.name}.`,
-        'The ship was broken up for building material.',
-      ]);
+      addReport(world, m.ownerId, m.arrive,
+        t(L, 'report.colonized.title', { coords }), [
+          t(L, 'report.colonized.l1', { island: dest.name }),
+          t(L, 'report.colonized.l2'),
+        ]);
     } else {
       world.movements.push({
         id: world.nextId++, type: 'return', ownerId: m.ownerId,
         fromId: m.toId, toId: m.fromId, units: m.units,
         depart: m.arrive, arrive: m.arrive + (m.arrive - m.depart),
       });
-      addReport(world, m.ownerId, m.arrive, `Colonization failed at ${coords}`, [
-        'Another flag already flies over that island. Your ship is sailing home.',
-      ]);
+      addReport(world, m.ownerId, m.arrive,
+        t(L, 'report.colonizeFail.title', { coords }), [
+          t(L, 'report.colonizeFail.l1'),
+        ]);
     }
     return;
   }
@@ -529,16 +548,18 @@ function applyMovement(world, m) {
   // Attack arrives. Everyone stationed at the destination defends.
   const attacker = world.players.find((p) => p.id === m.ownerId);
   const attackerName = attacker ? attacker.name : 'Unknown';
-  const originName = origin ? `${origin.name} (${origin.x}:${origin.y})` : 'parts unknown';
   const where = `${dest.name} (${dest.x}:${dest.y})`;
+  const atkLang = langOf(world, m.ownerId);
+  const defLang = langOf(world, dest.ownerId);
 
   // If the island became the attacker's own while the army was at sea
   // (e.g. captured by an earlier wave), the army reinforces it instead.
   if (dest.ownerId === m.ownerId) {
     for (const [k, n] of Object.entries(m.units)) dest.units[k] += n;
-    addReport(world, m.ownerId, m.arrive, `Army reinforced ${where}`, [
-      `${fmtUnits(m.units)} arrived to find the island already yours and joined its garrison.`,
-    ]);
+    addReport(world, m.ownerId, m.arrive,
+      t(atkLang, 'report.reinforced.title', { where }), [
+        t(atkLang, 'report.reinforced.l1', { units: fmtUnits(m.units, atkLang) }),
+      ]);
     return;
   }
 
@@ -571,26 +592,34 @@ function applyMovement(world, m) {
       dest.units = survivors;
       dest.queue = [];
       dest.trainQueue = [];
-      addReport(world, m.ownerId, m.arrive, `${where} conquered!`, [
-        `Your army from ${originName} took ${where} from ${oldOwner ? oldOwner.name : 'no one'}.`,
-        `You sent ${fmtUnits(m.units)}; the survivors now garrison the island.`,
-        `Defenders lost: ${fmtUnits(defendersLost)}.`,
-        `Its buildings and stores (${fmtRes({
-          wood: Math.floor(dest.resources.wood),
-          stone: Math.floor(dest.resources.stone),
-          gold: Math.floor(dest.resources.gold),
-        })}) are yours.`,
-      ]);
-      if (oldOwner) {
-        addReport(world, oldOwner.id, m.arrive, `${where} has fallen`, [
-          `${attackerName} attacked from ${originName} with ${fmtUnits(m.units)}.`,
-          `Your garrison of ${fmtUnits(defendersLost)} was wiped out and the island was seized.`,
+      const stores = {
+        wood: Math.floor(dest.resources.wood),
+        stone: Math.floor(dest.resources.stone),
+        gold: Math.floor(dest.resources.gold),
+      };
+      addReport(world, m.ownerId, m.arrive,
+        t(atkLang, 'report.conquered.title', { where }), [
+          t(atkLang, 'report.conquered.l1', {
+            origin: originFor(atkLang), where, owner: oldOwner ? oldOwner.name : '?',
+          }),
+          t(atkLang, 'report.conquered.l2', { sent: fmtUnits(m.units, atkLang) }),
+          t(atkLang, 'report.conquered.l3', { defLost: fmtUnits(defendersLost, atkLang) }),
+          t(atkLang, 'report.conquered.l4', { res: fmtRes(stores, atkLang) }),
         ]);
+      if (oldOwner) {
+        addReport(world, oldOwner.id, m.arrive,
+          t(defLang, 'report.fallen.title', { where }), [
+            t(defLang, 'report.fallen.l1', {
+              attacker: attackerName, origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
+            }),
+            t(defLang, 'report.fallen.l2', { defLost: fmtUnits(defendersLost, defLang) }),
+          ]);
         if (playerIslands(world, oldOwner.id).length === 0) {
           const refuge = newIsland(world, oldOwner.id, `${oldOwner.name}'s Refuge`);
-          addReport(world, oldOwner.id, m.arrive, 'Your people fled across the sea', [
-            `Survivors of your fallen realm settled a new island at (${refuge.x}:${refuge.y}).`,
-          ]);
+          addReport(world, oldOwner.id, m.arrive,
+            t(defLang, 'report.refuge.title'), [
+              t(defLang, 'report.refuge.l1', { coords: `(${refuge.x}:${refuge.y})` }),
+            ]);
         }
       }
       return;
@@ -618,18 +647,24 @@ function applyMovement(world, m) {
       arrive: m.arrive + duration,
     });
 
-    addReport(world, m.ownerId, m.arrive, `Victory at ${where}`, [
-      `Your army from ${originName} attacked ${where}.`,
-      `You sent ${fmtUnits(m.units)}; ${fmtUnits(survivors)} survived.`,
-      m.units.flagship > 0 ? 'Your Flagship went down in the fighting — the island was not captured.' : '',
-      `Defenders lost: ${fmtUnits(defendersLost)}.`,
-      `Plundered ${fmtRes(loot)}. The army is heading home.`,
-    ].filter(Boolean));
-    addReport(world, dest.ownerId, m.arrive, `${where} was raided!`, [
-      `${attackerName} attacked from ${originName} with ${fmtUnits(m.units)}.`,
-      `Your garrison of ${fmtUnits(defendersLost)} was wiped out.`,
-      `They plundered ${fmtRes(loot)}.`,
-    ]);
+    addReport(world, m.ownerId, m.arrive,
+      t(atkLang, 'report.victory.title', { where }), [
+        t(atkLang, 'report.victory.l1', { origin: originFor(atkLang), where }),
+        t(atkLang, 'report.victory.l2', {
+          sent: fmtUnits(m.units, atkLang), survivors: fmtUnits(survivors, atkLang),
+        }),
+        m.units.flagship > 0 ? t(atkLang, 'report.victory.flagshipLost') : '',
+        t(atkLang, 'report.victory.l3', { defLost: fmtUnits(defendersLost, atkLang) }),
+        t(atkLang, 'report.victory.l4', { loot: fmtRes(loot, atkLang) }),
+      ].filter(Boolean));
+    addReport(world, dest.ownerId, m.arrive,
+      t(defLang, 'report.raided.title', { where }), [
+        t(defLang, 'report.raided.l1', {
+          attacker: attackerName, origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
+        }),
+        t(defLang, 'report.raided.l2', { defLost: fmtUnits(defendersLost, defLang) }),
+        t(defLang, 'report.raided.l3', { loot: fmtRes(loot, defLang) }),
+      ]);
   } else {
     const defLossFrac = D > 0 ? Math.pow(A / D, 1.5) : 0;
     const defendersBefore = { ...dest.units };
@@ -639,15 +674,19 @@ function applyMovement(world, m) {
       defendersLost[k] = defendersBefore[k] - dest.units[k];
     }
 
-    addReport(world, m.ownerId, m.arrive, `Defeat at ${where}`, [
-      `Your army from ${originName} attacked ${where}.`,
-      `All ${fmtUnits(m.units)} were lost.`,
-      `The defenders lost ${fmtUnits(defendersLost)}.`,
-    ]);
-    addReport(world, dest.ownerId, m.arrive, `${where} repelled an attack`, [
-      `${attackerName} attacked from ${originName} with ${fmtUnits(m.units)} — all were slain.`,
-      `You lost ${fmtUnits(defendersLost)} holding the line.`,
-    ]);
+    addReport(world, m.ownerId, m.arrive,
+      t(atkLang, 'report.defeat.title', { where }), [
+        t(atkLang, 'report.defeat.l1', { origin: originFor(atkLang), where }),
+        t(atkLang, 'report.defeat.l2', { sent: fmtUnits(m.units, atkLang) }),
+        t(atkLang, 'report.defeat.l3', { defLost: fmtUnits(defendersLost, atkLang) }),
+      ]);
+    addReport(world, dest.ownerId, m.arrive,
+      t(defLang, 'report.repelled.title', { where }), [
+        t(defLang, 'report.repelled.l1', {
+          attacker: attackerName, origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
+        }),
+        t(defLang, 'report.repelled.l2', { defLost: fmtUnits(defendersLost, defLang) }),
+      ]);
   }
 }
 
@@ -708,9 +747,9 @@ function hashPassword(password, salt) {
 
 function createPlayer(world, name, password, isBot) {
   if (world.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-    return { error: 'That name is taken.' };
+    return { error: 'err.nameTaken' };
   }
-  const player = { id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot };
+  const player = { id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang: 'en' };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
     player.hash = hashPassword(password, player.salt);
@@ -799,6 +838,7 @@ function saveWorld(world) {
 
 module.exports = {
   SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, RESOURCES, BUILDINGS, UNITS,
+  LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,

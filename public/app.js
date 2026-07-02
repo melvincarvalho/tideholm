@@ -10,6 +10,61 @@ let clockSkew = 0;        // serverNow - Date.now()
 let pollTimer = null;
 let activeIslandId = null; // which of my islands the island view shows
 
+// ---------------------------------------------------------------- language
+
+const LANG_LABELS = { en: 'English', de: 'Deutsch', cs: 'Čeština' };
+
+let LANG = localStorage.getItem('lang');
+if (!I18N.LANGS.includes(LANG)) {
+  const nav = (navigator.language || 'en').slice(0, 2);
+  LANG = I18N.LANGS.includes(nav) ? nav : 'en';
+}
+
+function T(key, params) { return I18N.t(LANG, key, params); }
+
+const HELP_PAGES = { en: '/help.html', de: '/help.de.html', cs: '/help.cs.html' };
+
+function applyStatic() {
+  document.documentElement.lang = LANG;
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    el.textContent = T(el.dataset.i18n);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-ph]')) {
+    el.placeholder = T(el.dataset.i18nPh);
+  }
+  $('auth-help').href = HELP_PAGES[LANG] || '/help.html';
+  $('game-help').href = HELP_PAGES[LANG] || '/help.html';
+}
+
+function fillLangSelect(sel) {
+  sel.innerHTML = '';
+  for (const l of I18N.LANGS) {
+    const opt = document.createElement('option');
+    opt.value = l;
+    opt.textContent = LANG_LABELS[l] || l;
+    opt.selected = l === LANG;
+    sel.appendChild(opt);
+  }
+}
+
+async function switchLang(lang) {
+  LANG = lang;
+  localStorage.setItem('lang', lang);
+  fillLangSelect($('auth-lang'));
+  fillLangSelect($('game-lang'));
+  applyStatic();
+  if (state) {
+    try { await api('/api/lang', { lang }); } catch { /* offline is fine */ }
+    refresh();
+  }
+}
+
+fillLangSelect($('auth-lang'));
+fillLangSelect($('game-lang'));
+$('auth-lang').addEventListener('change', () => switchLang($('auth-lang').value));
+$('game-lang').addEventListener('change', () => switchLang($('game-lang').value));
+applyStatic();
+
 // ---------------------------------------------------------------- api
 
 async function api(path, body) {
@@ -36,6 +91,7 @@ for (const btn of document.querySelectorAll('.auth-buttons button')) {
       await api(`/api/${mode}`, {
         name: $('auth-name').value,
         password: $('auth-pass').value,
+        lang: LANG,
       });
       enterGame();
     } catch (err) {
@@ -90,8 +146,17 @@ function renderState() {
   const isl = state.island;
   activeIslandId = isl.id;
 
+  // The server knows the account's language; follow it.
+  if (state.lang && state.lang !== LANG && I18N.LANGS.includes(state.lang)) {
+    LANG = state.lang;
+    localStorage.setItem('lang', LANG);
+    fillLangSelect($('auth-lang'));
+    fillLangSelect($('game-lang'));
+    applyStatic();
+  }
+
   $('who').textContent = state.player.name;
-  $('island-title').textContent = `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} points`;
+  $('island-title').textContent = `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}`;
 
   // Island switcher (visible once you hold more than one island)
   const sel = $('island-select');
@@ -124,11 +189,11 @@ function renderState() {
   const qbody = $('queue').querySelector('tbody');
   qbody.innerHTML = '';
   if (!isl.queue.length) {
-    qbody.innerHTML = `<tr><td colspan="3"><i>Nothing under construction.</i></td></tr>`;
+    qbody.innerHTML = `<tr><td colspan="3"><i>${T('ui.queue.empty')}</i></td></tr>`;
   }
   for (const item of isl.queue) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${item.building}</td><td>level ${item.level}</td>
+    tr.innerHTML = `<td>${item.building}</td><td>${T('ui.queue.level', { n: item.level })}</td>
       <td class="countdown" data-finish="${item.finish}"></td>`;
     qbody.appendChild(tr);
   }
@@ -162,16 +227,17 @@ function renderMovements() {
   for (const inc of state.movements.incoming) {
     const div = document.createElement('div');
     div.className = 'movement incoming';
-    div.innerHTML = `⚔️ <b>Incoming attack on ${inc.target}!</b> ${inc.attacker} from ${inc.from} —
-      arrives in <span class="countdown" data-finish="${inc.arrive}"></span>`;
+    div.innerHTML = `${T('ui.move.incoming', { target: inc.target, attacker: inc.attacker, from: inc.from })}
+      <span class="countdown" data-finish="${inc.arrive}"></span>`;
     box.appendChild(div);
   }
   for (const out of state.movements.outgoing) {
     const div = document.createElement('div');
     div.className = 'movement outgoing';
-    const what = out.type === 'attack' ? `🏹 Attacking ${out.target}`
-      : out.type === 'colonize' ? `⛵ Colony ship sailing to ${out.target}`
-      : `🏠 Returning to ${out.target}${out.loot ? ` with 🪵${out.loot.wood} 🪨${out.loot.stone} 🪙${out.loot.gold}` : ''}`;
+    const what = out.type === 'attack' ? T('ui.move.attack', { target: out.target })
+      : out.type === 'colonize' ? T('ui.move.colonize', { target: out.target })
+      : T('ui.move.return', { target: out.target }) +
+        (out.loot ? ` ${T('ui.move.withLoot')} 🪵${out.loot.wood} 🪨${out.loot.stone} 🪙${out.loot.gold}` : '');
     div.innerHTML = `${what} — <span class="countdown" data-finish="${out.arrive}"></span>`;
     box.appendChild(div);
   }
@@ -185,8 +251,8 @@ function renderTroops() {
     const tr = document.createElement('tr');
     const trainCell = u.available
       ? `<input type="number" min="1" max="500" value="${u.ship ? 1 : 5}" id="train-n-${key}">
-         <button data-train="${key}">Train (${fmtTime(u.time)}/ea)</button>`
-      : `<small class="hint">needs ${u.requires}</small>`;
+         <button data-train="${key}">${T('ui.train.button', { t: fmtTime(u.time) })}</button>`
+      : `<small class="hint">${T('ui.needs', { building: u.requires })}</small>`;
     tr.innerHTML = `
       <td><b>${u.name}</b><br><small>${u.desc}</small></td>
       <td>${u.count}</td><td>${u.atk}</td><td>${u.def}</td><td>${u.carry}</td>
@@ -202,7 +268,7 @@ function renderTroops() {
   tbody.innerHTML = '';
   for (const item of isl.trainQueue) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>Training ${item.count} × ${item.unit}</td>
+    tr.innerHTML = `<td>${T('ui.training', { n: item.count, unit: item.unit })}</td>
       <td class="countdown" data-finish="${item.finish}"></td>`;
     tbody.appendChild(tr);
   }
@@ -288,9 +354,9 @@ async function loadMap() {
       if (isl) {
         cell.classList.add('island',
           isl.isYou ? 'you' : isl.unowned ? 'unowned' : isl.isBot ? 'bot' : 'player');
-        const ownerLabel = isl.unowned ? 'uninhabited'
-          : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner + (isl.isBot ? ' [bot]' : '');
-        cell.title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} pts`;
+        const ownerLabel = isl.unowned ? T('ui.map.uninhabited')
+          : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner + (isl.isBot ? ' ' + T('ui.map.bot') : '');
+        cell.title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} ${T('ui.map.pts')}`;
         if (!isl.isYou) cell.addEventListener('click', () => openAttackPanel(isl));
       }
       grid.appendChild(cell);
@@ -309,23 +375,25 @@ function openAttackPanel(target) {
   $('colonize-form').classList.toggle('hidden', !target.unowned);
 
   if (target.unowned) {
-    $('attack-title').textContent = `Colonize ${target.name} (${target.x}:${target.y})`;
+    $('attack-title').textContent = T('ui.colonize.title', { name: target.name, x: target.x, y: target.y });
     const ships = state.unitTypes.colonyship;
     const dist = Math.hypot(state.island.x - target.x, state.island.y - target.y);
     const eta = fmtTime((dist * ships.speed * 60) / state.speed);
     $('colonize-hint').textContent =
-      `Colony Ships at ${state.island.name}: ${ships.count}. Voyage: ${eta}.`;
+      T('ui.colonize.hint', { island: state.island.name, n: ships.count, eta });
     $('colonize-send').disabled = ships.count < 1;
   } else {
-    $('attack-title').textContent =
-      `Attack ${target.name} (${target.x}:${target.y}) — ${target.owner}${target.isBot ? ' [bot]' : ''}`;
+    $('attack-title').textContent = T('ui.attack.title', {
+      name: target.name, x: target.x, y: target.y,
+      owner: target.owner + (target.isBot ? ' ' + T('ui.map.bot') : ''),
+    });
     const box = $('attack-units');
     box.innerHTML = '';
     for (const [key, u] of Object.entries(state.unitTypes)) {
       if (u.ship) continue; // ships don't fight
       const row = document.createElement('label');
       row.className = 'attack-row';
-      row.innerHTML = `${u.name} (have ${u.count})
+      row.innerHTML = `${T('ui.attack.have', { name: u.name, n: u.count })}
         <input type="number" min="0" max="${u.count}" value="0" data-attack-unit="${key}">`;
       box.appendChild(row);
     }
@@ -374,7 +442,7 @@ function updateAttackEta() {
     if (n > 0) slowest = Math.max(slowest, state.unitTypes[k].speed);
   }
   $('attack-eta').textContent = slowest
-    ? fmtTime((dist * slowest * 60) / state.speed) + ' each way'
+    ? fmtTime((dist * slowest * 60) / state.speed) + ' ' + T('ui.attack.eachWay')
     : '—';
 }
 
@@ -405,7 +473,7 @@ async function loadReports() {
   const box = $('report-list');
   box.innerHTML = '';
   if (!data.reports.length) {
-    box.innerHTML = '<p class="hint">No reports yet. Go poke a neighbor.</p>';
+    box.innerHTML = `<p class="hint">${T('ui.reports.empty')}</p>`;
   }
   for (const r of data.reports) {
     const div = document.createElement('div');
@@ -428,7 +496,7 @@ async function loadRankings() {
     const tr = document.createElement('tr');
     if (row.isYou) tr.className = 'me';
     tr.innerHTML = `<td>${idx + 1}</td>
-      <td>${row.name}${row.isBot ? ' <small class="hint">[bot]</small>' : ''}</td>
+      <td>${row.name}${row.isBot ? ` <small class="hint">${T('ui.map.bot')}</small>` : ''}</td>
       <td>${row.alliance ? '[' + row.alliance + ']' : '—'}</td>
       <td>${row.islands}</td><td>${row.points}</td>`;
     tbody.appendChild(tr);
@@ -455,13 +523,13 @@ async function loadAlliance() {
     }
   } else {
     const box = $('alliance-invites');
-    box.innerHTML = data.invites.length ? '' : '<p class="hint">No invitations.</p>';
+    box.innerHTML = data.invites.length ? '' : `<p class="hint">${T('ui.alliance.noInvites')}</p>`;
     for (const inv of data.invites) {
       const div = document.createElement('div');
       div.className = 'movement';
-      div.innerHTML = `[${inv.tag}] ${inv.name} (${inv.members} members)
-        <button data-accept="${inv.id}">Accept</button>
-        <button data-decline="${inv.id}">Decline</button>`;
+      div.innerHTML = `[${inv.tag}] ${inv.name} (${T('ui.alliance.membersOf', { n: inv.members })})
+        <button data-accept="${inv.id}">${T('ui.alliance.accept')}</button>
+        <button data-decline="${inv.id}">${T('ui.alliance.decline')}</button>`;
       box.appendChild(div);
     }
     for (const btn of box.querySelectorAll('button[data-accept]')) {
@@ -498,7 +566,7 @@ $('alliance-invite').addEventListener('submit', (e) => {
 });
 
 $('alliance-leave').addEventListener('click', () => {
-  if (confirm('Leave the alliance?')) allianceAction('leave', {});
+  if (confirm(T('ui.alliance.leaveConfirm'))) allianceAction('leave', {});
 });
 
 // ---------------------------------------------------------------- mail
@@ -506,13 +574,13 @@ $('alliance-leave').addEventListener('click', () => {
 async function loadMessages() {
   const data = await api('/api/messages');
   const box = $('mail-list');
-  box.innerHTML = data.messages.length ? '' : '<p class="hint">No mail. The sea is quiet.</p>';
+  box.innerHTML = data.messages.length ? '' : `<p class="hint">${T('ui.mail.empty')}</p>`;
   for (const msg of data.messages) {
     const div = document.createElement('div');
     div.className = 'report' + (msg.read ? '' : ' unread');
     const when = new Date(msg.time).toLocaleString();
     div.innerHTML = `<b>${msg.from}</b> <small>${when}</small>
-      <button class="mail-reply" data-reply="${msg.from}">Reply</button><br><span></span>`;
+      <button class="mail-reply" data-reply="${msg.from}">${T('ui.mail.reply')}</button><br><span></span>`;
     div.querySelector('span').textContent = msg.body;
     box.appendChild(div);
   }
@@ -531,7 +599,7 @@ $('mail-compose').addEventListener('submit', async (e) => {
   try {
     await api('/api/message', { to: $('mail-to').value, body: $('mail-body').value });
     $('mail-body').value = '';
-    $('mail-error').textContent = 'Sent.';
+    $('mail-error').textContent = T('ui.mail.sent');
   } catch (err) {
     $('mail-error').textContent = err.message;
   }

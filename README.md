@@ -6,6 +6,11 @@ alliances-and-raids gameplay. Original name, assets, text and numbers.
 
 Bots play alongside humans using the exact same rules and actions.
 
+Available in **English, German and Czech** — pick a language on the login
+screen or in-game; the whole UI, error messages and even battle reports are
+rendered in each player's own language (`public/i18n.js` holds the
+dictionary; adding a language is one new block there plus a help page).
+
 ## Run
 
 ```sh

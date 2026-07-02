@@ -194,7 +194,7 @@ console.log('beginner protection');
   ia.units.raider = 10;
   // b is a fresh player (5 points < 40): untouchable
   let r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
-  check('fresh player cannot be attacked', r.error === 'That player is under beginner protection.');
+  check('fresh player cannot be attacked', r.error === 'err.protected');
 
   // b attacks an (attackable) human -> forfeits protection
   ib.units.spearman = 1;
@@ -242,6 +242,51 @@ console.log('speed scaling');
     const g2k = require('./game');
     return Math.round(g2k.productionPerHour('lumberyard', 4)) === 449577;
   })());
+}
+
+// ---------------------------------------------------------------- i18n
+
+console.log('i18n');
+{
+  const { STRINGS, LANGS, t: tr } = require('./public/i18n.js');
+  check('languages available: en, de, cs',
+    LANGS.includes('en') && LANGS.includes('de') && LANGS.includes('cs'));
+
+  // Every language must define exactly the keys English does.
+  let parity = true;
+  const enKeys = Object.keys(STRINGS.en).sort();
+  for (const lang of LANGS) {
+    const keys = Object.keys(STRINGS[lang]).sort();
+    if (keys.length !== enKeys.length || keys.some((k, i) => k !== enKeys[i])) {
+      parity = false;
+      const missing = enKeys.filter((k) => !STRINGS[lang][k]);
+      const extra = keys.filter((k) => !STRINGS.en[k]);
+      console.log(`      ${lang}: missing [${missing.join(', ')}] extra [${extra.join(', ')}]`);
+    }
+  }
+  check('all languages define the same keys', parity);
+
+  check('interpolation fills {params}',
+    tr('en', 'report.victory.title', { where: 'X (1:2)' }) === 'Victory at X (1:2)');
+  check('@-params resolve as keys',
+    tr('de', 'err.buildFirst', { building: '@building.barracks.name' }).includes('Kaserne'));
+  check('unknown key falls back to the key itself', tr('de', 'no.such.key') === 'no.such.key');
+  check('unknown lang falls back to English', tr('xx', 'res.wood') === 'wood');
+
+  // Reports render in each recipient's language.
+  const w = g.createWorld();
+  const att = g.createPlayer(w, 'Angreifer', 'pw', false).player;
+  const def = g.createPlayer(w, 'Obránce', 'pw', false).player;
+  att.lang = 'de'; def.lang = 'cs';
+  att.protectionBroken = def.protectionBroken = true;
+  const ia = g.playerIsland(w, att.id), ib = g.playerIsland(w, def.id);
+  ia.units.raider = 30; ib.units.sentinel = 2;
+  const r = g.sendAttack(w, att, ia, ib, { raider: 30 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  const atkRep = w.reports.find((x) => x.ownerId === att.id);
+  const defRep = w.reports.find((x) => x.ownerId === def.id);
+  check('attacker report is German', atkRep && atkRep.title.startsWith('Sieg bei'));
+  check('defender report is Czech', defRep && defRep.title.includes('vypleněn'));
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

@@ -222,6 +222,14 @@ th { background: #eadfc4; }
 
 .help-link { color: var(--sand); }
 
+.lang-select {
+  font: inherit;
+  padding: 3px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--sand);
+}
+
 /* ---------- small screens ---------- */
 
 @media (max-width: 700px) {

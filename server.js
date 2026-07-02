@@ -10,6 +10,7 @@ const crypto = require('crypto');
 
 const game = require('./game');
 const { spawnBots, botTick } = require('./bots');
+const { t } = require('./public/i18n.js');
 
 const PORT = Number(process.env.PORT || 3000);
 const BOT_COUNT = Number(process.env.BOTS || 20);
@@ -127,6 +128,16 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
+// Error responses: translate a key (from the engine or our own) for the reader.
+function sendErr(res, status, lang, key, params) {
+  return sendJson(res, status, { error: t(lang, key, params) });
+}
+
+// Translate a game-engine {error, errorParams} result.
+function gameErr(res, lang, result) {
+  return sendErr(res, 400, lang, result.error, result.errorParams);
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     let data = '';
@@ -164,15 +175,14 @@ function startSession(res, playerId) {
 
 // ---------------------------------------------------------------- api
 
-function buildingCatalog(island) {
+function buildingCatalog(island, lang) {
   const out = {};
   for (const key of Object.keys(game.BUILDINGS)) {
-    const b = game.BUILDINGS[key];
     const target = game.pendingLevel(island, key) + 1;
     const cost = game.upgradeCost(key, target);
     out[key] = {
-      name: b.name,
-      desc: b.desc,
+      name: t(lang, `building.${key}.name`),
+      desc: t(lang, `building.${key}.desc`),
       level: island.buildings[key],
       nextLevel: target,
       cost,
@@ -183,20 +193,20 @@ function buildingCatalog(island) {
   return out;
 }
 
-function unitCatalog(island) {
+function unitCatalog(island, lang) {
   const out = {};
   for (const [key, u] of Object.entries(game.UNITS)) {
     const need = u.building || 'barracks';
     out[key] = {
-      name: u.name,
-      desc: u.desc,
+      name: t(lang, `unit.${key}.name`),
+      desc: t(lang, `unit.${key}.desc`),
       cost: u.cost,
       atk: u.atk,
       def: u.def,
       carry: u.carry,
       speed: u.speed,
       ship: !!u.ship,
-      requires: game.BUILDINGS[need].name,
+      requires: t(lang, `building.${need}.name`),
       available: island.buildings[need] >= 1,
       time: game.trainTime(key, island.buildings[need]),
       count: island.units[key],
@@ -243,12 +253,14 @@ function myIsland(player, islandId) {
 
 function stateFor(player, islandId) {
   const now = Date.now();
+  const lang = player.lang || 'en';
   const mine = game.playerIslands(world, player.id);
   const island = myIsland(player, islandId);
   game.resolveIsland(island, now);
   return {
     serverNow: now,
     speed: game.SPEED,
+    lang,
     player: { name: player.name },
     islands: mine.map((i) => ({ id: i.id, name: i.name, x: i.x, y: i.y })),
     island: {
@@ -265,21 +277,21 @@ function stateFor(player, islandId) {
       rates: game.islandRates(island),
       points: game.islandPoints(island),
       queue: island.queue.map((q) => ({
-        building: game.BUILDINGS[q.building].name,
+        building: t(lang, `building.${q.building}.name`),
         level: q.level,
         finish: q.finish,
       })),
       queueMax: game.QUEUE_MAX,
       units: island.units,
       trainQueue: island.trainQueue.map((q) => ({
-        unit: game.UNITS[q.unit].name,
+        unit: t(lang, `unit.${q.unit}.name`),
         count: q.count,
         finish: q.finish,
       })),
       trainQueueMax: game.TRAIN_QUEUE_MAX,
     },
-    buildings: buildingCatalog(island),
-    unitTypes: unitCatalog(island),
+    buildings: buildingCatalog(island, lang),
+    unitTypes: unitCatalog(island, lang),
     movements: movementsFor(world, player),
     unreadReports: world.reports.filter((r) => r.ownerId === player.id && !r.read).length,
     unreadMessages: world.messages.filter((msg) => msg.toId === player.id && !msg.read).length,
@@ -288,35 +300,38 @@ function stateFor(player, islandId) {
 
 async function handleApi(req, res, pathname, query) {
   if (req.method === 'POST' && pathname === '/api/register') {
-    if (!rateLimit('reg:' + clientIp(req), 5, 3_600_000)) {
-      return sendJson(res, 429, { error: 'Too many new islands from your address. Try later.' });
-    }
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    const lang = body && game.LANGS.includes(body.lang) ? body.lang : 'en';
+    if (!rateLimit('reg:' + clientIp(req), 5, 3_600_000)) {
+      return sendErr(res, 429, lang, 'err.tooManyReg');
+    }
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const name = String(body.name || '').trim();
     const password = String(body.password || '');
     if (!/^[\w .'-]{2,24}$/.test(name)) {
-      return sendJson(res, 400, { error: 'Name must be 2-24 letters, digits or spaces.' });
+      return sendErr(res, 400, lang, 'err.nameFormat');
     }
-    if (password.length < 3) return sendJson(res, 400, { error: 'Password too short (min 3).' });
+    if (password.length < 3) return sendErr(res, 400, lang, 'err.passwordShort');
     const result = game.createPlayer(world, name, password, false);
-    if (result.error) return sendJson(res, 409, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
+    result.player.lang = lang;
     startSession(res, result.player.id);
     game.saveWorld(world);
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && pathname === '/api/login') {
-    if (!rateLimit('login:' + clientIp(req), 20, 900_000)) {
-      return sendJson(res, 429, { error: 'Too many login attempts. Try later.' });
-    }
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    const lang = body && game.LANGS.includes(body.lang) ? body.lang : 'en';
+    if (!rateLimit('login:' + clientIp(req), 20, 900_000)) {
+      return sendErr(res, 429, lang, 'err.tooManyLogin');
+    }
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const player = world.players.find(
       (p) => !p.isBot && p.name.toLowerCase() === String(body.name || '').trim().toLowerCase()
     );
     if (!player || !game.checkPassword(player, String(body.password || ''))) {
-      return sendJson(res, 401, { error: 'Wrong name or password.' });
+      return sendErr(res, 401, lang, 'err.wrongLogin');
     }
     startSession(res, player.id);
     return sendJson(res, 200, { ok: true });
@@ -331,12 +346,20 @@ async function handleApi(req, res, pathname, query) {
 
   // Everything below requires a session.
   const player = sessionPlayer(req);
-  if (!player) return sendJson(res, 401, { error: 'Not logged in.' });
+  if (!player) return sendErr(res, 401, 'en', 'err.notLoggedIn');
+  const lang = player.lang || 'en';
 
   // Generous for a polling client, hostile to scripts hammering actions.
   const limit = req.method === 'POST' ? ['act:', 20, 10_000] : ['read:', 60, 10_000];
   if (!rateLimit(limit[0] + player.id, limit[1], limit[2])) {
-    return sendJson(res, 429, { error: 'Slow down.' });
+    return sendErr(res, 429, lang, 'err.slowDown');
+  }
+
+  if (req.method === 'POST' && pathname === '/api/lang') {
+    const body = await readBody(req);
+    if (!body || !game.LANGS.includes(body.lang)) return sendErr(res, 400, lang, 'err.badRequest');
+    player.lang = body.lang;
+    return sendJson(res, 200, { ok: true });
   }
 
   // Land any battles/returns due before this request reads or mutates state.
@@ -348,45 +371,45 @@ async function handleApi(req, res, pathname, query) {
 
   if (req.method === 'POST' && pathname === '/api/build') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const island = myIsland(player, body.islandId);
     const result = game.tryBuild(world, island, String(body.building || ''), Date.now());
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, stateFor(player, island.id));
   }
 
   if (req.method === 'POST' && pathname === '/api/train') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const island = myIsland(player, body.islandId);
     const result = game.tryTrain(world, island, String(body.unit || ''), body.count, Date.now());
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, stateFor(player, island.id));
   }
 
   if (req.method === 'POST' && pathname === '/api/attack') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const island = myIsland(player, body.islandId);
     const target = world.islands.find(
       (i) => i.x === Number(body.x) && i.y === Number(body.y)
     );
-    if (!target) return sendJson(res, 400, { error: 'No island at those coordinates.' });
+    if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
     const result = game.sendAttack(world, player, island, target, body.units, Date.now());
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, stateFor(player, island.id));
   }
 
   if (req.method === 'POST' && pathname === '/api/colonize') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const island = myIsland(player, body.islandId);
     const target = world.islands.find(
       (i) => i.x === Number(body.x) && i.y === Number(body.y)
     );
-    if (!target) return sendJson(res, 400, { error: 'No island at those coordinates.' });
+    if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
     const result = game.sendColonize(world, player, island, target, Date.now());
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, stateFor(player, island.id));
   }
 
@@ -422,9 +445,9 @@ async function handleApi(req, res, pathname, query) {
 
   if (req.method === 'POST' && pathname === '/api/message') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const result = game.sendMessage(world, player, body.to, body.body, Date.now());
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -453,39 +476,39 @@ async function handleApi(req, res, pathname, query) {
 
   if (req.method === 'POST' && pathname === '/api/alliance/create') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const result = game.createAlliance(world, player, body.name, body.tag);
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && pathname === '/api/alliance/invite') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const result = game.inviteToAlliance(world, player, body.name, Date.now());
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && pathname === '/api/alliance/accept') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const result = game.acceptInvite(world, player, body.allianceId);
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && pathname === '/api/alliance/decline') {
     const body = await readBody(req);
-    if (!body) return sendJson(res, 400, { error: 'Bad request.' });
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const result = game.declineInvite(world, player, body.allianceId);
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && pathname === '/api/alliance/leave') {
     const result = game.leaveAlliance(world, player);
-    if (result.error) return sendJson(res, 400, { error: result.error });
+    if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, { ok: true });
   }
 
@@ -522,7 +545,7 @@ async function handleApi(req, res, pathname, query) {
     return sendJson(res, 200, { size: game.MAP_SIZE, islands });
   }
 
-  return sendJson(res, 404, { error: 'Not found.' });
+  return sendErr(res, 404, lang, 'err.notFound');
 }
 
 // ---------------------------------------------------------------- static
@@ -560,7 +583,7 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(res, pathname);
   } catch (err) {
     console.error(err);
-    return sendJson(res, 500, { error: 'Server error.' });
+    return sendErr(res, 500, 'en', 'err.serverError');
   }
 });
 
