@@ -6,7 +6,7 @@
 
 const { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
         tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
-        popUsed, popCap, unitPower, sendAttack, sendColonize,
+        popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
         createPlayer, playerIsland, playerIslands, playerPoints } = require('./game');
 
 // Tuning knobs for bot aggression.
@@ -16,6 +16,11 @@ const MIN_RAID_POWER = 150;      // don't sail with a token force
 const SAFE_POINTS = 40;          // beginner protection: owners below this are left alone
 const BULLY_RATIO = 3;           // don't attack owners more than 3x your points
 const MAX_BOT_ISLANDS = 3;
+const SCOUT_CHANCE = 0.1;         // per bot per tick
+const CONQUER_CHANCE = 0.06;      // per bot per tick, once a flagship is ready
+const MIN_CONQUER_POWER = 600;    // don't sail a flagship with a token escort
+const HUMAN_CONQUER_FLOOR = 150;  // never run conquest campaigns vs small humans
+const INTEL_MAX_AGE = 12 * 3600 * 1000; // intel goes stale after 12h
 
 const BOT_NAMES = [
   'Barnacle Bill', 'Coral Kate', 'Driftwood Dan', 'Kelpie', 'Old Wrack',
@@ -58,8 +63,9 @@ function chooseUpgrade(island) {
   // A wall keeps the raiders honest.
   if (lvl('barracks') >= 1 && lvl('wall') < 4 && minProd >= lvl('wall') + 4) return 'wall';
 
-  // A harbor opens the way to expansion.
+  // A harbor opens the way to expansion — and level 2 to conquest.
   if (lvl('harbor') === 0 && lvl('barracks') >= 2 && minProd >= 6) return 'harbor';
+  if (lvl('harbor') === 1 && lvl('barracks') >= 3 && minProd >= 8) return 'harbor';
 
   // Otherwise raise the lowest producer.
   const producers = ['lumberyard', 'quarry', 'goldmine'];
@@ -79,9 +85,17 @@ function maybeTrain(world, bot, island, now) {
     return; // whether or not it could afford one, it's saving up
   }
   if (island.buildings.barracks < 1) return;
+  // A capable bot saves for a flagship and dreams of conquest.
+  if (island.buildings.harbor >= 2 && island.buildings.barracks >= 3 &&
+      island.units.flagship === 0 &&
+      playerIslands(world, bot.id).length < MAX_BOT_ISLANDS &&
+      Math.random() < 0.1) {
+    tryTrain(world, island, 'flagship', 1, now);
+    return;
+  }
   if (Math.random() > 0.5) return;
-  // A few scouts for counter-espionage, then a defense-weighted garrison.
-  if (island.units.scout < 5 && Math.random() < 0.3) {
+  // A few scouts for counter-espionage and reconnaissance.
+  if (island.units.scout < 8 && Math.random() < 0.3) {
     tryTrain(world, island, 'scout', 2, now);
     return;
   }
@@ -101,9 +115,10 @@ function raidArmy(island) {
   };
 }
 
-function pickRaidTarget(world, bot, from) {
+function pickRaidTarget(world, bot, from, myPower, now) {
   const myPoints = playerPoints(world, bot.id);
   const grudges = bot.grudges || {};
+  const intel = bot.intel || {};
   let best = null;
   let bestScore = -Infinity;
   for (const island of world.islands) {
@@ -115,7 +130,13 @@ function pickRaidTarget(world, bot, from) {
     if (ownerPoints > myPoints * BULLY_RATIO) continue; // don't poke giants
     // Prefer whoever wronged us, then close and weak.
     const grudge = grudges[island.ownerId] || 0;
-    const score = grudge * 50 - dist * 2 - ownerPoints / 20;
+    let score = grudge * 50 - dist * 2 - ownerPoints / 20;
+    // Scouted intel: skip known fortresses, favor known soft targets.
+    const known = intel[island.id];
+    if (known && now - known.time < INTEL_MAX_AGE && myPower) {
+      if (known.def >= myPower) continue;
+      if (known.def < myPower * 0.7) score += 30;
+    }
     if (score > bestScore) {
       bestScore = score;
       best = island;
@@ -132,14 +153,54 @@ function maybeRaid(world, bot, now) {
   const from = islands.reduce((a, b) =>
     unitPower(raidArmy(a), 'atk') >= unitPower(raidArmy(b), 'atk') ? a : b);
   const army = raidArmy(from);
-  if (unitPower(army, 'atk') < MIN_RAID_POWER) return; // still mustering
-  const target = pickRaidTarget(world, bot, from);
+  const power = unitPower(army, 'atk');
+  if (power < MIN_RAID_POWER) return; // still mustering
+  const target = pickRaidTarget(world, bot, from, power, now);
   if (!target) return;
   const result = sendAttack(world, bot, from, target, army, now);
   if (!result.error && bot.grudges && bot.grudges[target.ownerId]) {
     bot.grudges[target.ownerId] -= 1; // one raid settles one score
     if (bot.grudges[target.ownerId] <= 0) delete bot.grudges[target.ownerId];
   }
+}
+
+// Reconnaissance: send a few scouts at raid-worthy targets to build intel.
+function maybeScout(world, bot, now) {
+  if (Math.random() > SCOUT_CHANCE) return;
+  const islands = playerIslands(world, bot.id);
+  const from = islands.find((i) => i.units.scout >= 3);
+  if (!from) return;
+  const target = pickRaidTarget(world, bot, from, 0, now);
+  if (!target) return;
+  sendScout(world, bot, from, target, 3, now);
+}
+
+// Conquest campaigns: a flagship, a real escort, and a target it can bully —
+// but never a small human's home. The loyalty engine does the rest; repeated
+// campaigns wear a target down to capture.
+function maybeConquer(world, bot, now) {
+  if (Math.random() > CONQUER_CHANCE) return;
+  if (playerIslands(world, bot.id).length >= MAX_BOT_ISLANDS) return;
+  const from = playerIslands(world, bot.id).find((i) => i.units.flagship >= 1);
+  if (!from) return;
+  const army = raidArmy(from);
+  army.flagship = 1;
+  if (unitPower(army, 'atk') < MIN_CONQUER_POWER) return;
+  const myPoints = playerPoints(world, bot.id);
+  let best = null;
+  let bestDist = Infinity;
+  for (const island of world.islands) {
+    if (island.ownerId == null || island.ownerId === bot.id) continue;
+    const dist = Math.hypot(island.x - from.x, island.y - from.y);
+    if (dist > RAID_RANGE) continue;
+    const owner = world.players.find((p) => p.id === island.ownerId);
+    const ownerPoints = playerPoints(world, island.ownerId);
+    if (ownerPoints < SAFE_POINTS * 2) continue;        // no stomping the small
+    if (owner && !owner.isBot && ownerPoints < HUMAN_CONQUER_FLOOR) continue;
+    if (ownerPoints > myPoints) continue;               // only fight downhill
+    if (dist < bestDist) { bestDist = dist; best = island; }
+  }
+  if (best) sendAttack(world, bot, from, best, army, now);
 }
 
 function maybeColonize(world, bot, now) {
@@ -174,7 +235,9 @@ function botTick(world, now) {
       if (!canAfford(island, cost)) continue; // save up
       tryBuild(world, island, key, now);
     }
+    maybeScout(world, player, now);
     maybeRaid(world, player, now);
+    maybeConquer(world, player, now);
     maybeColonize(world, player, now);
   }
 }

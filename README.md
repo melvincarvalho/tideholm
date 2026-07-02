@@ -65,6 +65,14 @@ shutdown. Delete that file to start a fresh world.
   the Harbor — capacity 250 × 1.5^(level-1) per shipment.
 - Quality of life: rename your islands, a battle simulator in the attack
   panel, the map centers on your island, and unicode player names.
+- Morale: attacking a much smaller player blunts your attack (down to 30%).
+  Optional night defense bonus via `NIGHT_BONUS=22-6`.
+- Victory: a player or alliance holding `WIN_SHARE` (default 60%) of all
+  islands wins the world — announced to everyone, banner in the UI. Start
+  a new season by deleting `data/world.json`.
+- Bots wage real war: they scout targets and remember the intel, skip
+  fortresses, favor soft targets, and run flagship conquest campaigns
+  against empires their own size — never against small humans (<150 pts).
 - Rankings tab: every player by total points. Mail tab: write to any human
   player. Alliance tab: found an alliance (name + tag), invite players,
   accept or decline invitations. Allies cannot attack each other, and
@@ -103,6 +111,7 @@ already own (e.g. captured by an earlier wave) reinforces it.
 6. ✅ Alliances, messaging, rankings
 7. ✅ War depth: loyalty conquest, support troops, scouts, wall, farm cap
 8. ✅ Trade shipments + QoL: renaming, battle simulator, map centering
+9. ✅ Bot war college, dominance victory, morale, night bonus
 
 ## Running it for real
 

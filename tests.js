@@ -436,6 +436,114 @@ console.log('beginner protection');
   check('bots spawn without protection', bot.protectionBroken === true);
 }
 
+// ---------------------------------------------------------------- morale & victory
+
+console.log('morale & victory');
+{
+  // Equal points: 10 raiders (A=240) crush 7 sentinels (D=210)...
+  const w1 = freshWorld();
+  w1.ia.units.raider = 10; w1.ib.units.sentinel = 7;
+  const r1 = g.sendAttack(w1.w, w1.a, w1.ia, w1.ib, { raider: 10 }, t0);
+  g.resolveWorld(w1.w, r1.arrive + 1);
+  check('equal-points attack wins at full strength', g.totalUnits(w1.ib.units) === 0);
+
+  // ...but a giant attacking a minnow fights at reduced morale and bounces.
+  const w2 = freshWorld();
+  Object.assign(w2.ia.buildings, { lumberyard: 12, quarry: 12, goldmine: 12, hall: 8 });
+  w2.ia.units.raider = 10; w2.ib.units.sentinel = 7;
+  const r2 = g.sendAttack(w2.w, w2.a, w2.ia, w2.ib, { raider: 10 }, t0);
+  g.resolveWorld(w2.w, r2.arrive + 1);
+  check('morale blunts a giant bullying a minnow', w2.ib.units.sentinel > 0);
+  check('morale line in the attacker report',
+    w2.w.reports.some((x) => x.ownerId === w2.a.id && x.lines.some((l) => l.includes('morale'))));
+}
+{
+  const { w, a, b } = freshWorld();
+  // b holds 1 island; hand a everything else plus enough uncharted claims
+  for (let i = 0; i < 8; i++) g.newUnchartedIsland(w);
+  for (const island of w.islands) {
+    if (island.ownerId == null || island.ownerId === a.id) island.ownerId = a.id;
+  }
+  // a owns 9 of 10 = 90% >= 60%
+  const win = g.checkVictory(w, t0);
+  check('dominant player wins the world', !!win && win.name === 'A' && win.share >= 60);
+  check('winner recorded on the world', w.winner && w.winner.islands === win.islands);
+  check('humans got the announcement',
+    w.reports.filter((x) => x.title === 'The world has been won!').length === 2);
+  check('victory fires only once', g.checkVictory(w, t0 + 1000) === null);
+}
+
+// ---------------------------------------------------------------- bot AI phase 2
+
+console.log('bot war college');
+{
+  const { botTick } = require('./bots');
+  const w = g.createWorld();
+  const bot = g.createPlayer(w, 'Warbot', null, true).player;
+  const prey = g.createPlayer(w, 'Prey Human', 'pw', false).player;
+  prey.protectionBroken = true;
+  const bi = g.playerIsland(w, bot.id);
+  const pi = g.playerIsland(w, prey.id);
+  bi.x = 0; bi.y = 0; pi.x = 0; pi.y = 4;
+  // Prey is a real empire (>150 pts), bot is bigger and armed for conquest
+  Object.assign(pi.buildings, { lumberyard: 10, quarry: 10, goldmine: 9, storehouse: 6, hall: 4 });
+  Object.assign(bi.buildings, { lumberyard: 12, quarry: 12, goldmine: 11, storehouse: 8, hall: 6, barracks: 4, harbor: 2 });
+  bi.units.raider = 40; bi.units.spearman = 20; bi.units.scout = 5; bi.units.flagship = 1;
+
+  let scouted = false, conquestSent = false;
+  for (let i = 0; i < 600 && !(scouted && conquestSent); i++) {
+    botTick(w, t0 + i);
+    for (const m of w.movements) {
+      if (m.type === 'scout' && m.ownerId === bot.id) scouted = true;
+      if (m.type === 'attack' && m.ownerId === bot.id && m.units.flagship >= 1) conquestSent = true;
+    }
+    w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
+    bi.units.raider = 40; bi.units.spearman = 20; bi.units.scout = 5; bi.units.flagship = 1;
+  }
+  check('bot sends scouting missions', scouted);
+  check('bot launches flagship conquest campaigns', conquestSent);
+
+  // intel is captured machine-readably when bot scouts succeed
+  const r = g.sendScout(w, bot, bi, pi, 3, t0 + 100000);
+  g.resolveWorld(w, r.arrive + 1);
+  check('bot stores intel from scouts',
+    bot.intel && bot.intel[pi.id] && typeof bot.intel[pi.id].def === 'number');
+
+  // intel steers raids away from fortresses
+  bot.intel[pi.id] = { def: 999999, time: t0 + 200000 };
+  let raided = false;
+  for (let i = 0; i < 400; i++) {
+    botTick(w, t0 + 200000 + i);
+    if (w.movements.some((m) => m.type === 'attack' && m.ownerId === bot.id && !m.units.flagship)) raided = true;
+    w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
+    bi.units.raider = 40; bi.units.spearman = 20;
+    bi.units.flagship = 0; // no conquest this round, raids only
+  }
+  check('bot avoids targets its intel calls fortresses', !raided);
+}
+{
+  // small humans are never conquest targets, even when raid-eligible
+  const { botTick } = require('./bots');
+  const w = g.createWorld();
+  const bot = g.createPlayer(w, 'Warbot', null, true).player;
+  const small = g.createPlayer(w, 'Small Human', 'pw', false).player;
+  small.protectionBroken = true;
+  const bi = g.playerIsland(w, bot.id);
+  const si = g.playerIsland(w, small.id);
+  bi.x = 0; bi.y = 0; si.x = 0; si.y = 3;
+  Object.assign(si.buildings, { lumberyard: 6, quarry: 6, goldmine: 5 }); // ~90 pts: raidable, not conquerable
+  Object.assign(bi.buildings, { lumberyard: 12, quarry: 12, goldmine: 11, barracks: 4, harbor: 2 });
+  bi.units.raider = 40; bi.units.spearman = 20; bi.units.flagship = 1;
+  let flagshipAtSmall = false;
+  for (let i = 0; i < 400; i++) {
+    botTick(w, t0 + i);
+    if (w.movements.some((m) => m.ownerId === bot.id && m.units.flagship >= 1)) flagshipAtSmall = true;
+    w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
+    bi.units.raider = 40; bi.units.spearman = 20; bi.units.flagship = 1;
+  }
+  check('bots never aim flagships at small humans', !flagshipAtSmall);
+}
+
 // ---------------------------------------------------------------- speed scaling
 
 console.log('speed scaling');

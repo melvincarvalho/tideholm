@@ -155,6 +155,17 @@ function renderState() {
     applyStatic();
   }
 
+  const banner = $('winner-banner');
+  banner.classList.toggle('hidden', !state.winner);
+  if (state.winner) {
+    banner.textContent = T('ui.winner', {
+      name: state.winner.name,
+      n: state.winner.islands,
+      total: state.winner.total,
+      share: state.winner.share,
+    });
+  }
+
   $('who').textContent = state.player.name;
   $('island-title').textContent =
     `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}` +

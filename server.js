@@ -63,6 +63,7 @@ if (!world) {
 
 setInterval(() => botTick(world, Date.now()), 15000);
 setInterval(() => game.resolveWorld(world, Date.now()), 5000); // battles land on time
+setInterval(() => game.checkVictory(world, Date.now()), 60000);
 setInterval(() => game.saveWorld(world), 30000);
 
 // Rolling world backups: every 15 minutes, keep the last BACKUP_KEEP.
@@ -318,6 +319,7 @@ function stateFor(player, islandId) {
       }),
     unreadReports: world.reports.filter((r) => r.ownerId === player.id && !r.read).length,
     unreadMessages: world.messages.filter((msg) => msg.toId === player.id && !msg.read).length,
+    winner: world.winner || null,
   };
 }
 

@@ -134,6 +134,22 @@ const LOYALTY_AFTER_CAPTURE = 25;
 const WALL_FLAT_DEF = 15;
 const WALL_DEF_BONUS = 0.08;
 
+// Morale: attacking a much smaller player weakens the attack, down to 30%.
+const MORALE_FLOOR = 0.3;
+
+// Optional night defense bonus, e.g. NIGHT_BONUS=22-6 (server-local hours).
+const NIGHT = String(process.env.NIGHT_BONUS || '').match(/^(\d{1,2})-(\d{1,2})$/);
+function nightFactor(time) {
+  if (!NIGHT) return 1;
+  const h = new Date(time).getHours();
+  const s = Number(NIGHT[1]), e = Number(NIGHT[2]);
+  const inNight = s < e ? h >= s && h < e : h >= s || h < e;
+  return inNight ? 1.5 : 1;
+}
+
+// Dominance victory: one player or alliance holding this share of all islands.
+const WIN_SHARE = Number(process.env.WIN_SHARE || 0.6);
+
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
 const PROD_GROWTH = 1.12;
@@ -777,6 +793,17 @@ function applyMovement(world, m) {
       .filter(([, lvl]) => lvl > 0)
       .map(([k, lvl]) => `${t(atkLang, `building.${k}.name`)} ${lvl}`)
       .join(', ');
+    // Bots keep machine-readable intel from their scouts.
+    if (attacker && attacker.isBot) {
+      let dPow = unitPower(dest.units, 'def');
+      for (const c of dest.support || []) dPow += unitPower(c.units, 'def');
+      const wl = dest.buildings.wall || 0;
+      attacker.intel = attacker.intel || {};
+      attacker.intel[dest.id] = {
+        def: Math.round((dPow + WALL_FLAT_DEF * wl) * (1 + WALL_DEF_BONUS * wl)),
+        time: m.arrive,
+      };
+    }
     addReport(world, m.ownerId, m.arrive,
       t(atkLang, 'report.scout.title', { where }), [
         t(atkLang, 'report.scout.garrison', { units: fmtUnits(dest.units, atkLang) }),
@@ -823,12 +850,22 @@ function applyMovement(world, m) {
     defOwner.grudges[attacker.id] = (defOwner.grudges[attacker.id] || 0) + 1;
   }
 
-  const A = unitPower(m.units, 'atk');
+  // Morale: bullying much smaller players blunts the attack.
+  let morale = 1;
+  if (attacker && defOwner) {
+    const ap = playerPoints(world, attacker.id);
+    const dp = playerPoints(world, defOwner.id);
+    if (ap > dp && dp > 0) morale = Math.max(MORALE_FLOOR, Math.sqrt(dp / ap));
+  }
+  const A = unitPower(m.units, 'atk') * morale;
   dest.support = dest.support || [];
   let defPower = unitPower(dest.units, 'def');
   for (const c of dest.support) defPower += unitPower(c.units, 'def');
   const wallBefore = dest.buildings.wall || 0;
-  const D = Math.round((defPower + WALL_FLAT_DEF * wallBefore) * (1 + WALL_DEF_BONUS * wallBefore));
+  const D = Math.round((defPower + WALL_FLAT_DEF * wallBefore)
+    * (1 + WALL_DEF_BONUS * wallBefore) * nightFactor(m.arrive));
+  const moraleLine = (lang) => (morale < 0.995
+    ? t(lang, 'report.morale.line', { pct: Math.round(morale * 100) }) : '');
 
   // A battle report line for each support sender, in their own language.
   const notifySupportLosses = (contingent, lost, wiped) => {
@@ -942,6 +979,7 @@ function applyMovement(world, m) {
     addReport(world, m.ownerId, m.arrive,
       t(atkLang, 'report.victory.title', { where }), [
         t(atkLang, 'report.victory.l1', { origin: originFor(atkLang), where }),
+        moraleLine(atkLang),
         t(atkLang, 'report.victory.l2', {
           sent: fmtUnits(m.units, atkLang), survivors: fmtUnits(survivors, atkLang),
         }),
@@ -988,9 +1026,10 @@ function applyMovement(world, m) {
     addReport(world, m.ownerId, m.arrive,
       t(atkLang, 'report.defeat.title', { where }), [
         t(atkLang, 'report.defeat.l1', { origin: originFor(atkLang), where }),
+        moraleLine(atkLang),
         t(atkLang, 'report.defeat.l2', { sent: fmtUnits(m.units, atkLang) }),
         t(atkLang, 'report.defeat.l3', { defLost: fmtUnits(defendersLost, atkLang) }),
-      ]);
+      ].filter(Boolean));
     addReport(world, dest.ownerId, m.arrive,
       t(defLang, 'report.repelled.title', { where }), [
         t(defLang, 'report.repelled.l1', {
@@ -999,6 +1038,55 @@ function applyMovement(world, m) {
         t(defLang, 'report.repelled.l2', { defLost: fmtUnits(defendersLost, defLang) }),
       ]);
   }
+}
+
+// ---------------------------------------------------------------- victory
+
+// A player or alliance holding WIN_SHARE of all islands wins the world.
+// The winner is recorded once and announced to every human player.
+function checkVictory(world, now) {
+  if (world.winner) return null;
+  const total = world.islands.length;
+  const byPlayer = new Map();
+  for (const island of world.islands) {
+    if (island.ownerId == null) continue;
+    byPlayer.set(island.ownerId, (byPlayer.get(island.ownerId) || 0) + 1);
+  }
+  const byAlliance = new Map();
+  for (const [pid, n] of byPlayer) {
+    const p = world.players.find((x) => x.id === pid);
+    if (p && p.allianceId) {
+      byAlliance.set(p.allianceId, (byAlliance.get(p.allianceId) || 0) + n);
+    }
+  }
+  let winner = null;
+  for (const [pid, n] of byPlayer) {
+    if (n / total >= WIN_SHARE) {
+      const p = world.players.find((x) => x.id === pid);
+      winner = { name: p ? p.name : '?', islands: n };
+    }
+  }
+  for (const [aid, n] of byAlliance) {
+    if (n / total >= WIN_SHARE && (!winner || n > winner.islands)) {
+      const a = world.alliances.find((x) => x.id === aid);
+      winner = { name: a ? `[${a.tag}] ${a.name}` : '?', islands: n };
+    }
+  }
+  if (!winner) return null;
+  world.winner = {
+    ...winner,
+    total,
+    share: Math.round((100 * winner.islands) / total),
+    time: now,
+  };
+  for (const p of world.players) {
+    if (p.isBot) continue;
+    const L = p.lang || 'en';
+    addReport(world, p.id, now, t(L, 'report.worldWon.title'), [
+      t(L, 'report.worldWon.l1', { name: world.winner.name, n: winner.islands, total }),
+    ]);
+  }
+  return world.winner;
 }
 
 // ---------------------------------------------------------------- world
@@ -1175,7 +1263,7 @@ module.exports = {
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
-  tradeCapacity, sendTrade, renameIsland,
+  tradeCapacity, sendTrade, renameIsland, checkVictory,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
