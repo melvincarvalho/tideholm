@@ -436,6 +436,113 @@ console.log('beginner protection');
   check('bots spawn without protection', bot.protectionBroken === true);
 }
 
+// ---------------------------------------------------------------- market
+
+console.log('market');
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  check('offer needs a harbor',
+    g.createOffer(w, a, ia, { res: 'wood', amount: 100 }, { res: 'gold', amount: 50 }, t0).error === 'err.buildFirst');
+  ia.buildings.harbor = 1;
+  ib.buildings.harbor = 1;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 500, stone: 0, gold: 0 };
+  check('same-resource offer rejected',
+    g.createOffer(w, a, ia, { res: 'wood', amount: 100 }, { res: 'wood', amount: 50 }, t0).error === 'err.badRequest');
+  check('unaffordable offer rejected',
+    g.createOffer(w, a, ia, { res: 'gold', amount: 10 }, { res: 'wood', amount: 5 }, t0).error === 'err.noResources');
+
+  const r = g.createOffer(w, a, ia, { res: 'wood', amount: 200 }, { res: 'gold', amount: 100 }, t0);
+  check('offer posted, goods escrowed', !r.error && Math.floor(ia.resources.wood) === 300);
+
+  // limit
+  for (let i = 0; i < 4; i++) {
+    g.createOffer(w, a, ia, { res: 'wood', amount: 10 }, { res: 'gold', amount: 5 }, t0);
+  }
+  check('offer limit enforced',
+    g.createOffer(w, a, ia, { res: 'wood', amount: 10 }, { res: 'gold', amount: 5 }, t0).error === 'err.offerLimit');
+
+  // cancel refunds
+  const mine = w.offers.filter((o) => o.playerId === a.id);
+  const beforeCancel = ia.resources.wood;
+  g.cancelOffer(w, a, mine[1].id, t0);
+  check('cancel refunds the escrow', ia.resources.wood >= beforeCancel + 9);
+
+  // accept: buyer pays, two shipments cross
+  g.resolveIsland(ib, t0);
+  ib.resources = { wood: 0, stone: 0, gold: 300 };
+  check('cannot accept own offer', g.acceptOffer(w, a, ia, mine[0].id, t0).error === 'err.ownOffer');
+  const acc = g.acceptOffer(w, b, ib, mine[0].id, t0);
+  check('offer accepted', !acc.error && Math.floor(ib.resources.gold) === 200);
+  const legs = w.movements.filter((m) => m.type === 'trade');
+  check('two trade legs created', legs.length === 2);
+  g.resolveWorld(w, Math.max(...legs.map((m) => m.arrive)) + 1);
+  check('buyer received the goods', ib.resources.wood >= 200);
+  check('seller received the payment', ia.resources.gold >= 100);
+  check('offer removed from the market', !w.offers.some((o) => o.id === mine[0].id));
+}
+
+// ---------------------------------------------------------------- diplomacy & board
+
+console.log('diplomacy & board');
+{
+  const { w, a, b } = freshWorld();
+  const c = g.createPlayer(w, 'C', 'pw', false).player;
+  g.createAlliance(w, a, 'Wolves', 'WOLF');
+  g.createAlliance(w, b, 'Bears', 'BEAR');
+
+  check('non-leader cannot set stances', (() => {
+    // c joins WOLF as a regular member
+    g.inviteToAlliance(w, a, 'C', t0);
+    g.acceptInvite(w, c, a.allianceId);
+    return g.setStance(w, c, b.allianceId, 'war', t0).error === 'err.notLeader';
+  })());
+
+  // mutual ally requires both sides
+  g.setStance(w, a, b.allianceId, 'ally', t0);
+  check('one-sided ally is not effective',
+    g.allianceRelation(w, a.allianceId, b.allianceId) === null);
+  g.setStance(w, b, a.allianceId, 'ally', t0);
+  check('mutual ally is effective',
+    g.allianceRelation(w, a.allianceId, b.allianceId) === 'ally');
+
+  // pact blocks attacks between members
+  const ia = g.playerIsland(w, a.id), ib2 = g.playerIsland(w, b.id);
+  ia.units.raider = 10;
+  check('pact blocks the attack',
+    g.sendAttack(w, a, ia, ib2, { raider: 10 }, t0).error === 'err.pact');
+
+  // war is unilateral and overrides, with reports to both sides
+  const reportsBefore = w.reports.length;
+  g.setStance(w, b, a.allianceId, 'war', t0);
+  check('war overrides the old friendship',
+    g.allianceRelation(w, a.allianceId, b.allianceId) === 'war');
+  check('war declaration notifies both alliances', w.reports.length >= reportsBefore + 3);
+  check('attacks flow again in wartime',
+    !g.sendAttack(w, a, ia, ib2, { raider: 10 }, t0).error);
+
+  // board
+  check('outsiders cannot post', (() => {
+    const d = g.createPlayer(w, 'D', 'pw', false).player;
+    return g.postBoard(w, d, 'hello', t0).error === 'err.noAlliance';
+  })());
+  g.postBoard(w, a, 'Muster at dawn.', t0);
+  g.postBoard(w, c, 'Aye.', t0 + 1000);
+  check('members post to the board', w.boards[a.allianceId].length === 2);
+  for (let i = 0; i < 60; i++) g.postBoard(w, a, 'spam ' + i, t0 + 2000 + i);
+  check('board capped at 50 posts', w.boards[a.allianceId].length === 50);
+}
+{
+  // human scout intel is captured and shareable
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.units.scout = 5;
+  ib.units.sentinel = 4;
+  const r = g.sendScout(w, a, ia, ib, 5, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('human scouts store machine intel',
+    a.intel && a.intel[ib.id] && a.intel[ib.id].def >= 4 * 30);
+}
+
 // ---------------------------------------------------------------- quests
 
 console.log('quests');

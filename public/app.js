@@ -114,11 +114,12 @@ $('tab-island').addEventListener('click', () => showTab('island'));
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
+$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); });
 $('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
 function showTab(which) {
-  for (const t of ['island', 'map', 'reports', 'rankings', 'alliance', 'messages']) {
+  for (const t of ['island', 'map', 'reports', 'rankings', 'market', 'alliance', 'messages']) {
     $(`view-${t}`).classList.toggle('hidden', t !== which);
     $(`tab-${t}`).classList.toggle('active', t === which);
   }
@@ -440,9 +441,14 @@ async function loadMap() {
       if (isl) {
         cell.classList.add('island',
           isl.isYou ? 'you' : isl.unowned ? 'unowned' : isl.isBot ? 'bot' : 'player');
+        if (isl.relation === 'ally' || isl.relation === 'same') cell.classList.add('rel-ally');
+        if (isl.relation === 'war') cell.classList.add('rel-war');
         const ownerLabel = isl.unowned ? T('ui.map.uninhabited')
           : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner + (isl.isBot ? ' ' + T('ui.map.bot') : '');
-        cell.title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} ${T('ui.map.pts')}`;
+        let title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} ${T('ui.map.pts')}`;
+        if (isl.relation && isl.relation !== 'same') title += `\n${T('ui.dip.' + isl.relation)}`;
+        if (isl.intel) title += `\n${T('ui.map.intel', { def: isl.intel.def, h: isl.intel.hours })}`;
+        cell.title = title;
         const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
         if (isActive) myCell = cell;
         if (!isActive) cell.addEventListener('click', () => openAttackPanel(isl));
@@ -728,6 +734,92 @@ async function loadRankings() {
   });
 }
 
+// ---------------------------------------------------------------- market
+
+const RES_EMOJI = { wood: '🪵', stone: '🪨', gold: '🪙' };
+
+function fillResSelects() {
+  for (const sel of [$('offer-give-res'), $('offer-want-res')]) {
+    if (sel.options.length) continue;
+    for (const r of ['wood', 'stone', 'gold']) {
+      const opt = document.createElement('option');
+      opt.value = r;
+      opt.textContent = `${RES_EMOJI[r]} ${T('res.' + r)}`;
+      sel.appendChild(opt);
+    }
+  }
+  $('offer-want-res').selectedIndex = 2;
+}
+
+function offerLabel(o) {
+  return T('ui.market.gives', {
+    give: `${RES_EMOJI[o.give.res]}${o.give.amount}`,
+    want: `${RES_EMOJI[o.want.res]}${o.want.amount}`,
+  });
+}
+
+async function loadMarket() {
+  fillResSelects();
+  $('market-error').textContent = '';
+  const data = await api('/api/market');
+  const mine = data.offers.filter((o) => o.isMine);
+  const open = data.offers.filter((o) => !o.isMine);
+
+  $('offers-mine-box').classList.toggle('hidden', !mine.length);
+  const mineBox = $('offers-mine');
+  mineBox.innerHTML = '';
+  for (const o of mine) {
+    const div = document.createElement('div');
+    div.className = 'movement';
+    div.innerHTML = `${offerLabel(o)}
+      <button data-cancel="${o.id}">${T('ui.market.cancel')}</button>`;
+    mineBox.appendChild(div);
+  }
+
+  const openBox = $('offers-open');
+  openBox.innerHTML = open.length ? '' : `<p class="hint">${T('ui.market.none')}</p>`;
+  for (const o of open) {
+    const div = document.createElement('div');
+    div.className = 'movement';
+    div.innerHTML = `${offerLabel(o)} — ${T('ui.market.by', { name: o.by })} (${o.x}:${o.y})
+      <button data-accept-offer="${o.id}">${T('ui.market.accept')}</button>`;
+    openBox.appendChild(div);
+  }
+
+  const act = async (path, body) => {
+    $('market-error').textContent = '';
+    try {
+      await api(path, body);
+      loadMarket();
+      refresh();
+    } catch (err) {
+      $('market-error').textContent = err.message;
+    }
+  };
+  for (const btn of mineBox.querySelectorAll('button[data-cancel]')) {
+    btn.addEventListener('click', () => act('/api/market/cancel', { id: Number(btn.dataset.cancel) }));
+  }
+  for (const btn of openBox.querySelectorAll('button[data-accept-offer]')) {
+    btn.addEventListener('click', () =>
+      act('/api/market/accept', { id: Number(btn.dataset.acceptOffer), islandId: activeIslandId }));
+  }
+}
+
+$('offer-post').addEventListener('click', async () => {
+  $('market-error').textContent = '';
+  try {
+    await api('/api/market/create', {
+      give: { res: $('offer-give-res').value, amount: Number($('offer-give-n').value) },
+      want: { res: $('offer-want-res').value, amount: Number($('offer-want-n').value) },
+      islandId: activeIslandId,
+    });
+    loadMarket();
+    refresh();
+  } catch (err) {
+    $('market-error').textContent = err.message;
+  }
+});
+
 // ---------------------------------------------------------------- alliance
 
 async function loadAlliance() {
@@ -745,6 +837,43 @@ async function loadAlliance() {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${m.name}</td><td>${m.islands}</td><td>${m.points}</td>`;
       tbody.appendChild(tr);
+    }
+
+    // Board
+    const board = $('board-list');
+    board.innerHTML = a.board.length ? '' : `<p class="hint">${T('ui.board.none')}</p>`;
+    for (const post of a.board) {
+      const div = document.createElement('div');
+      div.className = 'report';
+      div.innerHTML = `<b>${post.from}</b> <small>${new Date(post.time).toLocaleString()}</small><br><span></span>`;
+      div.querySelector('span').textContent = post.body;
+      board.appendChild(div);
+    }
+
+    // Diplomacy
+    $('dip-note').textContent = a.isLeader ? '' : T('ui.dip.leaderOnly');
+    const dip = $('dip-list');
+    dip.innerHTML = a.diplomacy.length ? '' : `<p class="hint">${T('ui.dip.noOthers')}</p>`;
+    for (const other of a.diplomacy) {
+      const div = document.createElement('div');
+      div.className = 'movement' + (other.relation === 'war' ? ' incoming' : '');
+      const relLabel = other.relation && other.relation !== 'same'
+        ? ` — <b>${T('ui.dip.' + other.relation)}</b>` : '';
+      let control = '';
+      if (a.isLeader) {
+        const opts = ['none', 'nap', 'ally', 'war'].map((s) =>
+          `<option value="${s}" ${other.stance === s ? 'selected' : ''}>${T('ui.dip.' + s)}</option>`
+        ).join('');
+        control = `<select data-stance="${other.id}">${opts}</select>`;
+      } else {
+        control = T('ui.dip.' + other.stance);
+      }
+      div.innerHTML = `[${other.tag}] ${other.name}${relLabel} &nbsp; ${control}`;
+      dip.appendChild(div);
+    }
+    for (const sel of dip.querySelectorAll('select[data-stance]')) {
+      sel.addEventListener('change', () =>
+        allianceAction('stance', { allianceId: Number(sel.dataset.stance), stance: sel.value }));
     }
   } else {
     const box = $('alliance-invites');
@@ -788,6 +917,12 @@ $('alliance-invite').addEventListener('submit', (e) => {
   e.preventDefault();
   allianceAction('invite', { name: $('alliance-invite-name').value });
   $('alliance-invite-name').value = '';
+});
+
+$('board-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  allianceAction('post', { body: $('board-body').value });
+  $('board-body').value = '';
 });
 
 $('alliance-leave').addEventListener('click', () => {

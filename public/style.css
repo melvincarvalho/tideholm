@@ -138,6 +138,8 @@ th { background: #eadfc4; }
 .cell.island.player { background: #3b7dd8; }
 .cell.island.you { background: #3faf46; box-shadow: 0 0 4px 2px #7fff7f; cursor: default; }
 .cell.island.unowned { background: #a9b0b8; }
+.cell.island.rel-ally { background: #2ab5a5; }
+.cell.island.rel-war { box-shadow: 0 0 3px 2px #ff5544; }
 
 #island-select {
   font: inherit;

@@ -406,6 +406,10 @@ function sendAttack(world, attacker, island, target, units, now) {
   if (attacker.allianceId && targetOwner && targetOwner.allianceId === attacker.allianceId) {
     return { error: 'err.ally' };
   }
+  if (targetOwner) {
+    const rel = allianceRelation(world, attacker.allianceId, targetOwner.allianceId);
+    if (rel === 'ally' || rel === 'nap') return { error: 'err.pact' };
+  }
   if (targetOwner && !targetOwner.protectionBroken &&
       playerPoints(world, targetOwner.id) < PROTECTED_POINTS) {
     return { error: 'err.protected' };
@@ -504,6 +508,159 @@ function sendTrade(world, player, island, target, resources, now) {
     depart: now, arrive,
   });
   return { ok: true, arrive };
+}
+
+// ---------------------------------------------------------------- market
+
+const OFFER_LIMIT = 5;
+const OFFER_MAX = 1000;
+
+function fullLoad(res, amount) {
+  const load = { wood: 0, stone: 0, gold: 0 };
+  load[res] = amount;
+  return load;
+}
+
+function validSide(side) {
+  return side && RESOURCES.includes(side.res) &&
+    Number.isInteger(side.amount) && side.amount >= 1 && side.amount <= OFFER_MAX;
+}
+
+// Post an offer: goods are escrowed from the island at once.
+function createOffer(world, player, island, give, want, now) {
+  resolveIsland(island, now);
+  if (island.buildings.harbor < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: '@building.harbor.name' } };
+  }
+  if (!validSide(give) || !validSide(want) || give.res === want.res) {
+    return { error: 'err.badRequest' };
+  }
+  if (world.offers.filter((o) => o.playerId === player.id).length >= OFFER_LIMIT) {
+    return { error: 'err.offerLimit' };
+  }
+  if (island.resources[give.res] < give.amount) return { error: 'err.noResources' };
+  island.resources[give.res] -= give.amount;
+  world.offers.push({
+    id: world.nextId++, playerId: player.id, islandId: island.id,
+    give: { res: give.res, amount: give.amount },
+    want: { res: want.res, amount: want.amount },
+    time: now,
+  });
+  return { ok: true };
+}
+
+// Withdraw an offer: escrowed goods return to the island instantly.
+function cancelOffer(world, player, offerId, now) {
+  const offer = world.offers.find((o) => o.id === Number(offerId));
+  if (!offer || offer.playerId !== player.id) return { error: 'err.noOffer' };
+  world.offers = world.offers.filter((o) => o.id !== offer.id);
+  const home = world.islands.find((i) => i.id === offer.islandId && i.ownerId === player.id)
+    || playerIsland(world, player.id);
+  if (home) {
+    resolveIsland(home, now);
+    const cap = storageCapacity(home.buildings.storehouse);
+    home.resources[offer.give.res] =
+      Math.min(cap, home.resources[offer.give.res] + offer.give.amount);
+  }
+  return { ok: true };
+}
+
+// Accept an offer: pay the asking price, then two shipments cross the sea.
+function acceptOffer(world, player, island, offerId, now) {
+  const offer = world.offers.find((o) => o.id === Number(offerId));
+  if (!offer) return { error: 'err.noOffer' };
+  if (offer.playerId === player.id) return { error: 'err.ownOffer' };
+  resolveIsland(island, now);
+  if (island.buildings.harbor < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: '@building.harbor.name' } };
+  }
+  if (island.resources[offer.want.res] < offer.want.amount) {
+    return { error: 'err.noResources' };
+  }
+  island.resources[offer.want.res] -= offer.want.amount;
+  world.offers = world.offers.filter((o) => o.id !== offer.id);
+
+  const origin = world.islands.find((i) => i.id === offer.islandId)
+    || playerIsland(world, offer.playerId);
+  const ownerHome = (origin && origin.ownerId === offer.playerId)
+    ? origin : playerIsland(world, offer.playerId);
+  const dist = Math.hypot(origin.x - island.x, origin.y - island.y);
+  const duration = Math.max(5000, Math.round((dist * TRADE_SPEED * 60000) / SPEED));
+  // The escrowed goods sail to the buyer...
+  world.movements.push({
+    id: world.nextId++, type: 'trade', ownerId: offer.playerId,
+    fromId: origin.id, toId: island.id, units: zeroUnits(),
+    loot: fullLoad(offer.give.res, offer.give.amount),
+    depart: now, arrive: now + duration,
+  });
+  // ...and the payment sails to the seller.
+  if (ownerHome) {
+    const dist2 = Math.hypot(ownerHome.x - island.x, ownerHome.y - island.y);
+    const duration2 = Math.max(5000, Math.round((dist2 * TRADE_SPEED * 60000) / SPEED));
+    world.movements.push({
+      id: world.nextId++, type: 'trade', ownerId: player.id,
+      fromId: island.id, toId: ownerHome.id, units: zeroUnits(),
+      loot: fullLoad(offer.want.res, offer.want.amount),
+      depart: now, arrive: now + duration2,
+    });
+  }
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------- diplomacy & board
+
+// Effective relation between two alliances: war is unilateral,
+// an alliance needs both sides, a pact needs both sides at nap-or-better.
+function allianceRelation(world, aid1, aid2) {
+  if (!aid1 || !aid2) return null;
+  if (aid1 === aid2) return 'same';
+  const a1 = world.alliances.find((a) => a.id === aid1);
+  const a2 = world.alliances.find((a) => a.id === aid2);
+  if (!a1 || !a2) return null;
+  const s1 = (a1.diplomacy || {})[aid2];
+  const s2 = (a2.diplomacy || {})[aid1];
+  if (s1 === 'war' || s2 === 'war') return 'war';
+  if (s1 === 'ally' && s2 === 'ally') return 'ally';
+  const pactish = (s) => s === 'nap' || s === 'ally';
+  if (pactish(s1) && pactish(s2)) return 'nap';
+  return null;
+}
+
+function setStance(world, player, targetAllianceId, stance, now) {
+  const alliance = allianceOf(world, player.id);
+  if (!alliance) return { error: 'err.noAlliance' };
+  if (alliance.members[0] !== player.id) return { error: 'err.notLeader' };
+  const target = world.alliances.find((a) => a.id === Number(targetAllianceId));
+  if (!target || target.id === alliance.id) return { error: 'err.noSuchAlliance' };
+  if (!['war', 'nap', 'ally', 'none'].includes(stance)) return { error: 'err.badRequest' };
+  alliance.diplomacy = alliance.diplomacy || {};
+  const prev = alliance.diplomacy[target.id];
+  if (stance === 'none') delete alliance.diplomacy[target.id];
+  else alliance.diplomacy[target.id] = stance;
+  if (stance === 'war' && prev !== 'war') {
+    for (const pid of [...alliance.members, ...target.members]) {
+      const L = langOf(world, pid);
+      addReport(world, pid, now, t(L, 'report.dip.war.title'), [
+        t(L, 'report.dip.war.l1', { a: alliance.tag, b: target.tag }),
+      ]);
+    }
+  }
+  return { ok: true };
+}
+
+function postBoard(world, player, body, now) {
+  const alliance = allianceOf(world, player.id);
+  if (!alliance) return { error: 'err.noAlliance' };
+  body = String(body || '').trim();
+  if (!body || body.length > 500) return { error: 'err.msgLength' };
+  world.boards[alliance.id] = world.boards[alliance.id] || [];
+  world.boards[alliance.id].push({
+    id: world.nextId++, playerId: player.id, time: now, body,
+  });
+  if (world.boards[alliance.id].length > 50) {
+    world.boards[alliance.id] = world.boards[alliance.id].slice(-50);
+  }
+  return { ok: true };
 }
 
 // Rename one of your islands. Unicode letters welcome — this is user text.
@@ -798,8 +955,9 @@ function applyMovement(world, m) {
       .filter(([, lvl]) => lvl > 0)
       .map(([k, lvl]) => `${t(atkLang, `building.${k}.name`)} ${lvl}`)
       .join(', ');
-    // Bots keep machine-readable intel from their scouts.
-    if (attacker && attacker.isBot) {
+    // Everyone keeps machine-readable intel from their scouts; humans share
+    // it with alliance-mates on the map.
+    if (attacker) {
       let dPow = unitPower(dest.units, 'def');
       for (const c of dest.support || []) dPow += unitPower(c.units, 'def');
       const wl = dest.buildings.wall || 0;
@@ -1271,6 +1429,8 @@ function createWorld() {
     reports: [],
     messages: [],
     alliances: [],
+    offers: [],
+    boards: {},
     sessions: {}, // token -> playerId
   };
 }
@@ -1281,6 +1441,11 @@ function migrateWorld(world) {
   if (!world.reports) world.reports = [];
   if (!world.messages) world.messages = [];
   if (!world.alliances) world.alliances = [];
+  if (!world.offers) world.offers = [];
+  if (!world.boards) world.boards = {};
+  for (const a of world.alliances) {
+    if (!a.diplomacy) a.diplomacy = {};
+  }
   for (const p of world.players) {
     if (p.protectionBroken == null) p.protectionBroken = !!p.isBot;
     if (p.questIndex == null) p.questIndex = 0;
@@ -1343,5 +1508,7 @@ module.exports = {
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
   leaveAlliance, sendMessage,
+  createOffer, cancelOffer, acceptOffer,
+  allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };

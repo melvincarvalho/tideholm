@@ -547,6 +547,7 @@ async function handleApi(req, res, pathname, query) {
         id: alliance.id,
         tag: alliance.tag,
         name: alliance.name,
+        isLeader: alliance.members[0] === player.id,
         members: alliance.members.map((id) => {
           const p = world.players.find((x) => x.id === id);
           return {
@@ -555,9 +556,81 @@ async function handleApi(req, res, pathname, query) {
             islands: game.playerIslands(world, id).length,
           };
         }).sort((a, b) => b.points - a.points),
+        board: (world.boards[alliance.id] || []).slice(-30).reverse().map((post) => {
+          const p = world.players.find((x) => x.id === post.playerId);
+          return { from: p ? p.name : '?', time: post.time, body: post.body };
+        }),
+        diplomacy: world.alliances
+          .filter((a) => a.id !== alliance.id)
+          .map((a) => ({
+            id: a.id,
+            tag: a.tag,
+            name: a.name,
+            stance: (alliance.diplomacy || {})[a.id] || 'none',
+            relation: game.allianceRelation(world, alliance.id, a.id),
+          })),
       } : null,
       invites,
     });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/alliance/stance') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const result = game.setStance(world, player, body.allianceId, String(body.stance || ''), Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/alliance/post') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const result = game.postBoard(world, player, body.body, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/market') {
+    const offers = world.offers.map((o) => {
+      const owner = world.players.find((p) => p.id === o.playerId);
+      const origin = world.islands.find((i) => i.id === o.islandId);
+      return {
+        id: o.id,
+        by: owner ? owner.name : '?',
+        isMine: o.playerId === player.id,
+        give: o.give,
+        want: o.want,
+        x: origin ? origin.x : 0,
+        y: origin ? origin.y : 0,
+      };
+    });
+    return sendJson(res, 200, { offers });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/market/create') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const island = myIsland(player, body.islandId);
+    const result = game.createOffer(world, player, island, body.give, body.want, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/market/accept') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const island = myIsland(player, body.islandId);
+    const result = game.acceptOffer(world, player, island, body.id, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/market/cancel') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const result = game.cancelOffer(world, player, body.id, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && pathname === '/api/alliance/create') {
@@ -612,16 +685,34 @@ async function handleApi(req, res, pathname, query) {
 
   if (req.method === 'GET' && pathname === '/api/map') {
     const now = Date.now();
+    // Intel pool: mine plus my alliance-mates', freshest wins, 24h shelf life.
+    const myAlliance = game.allianceOf(world, player.id);
+    const intelSources = myAlliance
+      ? myAlliance.members.map((id) => world.players.find((p) => p.id === id)).filter(Boolean)
+      : [player];
     const islands = world.islands.map((i) => {
       game.resolveIsland(i, now);
       const owner = world.players.find((p) => p.id === i.ownerId);
       const alliance = owner ? game.allianceOf(world, owner.id) : null;
+      const relation = alliance && myAlliance
+        ? game.allianceRelation(world, myAlliance.id, alliance.id) : null;
+      let intel = null;
+      for (const src of intelSources) {
+        const known = src.intel && src.intel[i.id];
+        if (known && now - known.time < 24 * 3600 * 1000 &&
+            (!intel || known.time > intel.time)) {
+          intel = known;
+        }
+      }
       return {
         x: i.x,
         y: i.y,
         name: i.ownerId == null ? t(lang, 'name.uncharted') : i.name,
         owner: owner ? owner.name : null,
         alliance: alliance ? alliance.tag : null,
+        relation,
+        intel: intel && i.ownerId !== player.id
+          ? { def: intel.def, hours: Math.round((now - intel.time) / 3600000) } : null,
         unowned: i.ownerId == null,
         isBot: owner ? !!owner.isBot : false,
         isYou: i.ownerId === player.id,
