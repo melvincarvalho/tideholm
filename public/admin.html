@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tideholm — Admin</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin { max-width: 720px; margin: 20px auto; }
+    .admin input, .admin textarea { font: inherit; padding: 6px; border: 1px solid #b0a488; }
+    .admin textarea { width: 100%; }
+    #stats pre { background: #eadfc4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    .danger { background: #a02020; color: #fff; border-color: #700; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="admin">
+      <h1>Tideholm — Admin</h1>
+      <p><a href="/">← back to the game</a></p>
+      <p>
+        Token: <input type="password" id="token" size="28">
+        <button id="load">Load stats</button>
+      </p>
+      <p id="err" class="error"></p>
+
+      <div id="panel" class="hidden">
+        <h2>World</h2>
+        <div id="stats"></div>
+
+        <h2>Announcement</h2>
+        <p>Sends a report to every human player.</p>
+        <textarea id="announce-body" rows="3" maxlength="500"></textarea>
+        <p><button id="announce">Send announcement</button></p>
+
+        <h2>Season reset</h2>
+        <p>Archives the current world to <code>data/backups/</code> and starts a
+        fresh one. Every player loses their empire and session. The hall of
+        fame is kept.</p>
+        <p><button id="reset" class="danger">Reset the world</button></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const token = () => $('token').value.trim();
+
+    async function call(path, method, body) {
+      const res = await fetch(path, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token() },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      return data;
+    }
+
+    async function loadStats() {
+      $('err').textContent = '';
+      try {
+        const s = await call('/api/admin/stats', 'GET');
+        localStorage.setItem('adminToken', token());
+        $('panel').classList.remove('hidden');
+        const players = s.players.map((p) =>
+          `  ${p.name} [${p.lang}] — ${p.points} pts, ${p.islands} isl` +
+          (p.alliance ? `, [${p.alliance}]` : '')).join('\n') || '  (none)';
+        $('stats').innerHTML = '<pre>' +
+          `speed x${s.speed} | uptime ${Math.round(s.uptimeSec / 60)}min | world ${Math.round(s.worldBytes / 1024)}kB\n` +
+          `islands: ${s.islands.owned}/${s.islands.total} owned, ${s.islands.uncharted} uncharted\n` +
+          `bots: ${s.bots} | movements in flight: ${s.movements} | market offers: ${s.offers}\n` +
+          `alliances: ${s.alliances.map((a) => `[${a.tag}]×${a.members}`).join(' ') || '(none)'}\n` +
+          `winner: ${s.winner ? s.winner.name : 'none'} | past seasons: ${s.hallOfFame}\n` +
+          `humans:\n${players}` +
+          '</pre>';
+      } catch (e) {
+        $('err').textContent = e.message;
+        $('panel').classList.add('hidden');
+      }
+    }
+
+    $('load').addEventListener('click', loadStats);
+    $('announce').addEventListener('click', async () => {
+      $('err').textContent = '';
+      try {
+        await call('/api/admin/announce', 'POST', { body: $('announce-body').value });
+        $('announce-body').value = '';
+        $('err').textContent = 'Sent.';
+      } catch (e) { $('err').textContent = e.message; }
+    });
+    $('reset').addEventListener('click', async () => {
+      if (!confirm('Really reset the world? Every empire is lost.')) return;
+      if (!confirm('Last chance — this cannot be undone (an archive is kept).')) return;
+      $('err').textContent = '';
+      try {
+        const r = await call('/api/admin/reset', 'POST', {});
+        $('err').textContent = 'World reset. Archived: ' + r.archived;
+        loadStats();
+      } catch (e) { $('err').textContent = e.message; }
+    });
+
+    $('token').value = localStorage.getItem('adminToken') || '';
+    if ($('token').value) loadStats();
+  </script>
+</body>
+</html>

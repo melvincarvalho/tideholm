@@ -370,6 +370,79 @@ async function handleApi(req, res, pathname, query) {
     return sendJson(res, 200, { ok: true });
   }
 
+  // ---------------- admin (token-gated, disabled unless ADMIN_TOKEN is set)
+  if (pathname.startsWith('/api/admin/')) {
+    const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+    const body = req.method === 'POST' ? await readBody(req) : null;
+    const token = req.headers['x-admin-token'] || query.get('token') || (body && body.token);
+    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+      return sendErr(res, 403, 'en', 'err.notFound'); // don't advertise the admin API
+    }
+
+    if (req.method === 'GET' && pathname === '/api/admin/stats') {
+      const humans = world.players.filter((p) => !p.isBot);
+      return sendJson(res, 200, {
+        speed: game.SPEED,
+        uptimeSec: Math.round(process.uptime()),
+        players: humans.map((p) => ({
+          name: p.name,
+          lang: p.lang,
+          points: game.playerPoints(world, p.id),
+          islands: game.playerIslands(world, p.id).length,
+          alliance: (game.allianceOf(world, p.id) || {}).tag || null,
+        })),
+        bots: world.players.filter((p) => p.isBot).length,
+        islands: {
+          total: world.islands.length,
+          owned: world.islands.filter((i) => i.ownerId != null).length,
+          uncharted: world.islands.filter((i) => i.ownerId == null).length,
+        },
+        movements: world.movements.length,
+        offers: world.offers.length,
+        alliances: world.alliances.map((a) => ({ tag: a.tag, members: a.members.length })),
+        winner: world.winner || null,
+        hallOfFame: game.loadHall().length,
+        worldBytes: fs.existsSync(path.join(DATA_DIR, 'world.json'))
+          ? fs.statSync(path.join(DATA_DIR, 'world.json')).size : 0,
+      });
+    }
+
+    if (req.method === 'POST' && pathname === '/api/admin/announce') {
+      const text = String((body && body.body) || '').trim().slice(0, 500);
+      if (!text) return sendErr(res, 400, 'en', 'err.badRequest');
+      const now = Date.now();
+      for (const p of world.players) {
+        if (p.isBot) continue;
+        game.resolveWorld(world, now);
+        const L = p.lang || 'en';
+        // addReport is engine-internal; go through the world's report list shape
+        world.reports.push({
+          id: world.nextId++, ownerId: p.id, time: now,
+          title: t(L, 'report.admin.title'), lines: [text], read: false,
+        });
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === 'POST' && pathname === '/api/admin/reset') {
+      // Archive the old world, then start a fresh season in place.
+      backupWorld();
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const src = path.join(DATA_DIR, 'world.json');
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(BACKUP_DIR, `world-season-end-${stamp}.json`));
+      }
+      world = game.createWorld();
+      spawnBots(world, BOT_COUNT);
+      for (let i = 0; i < FREE_ISLES; i++) game.newUnchartedIsland(world);
+      game.saveWorld(world);
+      console.log(`ADMIN: world reset (${stamp})`);
+      return sendJson(res, 200, { ok: true, archived: `world-season-end-${stamp}.json` });
+    }
+
+    return sendErr(res, 404, 'en', 'err.notFound');
+  }
+
   // Everything below requires a session.
   const player = sessionPlayer(req);
   if (!player) return sendErr(res, 401, 'en', 'err.notLoggedIn');

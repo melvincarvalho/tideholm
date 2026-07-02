@@ -122,7 +122,13 @@ actions per player, and logs actions and errors (not polling) to stdout.
 Set `TRUST_PROXY=1` behind a reverse proxy so rate limiting sees real
 client IPs and session cookies are marked `Secure`.
 
-Run the engine test suite with `node tests.js`.
+Run the engine test suite with `node tests.js`. Balance-test a simulated
+world with `node playtest.js [days] [bots]`.
+
+Set `ADMIN_TOKEN` to enable the admin panel at `/admin.html`: world stats,
+announcements to all players, and season reset (archives the old world to
+`data/backups/`, keeps the hall of fame). Without the env var the admin
+API is disabled entirely.
 
 ## Layout
 
