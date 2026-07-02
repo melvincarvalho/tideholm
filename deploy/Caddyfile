@@ -1,0 +1,8 @@
+# Caddy reverse proxy for Tideholm — automatic HTTPS via Let's Encrypt.
+# Install caddy, put this at /etc/caddy/Caddyfile (edit the domain), then:
+#   sudo systemctl reload caddy
+
+tideholm.example.com {
+	reverse_proxy 127.0.0.1:3000
+	encode gzip
+}

@@ -1,0 +1,31 @@
+# Fly.io config for Tideholm.
+# One machine, one volume — the world lives in a JSON file, so never scale >1.
+#   fly launch --copy-config --no-deploy   (from the repo root, answer prompts)
+#   fly volumes create tideholm_data --size 1
+#   fly deploy
+
+app = "tideholm"
+primary_region = "ams"
+
+[build]
+  dockerfile = "deploy/Dockerfile"
+
+[env]
+  PORT = "3000"
+  GAME_SPEED = "2"
+  TRUST_PROXY = "1"
+
+[mounts]
+  source = "tideholm_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false   # timers must keep running
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

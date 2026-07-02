@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tideholm</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Login / register -->
+  <div id="auth" class="hidden">
+    <div class="auth-box">
+      <h1>Tideholm</h1>
+      <p class="tagline">Claim an island. Raise it stone by stone. The tide brings rivals.</p>
+      <form id="auth-form">
+        <input id="auth-name" placeholder="Name" autocomplete="username" maxlength="24" required>
+        <input id="auth-pass" type="password" placeholder="Password" autocomplete="current-password" required>
+        <div class="auth-buttons">
+          <button type="submit" data-mode="login">Log in</button>
+          <button type="submit" data-mode="register">New island</button>
+        </div>
+      </form>
+      <p id="auth-error" class="error"></p>
+      <p><a href="/help.html">How to play</a></p>
+    </div>
+  </div>
+
+  <!-- Game -->
+  <div id="game" class="hidden">
+    <header>
+      <span class="brand">Tideholm</span>
+      <nav>
+        <button id="tab-island" class="tab active">My Island</button>
+        <button id="tab-map" class="tab">Map</button>
+        <button id="tab-reports" class="tab">Reports <span id="report-badge" class="badge hidden"></span></button>
+        <button id="tab-rankings" class="tab">Rankings</button>
+        <button id="tab-alliance" class="tab">Alliance</button>
+        <button id="tab-messages" class="tab">Mail <span id="mail-badge" class="badge hidden"></span></button>
+      </nav>
+      <span class="spacer"></span>
+      <select id="island-select" class="hidden"></select>
+      <span id="who"></span>
+      <a href="/help.html" target="_blank" class="help-link">Help</a>
+      <button id="logout">Log out</button>
+    </header>
+
+    <div id="resbar">
+      <span class="res">🪵 <b id="res-wood">0</b> <small id="rate-wood"></small></span>
+      <span class="res">🪨 <b id="res-stone">0</b> <small id="rate-stone"></small></span>
+      <span class="res">🪙 <b id="res-gold">0</b> <small id="rate-gold"></small></span>
+      <span class="res">📦 <b id="res-cap">0</b> <small>capacity</small></span>
+    </div>
+
+    <main>
+      <section id="view-island">
+        <h2 id="island-title"></h2>
+
+        <div id="movements"></div>
+
+        <h3>Construction queue</h3>
+        <table id="queue"><tbody></tbody></table>
+
+        <h3>Buildings</h3>
+        <table id="buildings">
+          <thead>
+            <tr><th>Building</th><th>Level</th><th>Upgrade cost</th><th>Time</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p id="build-error" class="error"></p>
+
+        <h3>Troops &amp; Ships</h3>
+        <table id="units">
+          <thead>
+            <tr><th>Unit</th><th>Have</th><th>Atk</th><th>Def</th><th>Carry</th><th>Cost each</th><th>Train</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <table id="train-queue"><tbody></tbody></table>
+        <p id="train-error" class="error"></p>
+      </section>
+
+      <section id="view-map" class="hidden">
+        <h2>The Ocean</h2>
+        <p class="hint">🟢 you &nbsp; 🔵 players &nbsp; 🟠 bots &nbsp; ⚪ uncharted — click an island to attack or colonize.</p>
+        <div id="map-grid"></div>
+        <div id="attack-panel" class="hidden">
+          <h3 id="attack-title"></h3>
+          <div id="attack-form">
+            <div id="attack-units"></div>
+            <p class="hint">Travel time: <b id="attack-eta">—</b> (set by your slowest unit)</p>
+            <p class="hint">⚓ Include a Flagship and win, and the island becomes yours.</p>
+            <button id="attack-send">Send attack</button>
+          </div>
+          <div id="colonize-form" class="hidden">
+            <p class="hint" id="colonize-hint"></p>
+            <button id="colonize-send">Send Colony Ship</button>
+          </div>
+          <p id="attack-error" class="error"></p>
+        </div>
+      </section>
+
+      <section id="view-reports" class="hidden">
+        <h2>Reports</h2>
+        <div id="report-list"></div>
+      </section>
+
+      <section id="view-rankings" class="hidden">
+        <h2>Rankings</h2>
+        <table id="ranking-table">
+          <thead><tr><th>#</th><th>Player</th><th>Alliance</th><th>Islands</th><th>Points</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="view-alliance" class="hidden">
+        <h2>Alliance</h2>
+        <div id="alliance-none" class="hidden">
+          <h3>Found an alliance</h3>
+          <form id="alliance-create">
+            <input id="alliance-name" placeholder="Alliance name" maxlength="30" required>
+            <input id="alliance-tag" placeholder="TAG" maxlength="5" required>
+            <button type="submit">Found</button>
+          </form>
+          <h3>Invitations</h3>
+          <div id="alliance-invites"><p class="hint">No invitations.</p></div>
+        </div>
+        <div id="alliance-mine" class="hidden">
+          <h3 id="alliance-title"></h3>
+          <table id="alliance-members">
+            <thead><tr><th>Member</th><th>Islands</th><th>Points</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <h3>Invite a player</h3>
+          <form id="alliance-invite">
+            <input id="alliance-invite-name" placeholder="Player name" maxlength="24" required>
+            <button type="submit">Invite</button>
+          </form>
+          <p><button id="alliance-leave">Leave alliance</button></p>
+        </div>
+        <p id="alliance-error" class="error"></p>
+      </section>
+
+      <section id="view-messages" class="hidden">
+        <h2>Mail</h2>
+        <form id="mail-compose">
+          <input id="mail-to" placeholder="To (player name)" maxlength="24" required>
+          <input id="mail-body" placeholder="Message..." maxlength="500" required>
+          <button type="submit">Send</button>
+        </form>
+        <p id="mail-error" class="error"></p>
+        <div id="mail-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

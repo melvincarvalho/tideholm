@@ -1,0 +1,28 @@
+# systemd unit for Tideholm.
+# Install:  sudo cp deploy/tideholm.service /etc/systemd/system/
+#           sudo systemctl daemon-reload && sudo systemctl enable --now tideholm
+# Logs:     journalctl -u tideholm -f
+
+[Unit]
+Description=Tideholm island strategy game
+After=network.target
+
+[Service]
+Type=simple
+User=tideholm
+WorkingDirectory=/opt/tideholm
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+Environment=PORT=3000
+Environment=GAME_SPEED=2
+Environment=TRUST_PROXY=1
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/tideholm/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
