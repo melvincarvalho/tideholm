@@ -34,6 +34,8 @@
         <tr><td>Ostrovní síň</td><td>Každá úroveň zrychluje veškerou výstavbu</td></tr>
         <tr><td>Kasárna</td><td>Odemykají jednotky; vyšší úrovně cvičí rychleji</td></tr>
         <tr><td>Přístav</td><td>Odemyká lodě: kolonizační a vlajkové</td></tr>
+        <tr><td>Hradby</td><td>Posilují všechny obránce; při vyplenění ostrova se poškodí</td></tr>
+        <tr><td>Statek</td><td>Populační limit — každá jednotka potřebuje lidi; větší armády chtějí větší statky</td></tr>
       </table>
       <p>Vylepšení čekají ve frontě (max. 3) a každá úroveň stojí ~1,55× víc.</p>
 
@@ -43,8 +45,9 @@
         <tr><td>Kopiník</td><td>Levný všestranný voják</td></tr>
         <tr><td>Nájezdník</td><td>Silný útok, unese nejvíc kořisti, slabý doma</td></tr>
         <tr><td>Strážce</td><td>Páteř obrany; na nájezdy nikdy nevyráží</td></tr>
+        <tr><td>Zvěd</td><td>Vyzvídá na nepřátelských ostrovech; doma odhaluje cizí zvědy; nebojuje</td></tr>
         <tr><td>Kolonizační loď</td><td>Osídlí neobydlený (šedý) ostrov; při přistání se spotřebuje</td></tr>
-        <tr><td>Vlajková loď</td><td>Připojí se k útoku; přežije-li vítězství, ostrov je dobyt</td></tr>
+        <tr><td>Vlajková loď</td><td>Připojí se k útoku; každé přežité vítězství podlomí věrnost ostrova</td></tr>
       </table>
 
       <h2>Boj</h2>
@@ -57,10 +60,23 @@
 
       <h2>Osídlování a dobývání</h2>
       <p>Šedé ostrovy jsou neobydlené. Pošli <b>kolonizační loď</b> a založ
-      novou kolonii — vyhrává první loď. Chceš-li vzít <i>obydlený</i>
-      ostrov, přidej k útoku <b>vlajkovou loď</b>: pokud zvítězíš a loď
-      přežije, ostrov — budovy, zásoby a vše ostatní — je tvůj. Ztratíš-li
-      poslední ostrov, tvůj lid uprchne na nový; nikdy nejsi úplně ze hry.</p>
+      novou kolonii — vyhrává první loď. Dobýt <i>obydlený</i> ostrov je
+      tažení: každý ostrov má <b>věrnost</b> (0–100). Každý vítězný útok
+      s přeživší <b>vlajkovou lodí</b> ji sníží o 25–40; když věrnost klesne
+      na 0, ostrov — budovy, zásoby a vše ostatní — je tvůj a tvá přeživší
+      armáda ho obsadí. Věrnost se časem obnovuje, útoč proto ve vlnách.
+      Čerstvě dobytý ostrov začíná neklidný na 25. Ztratíš-li poslední
+      ostrov, tvůj lid uprchne na nový; nikdy nejsi úplně ze hry.</p>
+
+      <h2>Podpora a špionáž</h2>
+      <p>Klikni na obydlený ostrov a zvol <b>Poslat podporu</b> — tvé
+      jednotky tam zůstanou jako obránci. Tak aliance skutečně drží území.
+      Umístěné jednotky bojují (a umírají) při obraně ostrova; kdykoli je
+      můžeš stáhnout ze svého přehledu. Kliknutím na vlastní ostrov stejně
+      snadno přesuneš jednotky mezi svými ostrovy.</p>
+      <p><b>Zvědové</b> odhalí posádku, zásoby, věrnost a budovy cíle — ale
+      zvědové obránce se brání: pošli jich víc, než jich cíl drží doma,
+      jinak se žádný nevrátí a obránce se o pokusu dozví.</p>
 
       <h2>Aliance a pošta</h2>
       <p>Založ alianci nebo přijmi pozvánku v záložce Aliance. Spojenci na

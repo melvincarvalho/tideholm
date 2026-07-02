@@ -64,37 +64,55 @@ const BUILDINGS = {
     base: { wood: 300, stone: 250, gold: 150 },
     time: 300,
   },
+  wall: {
+    name: 'Wall',
+    desc: 'Strengthens the defenders.',
+    base: { wood: 80, stone: 160, gold: 20 },
+    time: 150,
+  },
+  farm: {
+    name: 'Farm',
+    desc: 'Raises the population cap for troops.',
+    base: { wood: 120, stone: 100, gold: 30 },
+    time: 150,
+  },
 };
 
 // speed = minutes per map field at game speed 1 (lower is faster).
+// pop = population each unit consumes against the Farm's cap.
 const UNITS = {
   spearman: {
     name: 'Spearman', plural: 'Spearmen', desc: 'Cheap all-rounder.',
     cost: { wood: 50, stone: 30, gold: 20 }, time: 60,
-    atk: 10, def: 14, carry: 25, speed: 8,
+    atk: 10, def: 14, carry: 25, speed: 8, pop: 1,
   },
   raider: {
     name: 'Raider', desc: 'Hits hard, carries plenty, poor in defense.',
     cost: { wood: 80, stone: 40, gold: 45 }, time: 90,
-    atk: 24, def: 7, carry: 60, speed: 6,
+    atk: 24, def: 7, carry: 60, speed: 6, pop: 2,
   },
   sentinel: {
     name: 'Sentinel', desc: 'Holds the line at home.',
     cost: { wood: 60, stone: 90, gold: 30 }, time: 90,
-    atk: 6, def: 30, carry: 10, speed: 10,
+    atk: 6, def: 30, carry: 10, speed: 10, pop: 1,
+  },
+  scout: {
+    name: 'Scout', plural: 'Scouts', desc: 'Spies out enemy islands.',
+    cost: { wood: 40, stone: 30, gold: 35 }, time: 45,
+    atk: 0, def: 2, carry: 5, speed: 3, pop: 1, scout: true,
   },
   colonyship: {
     name: 'Colony Ship', plural: 'Colony Ships',
     desc: 'Settles an uncharted island. Cannot fight.',
     cost: { wood: 1200, stone: 900, gold: 600 }, time: 600,
-    atk: 0, def: 0, carry: 0, speed: 15,
+    atk: 0, def: 0, carry: 0, speed: 15, pop: 6,
     ship: true, building: 'harbor',
   },
   flagship: {
     name: 'Flagship', plural: 'Flagships',
-    desc: 'Joins attacks. If it survives a victory, the island is yours.',
+    desc: 'Joins attacks; victories break the island\'s loyalty.',
     cost: { wood: 2500, stone: 2000, gold: 1200 }, time: 900,
-    atk: 0, def: 10, carry: 0, speed: 20,
+    atk: 0, def: 10, carry: 0, speed: 20, pop: 10,
     capture: true, building: 'harbor',
   },
 };
@@ -105,6 +123,16 @@ const TRAIN_QUEUE_MAX = 5;
 // Players below this many points cannot be attacked until they attack
 // a human themselves. Bots already respect this; this enforces it for everyone.
 const PROTECTED_POINTS = 40;
+
+// Loyalty: a victorious Flagship lowers it by 25-40; at 0 the island falls.
+// It regenerates over time (scaled by game speed, like production).
+const LOYALTY_MAX = 100;
+const LOYALTY_REGEN_PER_HOUR = 2; // × SPEED
+const LOYALTY_AFTER_CAPTURE = 25;
+
+// Wall: flat defense per level plus a percentage bonus for all defenders.
+const WALL_FLAT_DEF = 15;
+const WALL_DEF_BONUS = 0.08;
 
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
@@ -141,6 +169,19 @@ function storageCapacity(storehouseLevel) {
   return Math.round(400 * Math.pow(1.5, storehouseLevel));
 }
 
+function popCap(farmLevel) {
+  return Math.round(30 * Math.pow(1.35, farmLevel));
+}
+
+// Population in use: units at home plus everything still in training.
+// Troops abroad don't count — a soft cap, checked at training time.
+function popUsed(island) {
+  let used = 0;
+  for (const [k, n] of Object.entries(island.units)) used += UNITS[k].pop * n;
+  for (const item of island.trainQueue) used += UNITS[item.unit].pop * item.count;
+  return used;
+}
+
 function islandRates(island) {
   const rates = { wood: 0, stone: 0, gold: 0 };
   for (const [key, b] of Object.entries(BUILDINGS)) {
@@ -171,6 +212,7 @@ function accrue(island, t0, t1) {
 // Advance an island to `now`: finish due queue items, accruing resources
 // at the correct rate between each completion.
 function resolveIsland(island, now) {
+  const hours = Math.max(0, (now - island.lastUpdate) / 3600000);
   let t = island.lastUpdate;
   while (island.queue.length && island.queue[0].finish <= now) {
     const item = island.queue[0];
@@ -184,6 +226,10 @@ function resolveIsland(island, now) {
   while (island.trainQueue.length && island.trainQueue[0].finish <= now) {
     const item = island.trainQueue.shift();
     island.units[item.unit] += item.count;
+  }
+  if (island.ownerId != null) {
+    island.loyalty = Math.min(LOYALTY_MAX,
+      island.loyalty + LOYALTY_REGEN_PER_HOUR * SPEED * hours);
   }
 }
 
@@ -291,6 +337,9 @@ function tryTrain(world, island, key, count, now) {
     return { error: 'err.buildFirst', errorParams: { building: `@building.${need}.name` } };
   }
   if (island.trainQueue.length >= TRAIN_QUEUE_MAX) return { error: 'err.trainQueueFull' };
+  if (popUsed(island) + UNITS[key].pop * count > popCap(island.buildings.farm)) {
+    return { error: 'err.noPop' };
+  }
   const cost = {};
   for (const r of RESOURCES) cost[r] = UNITS[key].cost[r] * count;
   if (!canAfford(island, cost)) return { error: 'err.noResources' };
@@ -323,7 +372,7 @@ function sendAttack(world, attacker, island, target, units, now) {
     const n = Math.floor(Number((units && units[k]) || 0));
     if (n < 0 || !Number.isFinite(n)) return { error: 'err.invalidUnits' };
     if (n > island.units[k]) return { error: 'err.noTroops' };
-    if (n > 0 && UNITS[k].ship) {
+    if (n > 0 && (UNITS[k].ship || UNITS[k].scout)) {
       return { error: 'err.shipsNoAttack', errorParams: { unit: `@unit.${k}.plural` } };
     }
     army[k] = n;
@@ -353,6 +402,67 @@ function sendAttack(world, attacker, island, target, units, now) {
     units: army,
     depart: now,
     arrive,
+  });
+  return { ok: true, arrive };
+}
+
+// Station defenders at another island (yours or anyone's). Only line troops.
+function sendSupport(world, player, island, target, units, now) {
+  resolveIsland(island, now);
+  const force = zeroUnits();
+  for (const k of Object.keys(UNITS)) {
+    const n = Math.floor(Number((units && units[k]) || 0));
+    if (n < 0 || !Number.isFinite(n)) return { error: 'err.invalidUnits' };
+    if (n > island.units[k]) return { error: 'err.noTroops' };
+    if (n > 0 && (UNITS[k].ship || UNITS[k].scout || UNITS[k].capture)) {
+      return { error: 'err.noSupportUnits' };
+    }
+    force[k] = n;
+  }
+  if (totalUnits(force) < 1) return { error: 'err.sendSomething' };
+  if (target.ownerId == null) return { error: 'err.uninhabited' };
+  if (target.id === island.id) return { error: 'err.ownIsland' };
+  for (const k of Object.keys(force)) island.units[k] -= force[k];
+  const arrive = now + travelDuration(island, target, force);
+  world.movements.push({
+    id: world.nextId++, type: 'support', ownerId: player.id,
+    fromId: island.id, toId: target.id, units: force, depart: now, arrive,
+  });
+  return { ok: true, arrive };
+}
+
+// Recall all of a player's stationed contingents from an island.
+function withdrawSupport(world, player, target, now) {
+  resolveIsland(target, now);
+  const mine = (target.support || []).filter((c) => c.ownerId === player.id);
+  if (!mine.length) return { error: 'err.nothingToWithdraw' };
+  target.support = target.support.filter((c) => c.ownerId !== player.id);
+  for (const c of mine) {
+    const home = world.islands.find((i) => i.id === c.fromId) || target;
+    const arrive = now + travelDuration(target, home, c.units);
+    world.movements.push({
+      id: world.nextId++, type: 'return', ownerId: player.id,
+      fromId: target.id, toId: home.id, units: c.units, depart: now, arrive,
+    });
+  }
+  return { ok: true };
+}
+
+// Espionage. Scouts fight only enemy scouts; survivors bring intel home.
+function sendScout(world, player, island, target, count, now) {
+  count = Math.floor(Number(count));
+  if (!(count >= 1 && count <= 500)) return { error: 'err.count' };
+  resolveIsland(island, now);
+  if (island.units.scout < count) return { error: 'err.noTroops' };
+  if (target.ownerId == null) return { error: 'err.uninhabited' };
+  if (target.ownerId === player.id) return { error: 'err.ownIsland' };
+  island.units.scout -= count;
+  const fleet = zeroUnits();
+  fleet.scout = count;
+  const arrive = now + travelDuration(island, target, fleet);
+  world.movements.push({
+    id: world.nextId++, type: 'scout', ownerId: player.id,
+    fromId: island.id, toId: target.id, units: fleet, depart: now, arrive,
   });
   return { ok: true, arrive };
 }
@@ -518,11 +628,13 @@ function applyMovement(world, m) {
       dest.ownerId = settler.id;
       dest.name = t(L, 'name.colony', { name: settler.name });
       dest.buildings = {
-        lumberyard: 1, quarry: 1, goldmine: 1,
-        storehouse: 1, hall: 1, barracks: 0, harbor: 0,
+        lumberyard: 1, quarry: 1, goldmine: 1, storehouse: 1, hall: 1,
+        barracks: 0, harbor: 0, wall: 0, farm: 1,
       };
       dest.resources = { wood: 150, stone: 150, gold: 80 };
       dest.units = zeroUnits();
+      dest.support = [];
+      dest.loyalty = LOYALTY_MAX;
       dest.queue = [];
       dest.trainQueue = [];
       dest.lastUpdate = m.arrive;
@@ -545,12 +657,88 @@ function applyMovement(world, m) {
     return;
   }
 
-  // Attack arrives. Everyone stationed at the destination defends.
   const attacker = world.players.find((p) => p.id === m.ownerId);
   const where = `${dest.name} (${dest.x}:${dest.y})`;
   const atkLang = langOf(world, m.ownerId);
   const defLang = langOf(world, dest.ownerId);
   const attackerNameFor = (lang) => (attacker ? attacker.name : t(lang, 'player.unknown'));
+
+  if (m.type === 'support') {
+    if (dest.ownerId === m.ownerId) {
+      // Supporting your own island is a troop transfer.
+      for (const [k, n] of Object.entries(m.units)) dest.units[k] += n;
+    } else {
+      dest.support = dest.support || [];
+      const mine = dest.support.find((c) => c.ownerId === m.ownerId);
+      if (mine) {
+        for (const [k, n] of Object.entries(m.units)) mine.units[k] = (mine.units[k] || 0) + n;
+      } else {
+        dest.support.push({ ownerId: m.ownerId, fromId: m.fromId, units: { ...m.units } });
+      }
+    }
+    addReport(world, m.ownerId, m.arrive,
+      t(atkLang, 'report.support.arrived.title', { where }), [
+        t(atkLang, 'report.support.arrived.l1', { units: fmtUnits(m.units, atkLang) }),
+      ]);
+    return;
+  }
+
+  if (m.type === 'scout') {
+    const n = m.units.scout;
+    const defScouts = dest.units.scout;
+    if (defScouts >= n) {
+      // Counter-espionage wins: nobody comes home.
+      addReport(world, m.ownerId, m.arrive,
+        t(atkLang, 'report.scoutFail.title', { where }), [
+          t(atkLang, 'report.scoutFail.l1', { n }),
+        ]);
+      addReport(world, dest.ownerId, m.arrive,
+        t(defLang, 'report.scoutCaught.title', { where }), [
+          t(defLang, 'report.scoutCaught.l1', { attacker: attackerNameFor(defLang), where }),
+        ]);
+      return;
+    }
+    const survivorsHome = n - defScouts;
+    const supportTotal = zeroUnits();
+    for (const c of dest.support || []) {
+      for (const [k, v] of Object.entries(c.units)) supportTotal[k] += v;
+    }
+    const stores = {
+      wood: Math.floor(dest.resources.wood),
+      stone: Math.floor(dest.resources.stone),
+      gold: Math.floor(dest.resources.gold),
+    };
+    const buildingList = Object.entries(dest.buildings)
+      .filter(([, lvl]) => lvl > 0)
+      .map(([k, lvl]) => `${t(atkLang, `building.${k}.name`)} ${lvl}`)
+      .join(', ');
+    addReport(world, m.ownerId, m.arrive,
+      t(atkLang, 'report.scout.title', { where }), [
+        t(atkLang, 'report.scout.garrison', { units: fmtUnits(dest.units, atkLang) }),
+        totalUnits(supportTotal) > 0
+          ? t(atkLang, 'report.scout.support', { units: fmtUnits(supportTotal, atkLang) }) : '',
+        t(atkLang, 'report.scout.stores', { res: fmtRes(stores, atkLang) }),
+        t(atkLang, 'report.scout.loyalty', { n: Math.round(dest.loyalty) }),
+        t(atkLang, 'report.scout.buildings', { list: buildingList }),
+        defScouts > 0 ? t(atkLang, 'report.scout.losses', { n: defScouts }) : '',
+      ].filter(Boolean));
+    if (defScouts > 0) {
+      addReport(world, dest.ownerId, m.arrive,
+        t(defLang, 'report.scoutSeen.title', { where }), [
+          t(defLang, 'report.scoutSeen.l1', { attacker: attackerNameFor(defLang), where }),
+        ]);
+    }
+    const fleet = zeroUnits();
+    fleet.scout = survivorsHome;
+    world.movements.push({
+      id: world.nextId++, type: 'return', ownerId: m.ownerId,
+      fromId: m.toId, toId: m.fromId, units: fleet,
+      depart: m.arrive, arrive: m.arrive + (m.arrive - m.depart),
+    });
+    return;
+  }
+
+  // Attack arrives. Everyone stationed at the destination defends.
 
   // If the island became the attacker's own while the army was at sea
   // (e.g. captured by an earlier wave), the army reinforces it instead.
@@ -571,7 +759,23 @@ function applyMovement(world, m) {
   }
 
   const A = unitPower(m.units, 'atk');
-  const D = unitPower(dest.units, 'def');
+  dest.support = dest.support || [];
+  let defPower = unitPower(dest.units, 'def');
+  for (const c of dest.support) defPower += unitPower(c.units, 'def');
+  const wallBefore = dest.buildings.wall || 0;
+  const D = Math.round((defPower + WALL_FLAT_DEF * wallBefore) * (1 + WALL_DEF_BONUS * wallBefore));
+
+  // A battle report line for each support sender, in their own language.
+  const notifySupportLosses = (contingent, lost, wiped) => {
+    if (totalUnits(lost) === 0) return;
+    const sLang = langOf(world, contingent.ownerId);
+    addReport(world, contingent.ownerId, m.arrive,
+      t(sLang, wiped ? 'report.support.wiped.title' : 'report.support.battle.title', { where }), [
+        t(sLang, wiped ? 'report.support.wiped.l1' : 'report.support.battle.l1', {
+          units: fmtUnits(lost, sLang),
+        }),
+      ]);
+  };
 
   if (A > D) {
     const lossFrac = D > 0 ? Math.pow(D / A, 1.5) : 0;
@@ -581,17 +785,40 @@ function applyMovement(world, m) {
       const biggest = Object.keys(m.units).sort((a, b) => m.units[b] - m.units[a])[0];
       survivors[biggest] = 1;
     }
+    // The whole defense falls: garrison and every stationed contingent.
     const defendersLost = { ...dest.units };
+    for (const c of dest.support) {
+      for (const [k, n] of Object.entries(c.units)) defendersLost[k] += n;
+      notifySupportLosses(c, c.units, true);
+    }
     dest.units = zeroUnits();
+    dest.support = [];
 
-    // Conquest: a surviving Flagship claims the island outright.
+    // The wall takes damage in a sack.
+    let wallLine = '';
+    if (wallBefore > 0) {
+      dest.buildings.wall = wallBefore - 1;
+      wallLine = { from: wallBefore, to: wallBefore - 1 };
+    }
+
+    // A surviving Flagship breaks loyalty; at zero the island falls.
+    let loyaltyLine = null;
     if (survivors.flagship >= 1) {
+      const before = Math.round(dest.loyalty);
+      const drop = 25 + Math.floor(Math.random() * 16);
+      dest.loyalty = before - drop;
+      loyaltyLine = { from: before, to: Math.max(0, Math.round(dest.loyalty)) };
+    }
+
+    // Conquest only when loyalty is fully broken.
+    if (survivors.flagship >= 1 && dest.loyalty <= 0) {
       const oldOwner = world.players.find((p) => p.id === dest.ownerId);
       survivors.flagship -= 1; // the Flagship becomes the seat of power
       dest.ownerId = m.ownerId;
       dest.units = survivors;
       dest.queue = [];
       dest.trainQueue = [];
+      dest.loyalty = LOYALTY_AFTER_CAPTURE; // a fresh conquest is restive
       const stores = {
         wood: Math.floor(dest.resources.wood),
         stone: Math.floor(dest.resources.stone),
@@ -653,7 +880,11 @@ function applyMovement(world, m) {
         t(atkLang, 'report.victory.l2', {
           sent: fmtUnits(m.units, atkLang), survivors: fmtUnits(survivors, atkLang),
         }),
-        m.units.flagship > 0 ? t(atkLang, 'report.victory.flagshipLost') : '',
+        m.units.flagship > 0 && !survivors.flagship && !loyaltyLine
+          ? t(atkLang, 'report.victory.flagshipLost') : '',
+        loyaltyLine ? t(atkLang, 'report.loyalty.line',
+          { where, from: loyaltyLine.from, to: loyaltyLine.to }) : '',
+        wallLine ? t(atkLang, 'report.wall.line', wallLine) : '',
         t(atkLang, 'report.victory.l3', { defLost: fmtUnits(defendersLost, atkLang) }),
         t(atkLang, 'report.victory.l4', { loot: fmtRes(loot, atkLang) }),
       ].filter(Boolean));
@@ -663,8 +894,11 @@ function applyMovement(world, m) {
           attacker: attackerNameFor(defLang), origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
         }),
         t(defLang, 'report.raided.l2', { defLost: fmtUnits(defendersLost, defLang) }),
+        loyaltyLine ? t(defLang, 'report.loyalty.line',
+          { where, from: loyaltyLine.from, to: loyaltyLine.to }) : '',
+        wallLine ? t(defLang, 'report.wall.line', wallLine) : '',
         t(defLang, 'report.raided.l3', { loot: fmtRes(loot, defLang) }),
-      ]);
+      ].filter(Boolean));
   } else {
     const defLossFrac = D > 0 ? Math.pow(A / D, 1.5) : 0;
     const defendersBefore = { ...dest.units };
@@ -673,6 +907,18 @@ function applyMovement(world, m) {
     for (const k of Object.keys(dest.units)) {
       defendersLost[k] = defendersBefore[k] - dest.units[k];
     }
+    // Support contingents bleed at the same rate as the garrison.
+    for (const c of dest.support) {
+      const before = { ...c.units };
+      c.units = scaleUnits(c.units, 1 - defLossFrac);
+      const lost = {};
+      for (const k of Object.keys(c.units)) {
+        lost[k] = before[k] - c.units[k];
+        defendersLost[k] = (defendersLost[k] || 0) + lost[k];
+      }
+      notifySupportLosses(c, lost, false);
+    }
+    dest.support = dest.support.filter((c) => totalUnits(c.units) > 0);
 
     addReport(world, m.ownerId, m.arrive,
       t(atkLang, 'report.defeat.title', { where }), [
@@ -711,8 +957,13 @@ function newIsland(world, ownerId, name) {
     x,
     y,
     resources: { wood: 250, stone: 250, gold: 120 },
-    buildings: { lumberyard: 1, quarry: 1, goldmine: 1, storehouse: 1, hall: 1, barracks: 0, harbor: 0 },
+    buildings: {
+      lumberyard: 1, quarry: 1, goldmine: 1, storehouse: 1, hall: 1,
+      barracks: 0, harbor: 0, wall: 0, farm: 1,
+    },
     units: zeroUnits(),
+    support: [],
+    loyalty: LOYALTY_MAX,
     queue: [],
     trainQueue: [],
     lastUpdate: Date.now(),
@@ -731,8 +982,13 @@ function newUnchartedIsland(world) {
     x,
     y,
     resources: { wood: 0, stone: 0, gold: 0 },
-    buildings: { lumberyard: 0, quarry: 0, goldmine: 0, storehouse: 0, hall: 0, barracks: 0, harbor: 0 },
+    buildings: {
+      lumberyard: 0, quarry: 0, goldmine: 0, storehouse: 0, hall: 0,
+      barracks: 0, harbor: 0, wall: 0, farm: 0,
+    },
     units: zeroUnits(),
+    support: [],
+    loyalty: LOYALTY_MAX,
     queue: [],
     trainQueue: [],
     lastUpdate: Date.now(),
@@ -811,6 +1067,14 @@ function migrateWorld(world) {
       if (island.units[key] == null) island.units[key] = 0;
     }
     if (!island.trainQueue) island.trainQueue = [];
+    if (!island.support) island.support = [];
+    if (island.loyalty == null) island.loyalty = LOYALTY_MAX;
+    // Pre-farm islands get a farm big enough for their standing army.
+    if (island.ownerId != null && island.buildings.farm === 0) {
+      let lvl = 1;
+      while (popCap(lvl) < popUsed(island)) lvl++;
+      island.buildings.farm = lvl;
+    }
   }
   if (!world.islands.some((i) => i.ownerId == null)) {
     for (let i = 0; i < 30; i++) newUnchartedIsland(world);
@@ -844,7 +1108,8 @@ module.exports = {
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
-  travelDuration, sendAttack, sendColonize,
+  popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
+  travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

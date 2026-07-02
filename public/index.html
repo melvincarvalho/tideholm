@@ -92,6 +92,15 @@
         </table>
         <table id="train-queue"><tbody></tbody></table>
         <p id="train-error" class="error"></p>
+
+        <div id="support-here-box" class="hidden">
+          <h3 data-i18n="ui.support.here"></h3>
+          <div id="support-here"></div>
+        </div>
+        <div id="abroad-box" class="hidden">
+          <h3 data-i18n="ui.support.abroad"></h3>
+          <div id="abroad-list"></div>
+        </div>
       </section>
 
       <section id="view-map" class="hidden">
@@ -103,8 +112,13 @@
           <div id="attack-form">
             <div id="attack-units"></div>
             <p class="hint"><span data-i18n="ui.attack.travel"></span> <b id="attack-eta">—</b> <span data-i18n="ui.attack.travelNote"></span></p>
-            <p class="hint" data-i18n="ui.attack.flagshipHint"></p>
+            <p class="hint" id="flagship-hint" data-i18n="ui.attack.flagshipHint"></p>
             <button id="attack-send" data-i18n="ui.attack.send"></button>
+            <button id="support-send" data-i18n="ui.support.send"></button>
+            <span id="scout-box" class="scout-box">
+              <input type="number" id="scout-n" min="1" max="500" value="1">
+              <button id="scout-send" data-i18n="ui.scout.send"></button>
+            </span>
           </div>
           <div id="colonize-form" class="hidden">
             <p class="hint" id="colonize-hint"></p>

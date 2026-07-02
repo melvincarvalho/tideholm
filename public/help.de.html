@@ -35,6 +35,8 @@
         <tr><td>Inselhalle</td><td>Jede Stufe beschleunigt alle Bauvorhaben</td></tr>
         <tr><td>Kaserne</td><td>Schaltet Truppen frei; höhere Stufen trainieren schneller</td></tr>
         <tr><td>Hafen</td><td>Schaltet Schiffe frei: Kolonieschiffe und Flaggschiffe</td></tr>
+        <tr><td>Wall</td><td>Stärkt alle Verteidiger; wird bei einer Plünderung beschädigt</td></tr>
+        <tr><td>Hof</td><td>Bevölkerungslimit — jede Einheit braucht Menschen; größere Armeen brauchen größere Höfe</td></tr>
       </table>
       <p>Ausbauten warten in einer Schleife (max. 3) und kosten je Stufe ~1,55× mehr.</p>
 
@@ -44,8 +46,9 @@
         <tr><td>Speerträger</td><td>Günstiger Allrounder</td></tr>
         <tr><td>Plünderer</td><td>Starker Angriff, trägt die meiste Beute, schwach daheim</td></tr>
         <tr><td>Wächter</td><td>Rückgrat der Verteidigung; zieht nie mit auf Raubzüge</td></tr>
+        <tr><td>Späher</td><td>Kundschaftet feindliche Inseln aus; wehrt daheim fremde Späher ab; kämpft nicht</td></tr>
         <tr><td>Kolonieschiff</td><td>Besiedelt eine unbewohnte (graue) Insel; wird bei der Landung verbraucht</td></tr>
-        <tr><td>Flaggschiff</td><td>Zieht mit in die Schlacht; überlebt es einen Sieg, wird die Insel erobert</td></tr>
+        <tr><td>Flaggschiff</td><td>Zieht mit in die Schlacht; jeder überlebte Sieg bricht die Loyalität der Insel</td></tr>
       </table>
 
       <h2>Kampf</h2>
@@ -61,10 +64,26 @@
       <h2>Besiedlung &amp; Eroberung</h2>
       <p>Graue Inseln sind unbewohnt. Schicke ein <b>Kolonieschiff</b>, um
       eine als frische Kolonie zu beanspruchen — das erste Schiff gewinnt.
-      Um eine <i>bewohnte</i> Insel zu nehmen, schicke ein <b>Flaggschiff</b>
-      mit: Gewinnst du und das Flaggschiff überlebt, gehört die Insel —
-      Gebäude, Vorräte und alles — dir. Verlierst du deine letzte Insel,
-      flieht dein Volk auf eine neue; du bist nie ganz aus dem Spiel.</p>
+      Eine <i>bewohnte</i> Insel zu nehmen ist ein Feldzug: Jede Insel hat
+      <b>Loyalität</b> (0–100). Jeder gewonnene Angriff mit einem
+      überlebenden <b>Flaggschiff</b> senkt sie um 25–40; fällt die Loyalität
+      auf 0, gehört die Insel — Gebäude, Vorräte und alles — dir, und deine
+      überlebende Armee besetzt sie. Loyalität erholt sich mit der Zeit,
+      also greife in Wellen an. Eine frische Eroberung beginnt unruhig bei 25.
+      Verlierst du deine letzte Insel, flieht dein Volk auf eine neue; du
+      bist nie ganz aus dem Spiel.</p>
+
+      <h2>Unterstützung &amp; Spionage</h2>
+      <p>Klicke eine bewohnte Insel an und wähle <b>Unterstützung
+      schicken</b>, um deine Truppen dort als Verteidiger zu stationieren —
+      so halten Allianzen wirklich Boden. Stationierte Truppen kämpfen (und
+      fallen) bei der Verteidigung; du kannst sie jederzeit von deiner
+      Inselansicht aus abziehen. Ein Klick auf eine eigene Insel verschiebt
+      Truppen auf demselben Weg.</p>
+      <p><b>Späher</b> enthüllen Besatzung, Vorräte, Loyalität und Gebäude
+      des Ziels — aber die Späher des Verteidigers wehren sich: Schicke mehr
+      Späher, als das Ziel daheim hält, sonst kehrt keiner zurück und man
+      weiß, dass du es versucht hast.</p>
 
       <h2>Allianzen &amp; Post</h2>
       <p>Gründe eine Allianz oder nimm eine Einladung im Allianz-Tab an.

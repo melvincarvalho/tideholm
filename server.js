@@ -285,6 +285,14 @@ function stateFor(player, islandId) {
         finish: q.finish,
       })),
       queueMax: game.QUEUE_MAX,
+      loyalty: Math.round(island.loyalty),
+      loyaltyMax: game.LOYALTY_MAX,
+      popUsed: game.popUsed(island),
+      popCap: game.popCap(island.buildings.farm),
+      support: (island.support || []).map((c) => {
+        const owner = world.players.find((p) => p.id === c.ownerId);
+        return { owner: owner ? owner.name : '?', units: c.units };
+      }),
       units: island.units,
       trainQueue: island.trainQueue.map((q) => ({
         unit: t(lang, `unit.${q.unit}.name`),
@@ -296,6 +304,17 @@ function stateFor(player, islandId) {
     buildings: buildingCatalog(island, lang),
     unitTypes: unitCatalog(island, lang),
     movements: movementsFor(world, player),
+    // Everywhere my support is stationed (on islands I don't own).
+    abroad: world.islands
+      .filter((i) => (i.support || []).some((c) => c.ownerId === player.id))
+      .map((i) => {
+        const mine = i.support.filter((c) => c.ownerId === player.id);
+        const units = game.zeroUnits();
+        for (const c of mine) {
+          for (const [k, n] of Object.entries(c.units)) units[k] += n;
+        }
+        return { name: i.name, x: i.x, y: i.y, units };
+      }),
     unreadReports: world.reports.filter((r) => r.ownerId === player.id && !r.read).length,
     unreadMessages: world.messages.filter((msg) => msg.toId === player.id && !msg.read).length,
   };
@@ -398,6 +417,44 @@ async function handleApi(req, res, pathname, query) {
     );
     if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
     const result = game.sendAttack(world, player, island, target, body.units, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, stateFor(player, island.id));
+  }
+
+  if (req.method === 'POST' && pathname === '/api/support') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const island = myIsland(player, body.islandId);
+    const target = world.islands.find(
+      (i) => i.x === Number(body.x) && i.y === Number(body.y)
+    );
+    if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
+    const result = game.sendSupport(world, player, island, target, body.units, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, stateFor(player, island.id));
+  }
+
+  if (req.method === 'POST' && pathname === '/api/withdraw') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const target = world.islands.find(
+      (i) => i.x === Number(body.x) && i.y === Number(body.y)
+    );
+    if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
+    const result = game.withdrawSupport(world, player, target, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, stateFor(player, body.islandId));
+  }
+
+  if (req.method === 'POST' && pathname === '/api/scout') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const island = myIsland(player, body.islandId);
+    const target = world.islands.find(
+      (i) => i.x === Number(body.x) && i.y === Number(body.y)
+    );
+    if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
+    const result = game.sendScout(world, player, island, target, body.count, Date.now());
     if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, stateFor(player, island.id));
   }

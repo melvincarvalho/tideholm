@@ -177,11 +177,182 @@ console.log('combat');
   const { w, a, b, ia, ib } = freshWorld();
   ia.units.raider = 50; ia.units.flagship = 1;
   ib.units.sentinel = 2;
+  g.resolveIsland(ib, t0); // sync the clock first, else regen refills the meter
+  ib.loyalty = 0;          // loyalty already broken by earlier strikes
   const r = g.sendAttack(w, a, ia, ib, { raider: 50, flagship: 1 }, t0);
   g.resolveWorld(w, r.arrive + 1);
   check('conquest: surviving flagship flips ownership and is consumed',
     ib.ownerId === a.id && ib.units.flagship === 0 && ib.units.raider > 0);
   check('defeated player respawns on a new island', g.playerIslands(w, b.id).length === 1);
+}
+
+// ---------------------------------------------------------------- wall & population
+
+console.log('wall & population');
+{
+  // 10 raiders (A=240) beat 7 sentinels (D=210) on open ground...
+  const w1 = freshWorld();
+  w1.ia.units.raider = 10; w1.ib.units.sentinel = 7;
+  const r1 = g.sendAttack(w1.w, w1.a, w1.ia, w1.ib, { raider: 10 }, t0);
+  g.resolveWorld(w1.w, r1.arrive + 1);
+  check('bare island falls to a stronger army', g.totalUnits(w1.ib.units) === 0);
+
+  // ...but a level-3 wall turns the same battle around: (210+45)*1.24 = 316 > 240.
+  const w2 = freshWorld();
+  w2.ia.units.raider = 10; w2.ib.units.sentinel = 7; w2.ib.buildings.wall = 3;
+  const r2 = g.sendAttack(w2.w, w2.a, w2.ia, w2.ib, { raider: 10 }, t0);
+  g.resolveWorld(w2.w, r2.arrive + 1);
+  check('a wall turns the same battle around', w2.ib.units.sentinel > 0);
+
+  // A sacked island loses a wall level.
+  const w3 = freshWorld();
+  w3.ia.units.raider = 40; w3.ib.units.sentinel = 2; w3.ib.buildings.wall = 2;
+  const r3 = g.sendAttack(w3.w, w3.a, w3.ia, w3.ib, { raider: 40 }, t0);
+  g.resolveWorld(w3.w, r3.arrive + 1);
+  check('sack damages the wall by one level', w3.ib.buildings.wall === 1);
+}
+{
+  const { w, ia } = freshWorld();
+  ia.resources = { wood: 90000, stone: 90000, gold: 90000 };
+  ia.buildings.storehouse = 15;
+  ia.buildings.barracks = 1;
+  check('farm cap: level 1 holds 41 pop', g.popCap(1) === 41);
+  const r = g.tryTrain(w, ia, 'spearman', 100, t0);
+  check('training past the farm cap is rejected', r.error === 'err.noPop');
+  check('training within the cap works', !g.tryTrain(w, ia, 'spearman', 40, t0).error);
+  check('queued troops count against population', g.popUsed(ia) === 40);
+  check('a second batch is blocked by the queue pop', g.tryTrain(w, ia, 'spearman', 2, t0).error === 'err.noPop');
+}
+
+// ---------------------------------------------------------------- loyalty conquest
+
+console.log('loyalty');
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.units.raider = 50; ia.units.flagship = 1;
+  ib.units.sentinel = 2;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 50, flagship: 1 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('first flagship victory does NOT capture', ib.ownerId === b.id);
+  check('loyalty dropped by 25-40', ib.loyalty >= 60 && ib.loyalty <= 75);
+  const ret = w.movements.find((m) => m.type === 'return');
+  check('flagship survives and returns home', ret && ret.units.flagship === 1);
+  check('loyalty line in both reports',
+    w.reports.filter((x) => x.lines.some((l) => l.includes('Loyalty of'))).length === 2);
+
+  // Break the rest of the loyalty: nearly gone, and even the regeneration
+  // during the flagship's slow voyage can't outrun a 25+ drop.
+  g.resolveWorld(w, ret.arrive + 1); // flagship home
+  ib.loyalty = 0;
+  ib.units.sentinel = 1;
+  const r2 = g.sendAttack(w, a, ia, ib, { raider: 40, flagship: 1 }, ret.arrive + 10);
+  g.resolveWorld(w, r2.arrive + 1);
+  check('capture at 0 loyalty', ib.ownerId === a.id);
+  check('captured island starts restive at 25 loyalty', ib.loyalty === 25);
+  check('flagship consumed on capture', ib.units.flagship === 0);
+}
+{
+  const { ia } = freshWorld();
+  ia.loyalty = 50;
+  g.resolveIsland(ia, ia.lastUpdate + 10 * H);
+  check('loyalty regenerates 2/h (at speed 1)', close(ia.loyalty, 70));
+}
+
+// ---------------------------------------------------------------- support
+
+console.log('support');
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  const c = g.createPlayer(w, 'C', 'pw', false).player;
+  c.protectionBroken = true;
+  const ic = g.playerIsland(w, c.id);
+  ic.x = 0; ic.y = 10;
+
+  // a stations 5 sentinels at b's island
+  ia.units.sentinel = 5;
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 5 }, t0);
+  check('support sent', !rs.error);
+  g.resolveWorld(w, rs.arrive + 1);
+  check('contingent stationed', ib.support.length === 1 && ib.support[0].units.sentinel === 5);
+  check('sender got an arrival report',
+    w.reports.some((x) => x.ownerId === a.id && x.title.startsWith('Support arrived')));
+
+  // c attacks with less than the combined defense: support holds the island
+  ic.units.raider = 5; // A=120 vs support D=150
+  const ra = g.sendAttack(w, c, ic, ib, { raider: 5 }, rs.arrive + 10);
+  g.resolveWorld(w, ra.arrive + 1);
+  check('support holds the island', ib.ownerId === b.id);
+  check('contingent bled but survives',
+    ib.support.length === 1 && ib.support[0].units.sentinel < 5 && ib.support[0].units.sentinel > 0);
+  check('supporter got a battle report',
+    w.reports.some((x) => x.ownerId === a.id && x.title.startsWith('Your support fought')));
+
+  // c returns in force: support is wiped, sender told
+  ic.units.raider = 30;
+  const ra2 = g.sendAttack(w, c, ic, ib, { raider: 30 }, ra.arrive + 200000);
+  g.resolveWorld(w, ra2.arrive + 1);
+  check('overwhelming attack wipes the support', ib.support.length === 0);
+  check('supporter got a wiped report',
+    w.reports.some((x) => x.ownerId === a.id && x.title.includes('wiped out')));
+}
+{
+  // withdraw brings the contingent home
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.units.spearman = 6;
+  const rs = g.sendSupport(w, a, ia, ib, { spearman: 6 }, t0);
+  g.resolveWorld(w, rs.arrive + 1);
+  const rw = g.withdrawSupport(w, a, ib, rs.arrive + 10);
+  check('withdraw accepted', !rw.error);
+  check('withdraw with nothing stationed rejected',
+    g.withdrawSupport(w, a, ib, rs.arrive + 20).error === 'err.nothingToWithdraw');
+  g.resolveWorld(w, rs.arrive + 10 + (rs.arrive - t0) + 1);
+  check('troops made it home', ia.units.spearman === 6);
+}
+{
+  // supporting your own island is a transfer
+  const { w, a, ia, ib } = freshWorld();
+  ib.ownerId = a.id;
+  ia.units.spearman = 4;
+  const rs = g.sendSupport(w, a, ia, ib, { spearman: 4 }, t0);
+  g.resolveWorld(w, rs.arrive + 1);
+  check('self-support merges into the garrison', ib.units.spearman === 4 && ib.support.length === 0);
+}
+
+// ---------------------------------------------------------------- scouts
+
+console.log('scouts');
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.units.scout = 5; ia.units.raider = 2;
+  check('scouts cannot join attacks',
+    g.sendAttack(w, a, ia, ib, { raider: 1, scout: 1 }, t0).error === 'err.shipsNoAttack');
+  check('scouts cannot be sent as support',
+    g.sendSupport(w, a, ia, ib, { scout: 1 }, t0).error === 'err.noSupportUnits');
+
+  // equal counter-scouts: mission fails, defender is told
+  ib.units.scout = 5;
+  const r1 = g.sendScout(w, a, ia, ib, 5, t0);
+  g.resolveWorld(w, r1.arrive + 1);
+  check('counter-scouts kill the mission', ia.units.scout === 0 &&
+    w.reports.some((x) => x.ownerId === a.id && x.title.startsWith('Scouting')));
+  check('defender caught them',
+    w.reports.some((x) => x.ownerId === b.id && x.title.startsWith('Enemy scouts caught')));
+}
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.units.scout = 5;
+  ib.units.scout = 1; ib.units.sentinel = 9;
+  const r = g.sendScout(w, a, ia, ib, 5, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  const intel = w.reports.find((x) => x.ownerId === a.id && x.title.startsWith('Scout report'));
+  check('intel report delivered', !!intel);
+  check('intel lists the garrison', intel.lines.some((l) => l.includes('9 Sentinels')));
+  check('intel includes loyalty', intel.lines.some((l) => l.includes('Loyalty: 100/100')));
+  check('losses reported', intel.lines.some((l) => l.includes('1 Scouts did not return')));
+  check('defender noticed the intrusion',
+    w.reports.some((x) => x.ownerId === b.id && x.title.startsWith('Enemy scouts over')));
+  const ret = w.movements.find((m) => m.type === 'return');
+  check('survivors sail home', ret && ret.units.scout === 4);
 }
 
 // ---------------------------------------------------------------- beginner protection
@@ -308,6 +479,7 @@ console.log('i18n');
 
   ia.units.raider = 80; ia.units.flagship = 1;
   const islandsBefore = g.playerIslands(w, def.id).map((i) => i.id);
+  g.playerIsland(w, def.id).loyalty = 0; // loyalty pre-broken for the capture test
   const rq = g.sendAttack(w, att, ia, g.playerIsland(w, def.id), { raider: 80, flagship: 1 }, t0 + 1000000);
   g.resolveWorld(w, rq.arrive + 1);
   const refuge = g.playerIslands(w, def.id).find((i) => !islandsBefore.includes(i.id));

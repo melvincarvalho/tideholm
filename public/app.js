@@ -156,7 +156,10 @@ function renderState() {
   }
 
   $('who').textContent = state.player.name;
-  $('island-title').textContent = `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}`;
+  $('island-title').textContent =
+    `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}` +
+    ` · ⚜️ ${T('ui.loyalty')} ${isl.loyalty}/${isl.loyaltyMax}` +
+    ` · 👥 ${T('ui.pop')} ${isl.popUsed}/${isl.popCap}`;
 
   // Island switcher (visible once you hold more than one island)
   const sel = $('island-select');
@@ -236,6 +239,8 @@ function renderMovements() {
     div.className = 'movement outgoing';
     const what = out.type === 'attack' ? T('ui.move.attack', { target: out.target })
       : out.type === 'colonize' ? T('ui.move.colonize', { target: out.target })
+      : out.type === 'support' ? T('ui.move.support', { target: out.target })
+      : out.type === 'scout' ? T('ui.move.scout', { target: out.target })
       : T('ui.move.return', { target: out.target }) +
         (out.loot ? ` ${T('ui.move.withLoot')} 🪵${out.loot.wood} 🪨${out.loot.stone} 🪙${out.loot.gold}` : '');
     div.innerHTML = `${what} — <span class="countdown" data-finish="${out.arrive}"></span>`;
@@ -271,6 +276,52 @@ function renderTroops() {
     tr.innerHTML = `<td>${T('ui.training', { n: item.count, unit: item.unit })}</td>
       <td class="countdown" data-finish="${item.finish}"></td>`;
     tbody.appendChild(tr);
+  }
+
+  renderSupport();
+}
+
+function unitListText(units) {
+  return Object.entries(units)
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${n} ${state.unitTypes[k] ? state.unitTypes[k].name : k}`)
+    .join(', ');
+}
+
+function renderSupport() {
+  const isl = state.island;
+
+  $('support-here-box').classList.toggle('hidden', !isl.support.length);
+  const here = $('support-here');
+  here.innerHTML = '';
+  for (const c of isl.support) {
+    const div = document.createElement('div');
+    div.className = 'movement';
+    div.textContent = `🛡️ ${c.owner}: ${unitListText(c.units)}`;
+    here.appendChild(div);
+  }
+
+  $('abroad-box').classList.toggle('hidden', !state.abroad.length);
+  const abroad = $('abroad-list');
+  abroad.innerHTML = '';
+  for (const a of state.abroad) {
+    const div = document.createElement('div');
+    div.className = 'movement';
+    div.innerHTML = `🛡️ ${a.name} (${a.x}:${a.y}): ${unitListText(a.units)}
+      <button data-withdraw="${a.x},${a.y}">${T('ui.support.withdraw')}</button>`;
+    abroad.appendChild(div);
+  }
+  for (const btn of abroad.querySelectorAll('button[data-withdraw]')) {
+    btn.addEventListener('click', async () => {
+      const [x, y] = btn.dataset.withdraw.split(',').map(Number);
+      try {
+        state = await api('/api/withdraw', { x, y, islandId: activeIslandId });
+        clockSkew = state.serverNow - Date.now();
+        renderState();
+      } catch (err) {
+        $('build-error').textContent = err.message;
+      }
+    });
   }
 }
 
@@ -357,7 +408,8 @@ async function loadMap() {
         const ownerLabel = isl.unowned ? T('ui.map.uninhabited')
           : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner + (isl.isBot ? ' ' + T('ui.map.bot') : '');
         cell.title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} ${T('ui.map.pts')}`;
-        if (!isl.isYou) cell.addEventListener('click', () => openAttackPanel(isl));
+        const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
+        if (!isActive) cell.addEventListener('click', () => openAttackPanel(isl));
       }
       grid.appendChild(cell);
     }
@@ -383,20 +435,27 @@ function openAttackPanel(target) {
       T('ui.colonize.hint', { island: state.island.name, n: ships.count, eta });
     $('colonize-send').disabled = ships.count < 1;
   } else {
-    $('attack-title').textContent = T('ui.attack.title', {
-      name: target.name, x: target.x, y: target.y,
-      owner: target.owner + (target.isBot ? ' ' + T('ui.map.bot') : ''),
-    });
+    const supportOnly = target.isYou;
+    $('attack-title').textContent = supportOnly
+      ? T('ui.support.title', { name: target.name, x: target.x, y: target.y })
+      : T('ui.attack.title', {
+          name: target.name, x: target.x, y: target.y,
+          owner: target.owner + (target.isBot ? ' ' + T('ui.map.bot') : ''),
+        });
+    $('attack-send').classList.toggle('hidden', supportOnly);
+    $('flagship-hint').classList.toggle('hidden', supportOnly);
+    $('scout-box').classList.toggle('hidden', supportOnly);
     const box = $('attack-units');
     box.innerHTML = '';
     for (const [key, u] of Object.entries(state.unitTypes)) {
-      if (u.ship) continue; // ships don't fight
+      if (u.ship || key === 'scout') continue; // ships sail their own missions, scouts spy
       const row = document.createElement('label');
       row.className = 'attack-row';
       row.innerHTML = `${T('ui.attack.have', { name: u.name, n: u.count })}
         <input type="number" min="0" max="${u.count}" value="0" data-attack-unit="${key}">`;
       box.appendChild(row);
     }
+    $('scout-n').max = state.unitTypes.scout.count;
     for (const input of box.querySelectorAll('input')) {
       input.addEventListener('input', updateAttackEta);
     }
@@ -405,6 +464,46 @@ function openAttackPanel(target) {
   $('attack-panel').classList.remove('hidden');
   $('attack-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+$('support-send').addEventListener('click', async () => {
+  if (!attackTarget) return;
+  $('attack-error').textContent = '';
+  try {
+    state = await api('/api/support', {
+      x: attackTarget.x,
+      y: attackTarget.y,
+      units: selectedArmy(),
+      islandId: activeIslandId,
+    });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+    $('attack-panel').classList.add('hidden');
+    attackTarget = null;
+    showTab('island');
+  } catch (err) {
+    $('attack-error').textContent = err.message;
+  }
+});
+
+$('scout-send').addEventListener('click', async () => {
+  if (!attackTarget) return;
+  $('attack-error').textContent = '';
+  try {
+    state = await api('/api/scout', {
+      x: attackTarget.x,
+      y: attackTarget.y,
+      count: Number($('scout-n').value),
+      islandId: activeIslandId,
+    });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+    $('attack-panel').classList.add('hidden');
+    attackTarget = null;
+    showTab('island');
+  } catch (err) {
+    $('attack-error').textContent = err.message;
+  }
+});
 
 $('colonize-send').addEventListener('click', async () => {
   if (!attackTarget) return;

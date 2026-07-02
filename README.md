@@ -47,10 +47,20 @@ shutdown. Delete that file to start a fresh world.
 - Build a Harbor to launch Colony Ships, then click an uncharted (gray)
   island to settle it. First ship to land claims it; latecomers sail home.
   Switch between your islands with the dropdown in the header.
-- Conquest: send a Flagship with your attack. If it survives a victory the
-  island is captured — buildings, stores and all — and the surviving army
-  garrisons it. Armies returning to a lost island scatter. A player whose
-  last island falls respawns on a fresh one.
+- Conquest is loyalty-based: every island has loyalty 0-100. Each winning
+  attack with a surviving Flagship breaks 25-40 of it; at 0 the island is
+  captured — buildings, stores and all — and the surviving army garrisons
+  it. Loyalty regenerates over time, so conquest takes waves. A fresh
+  conquest starts restive at 25. Armies returning to a lost island scatter.
+  A player whose last island falls respawns on a fresh one.
+- Support: station troops on any inhabited island as defenders (allies, or
+  your own islands as transfers), recall them anytime. Stationed troops
+  fight and die with the garrison; their owner gets battle reports.
+- Scouts spy out garrisons, stores, loyalty and buildings — contested by
+  the defender's own scouts (counter-espionage).
+- Wall strengthens all defenders and takes damage when the island is
+  sacked. Farm caps population: every unit costs pop, bigger armies need
+  bigger farms.
 - Rankings tab: every player by total points. Mail tab: write to any human
   player. Alliance tab: found an alliance (name + tag), invite players,
   accept or decline invitations. Allies cannot attack each other, and
@@ -69,10 +79,15 @@ garrison is wiped. Otherwise the attacker is wiped and the defender loses
 `(A/D)^1.5`. Loot is capped by the survivors' carry capacity, drawn
 proportionally from the target's stocks.
 
-If a Flagship survives a winning attack, the island changes owner instead of
-being looted: the Flagship is consumed, survivors stay as the garrison, and
-the island's buildings and resources transfer. An attack that arrives at an
-island you already own (e.g. captured by an earlier wave) reinforces it.
+Defense counts the garrison plus all stationed support, then the Wall:
+`D = (defenders + 15×wall) × (1 + 0.08×wall)`. A sacked island loses one
+wall level.
+
+If a Flagship survives a winning attack it breaks 25-40 loyalty; at 0 the
+island changes owner: the Flagship is consumed, survivors stay as the
+garrison, and the island's buildings and resources transfer. Loyalty
+regenerates at 2/h (×speed). An attack that arrives at an island you
+already own (e.g. captured by an earlier wave) reinforces it.
 
 ## Roadmap
 
@@ -82,6 +97,7 @@ island you already own (e.g. captured by an earlier wave) reinforces it.
 4. ✅ Conquest: flagships, island capture, respawn after elimination
 5. ✅ Bot war AI: raids, grudges and retaliation, bot expansion
 6. ✅ Alliances, messaging, rankings
+7. ✅ War depth: loyalty conquest, support troops, scouts, wall, farm cap
 
 ## Running it for real
 

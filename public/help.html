@@ -37,6 +37,8 @@
         <tr><td>Island Hall</td><td>Each level speeds up all construction</td></tr>
         <tr><td>Barracks</td><td>Unlocks troops; higher levels train faster</td></tr>
         <tr><td>Harbor</td><td>Unlocks ships: Colony Ships and Flagships</td></tr>
+        <tr><td>Wall</td><td>Strengthens all defenders; takes damage when the island is sacked</td></tr>
+        <tr><td>Farm</td><td>Population cap — every unit needs people; bigger armies need bigger farms</td></tr>
       </table>
       <p>Upgrades queue up to 3 deep and cost ~1.55× more per level.</p>
 
@@ -46,8 +48,9 @@
         <tr><td>Spearman</td><td>Cheap all-rounder</td></tr>
         <tr><td>Raider</td><td>Strong attack, carries the most loot, weak at home</td></tr>
         <tr><td>Sentinel</td><td>Defensive backbone; never leaves on raids</td></tr>
+        <tr><td>Scout</td><td>Spies out enemy islands; counter-scouts at home; can't fight</td></tr>
         <tr><td>Colony Ship</td><td>Settles an uncharted (gray) island; consumed on landing</td></tr>
-        <tr><td>Flagship</td><td>Joins attacks; if it survives a victory, the island is captured</td></tr>
+        <tr><td>Flagship</td><td>Joins attacks; each victory it survives breaks the island's loyalty</td></tr>
       </table>
 
       <h2>Combat</h2>
@@ -62,11 +65,25 @@
 
       <h2>Colonization &amp; conquest</h2>
       <p>Gray islands are uncharted. Send a <b>Colony Ship</b> to claim one as
-      a fresh colony — first ship to land wins. To take an <i>inhabited</i>
-      island, include a <b>Flagship</b> in your attack: if you win and the
-      Flagship survives, the island — buildings, stores and all — becomes
-      yours, and your surviving army garrisons it. Lose your last island and
-      your people flee to a fresh one; you're never out of the game.</p>
+      a fresh colony — first ship to land wins. Taking an <i>inhabited</i>
+      island is a campaign: every island has <b>loyalty</b> (0–100). Each
+      winning attack that includes a surviving <b>Flagship</b> lowers it by
+      25–40; when loyalty reaches 0, the island — buildings, stores and all —
+      becomes yours and your surviving army garrisons it. Loyalty regenerates
+      over time, so strike in waves. A fresh conquest starts restive at 25.
+      Lose your last island and your people flee to a fresh one; you're never
+      out of the game.</p>
+
+      <h2>Support &amp; espionage</h2>
+      <p>Click any inhabited island and choose <b>Send support</b> to station
+      your troops there as defenders — this is how alliances actually hold
+      ground. Stationed troops fight (and die) in the island's defense; recall
+      them anytime from your island view. Clicking one of your own islands
+      lets you transfer troops between them the same way.</p>
+      <p><b>Scouts</b> reveal a target's garrison, stores, loyalty and
+      buildings — but the defender's own scouts fight back: send more scouts
+      than they keep at home, or none of yours return and they'll know you
+      tried.</p>
 
       <h2>Alliances &amp; mail</h2>
       <p>Found an alliance or accept an invitation in the Alliance tab.

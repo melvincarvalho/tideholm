@@ -6,7 +6,7 @@
 
 const { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
         tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
-        unitPower, sendAttack, sendColonize,
+        popUsed, popCap, unitPower, sendAttack, sendColonize,
         createPlayer, playerIsland, playerIslands, playerPoints } = require('./game');
 
 // Tuning knobs for bot aggression.
@@ -44,6 +44,9 @@ function chooseUpgrade(island) {
   // Nearly full storage? Expand it.
   if (RESOURCES.some((r) => island.resources[r] >= cap * 0.9)) return 'storehouse';
 
+  // Room to breathe: expand the farm before the population pinches.
+  if (popUsed(island) >= popCap(lvl('farm')) * 0.85) return 'farm';
+
   // Keep the hall within reach of the economy.
   const minProd = Math.min(lvl('lumberyard'), lvl('quarry'), lvl('goldmine'));
   if (lvl('hall') < minProd - 1) return 'hall';
@@ -51,6 +54,9 @@ function chooseUpgrade(island) {
   // Once the economy is rolling, get a barracks and grow it slowly.
   if (lvl('barracks') === 0 && minProd >= 4) return 'barracks';
   if (lvl('barracks') >= 1 && lvl('barracks') < 3 && minProd >= lvl('barracks') + 5) return 'barracks';
+
+  // A wall keeps the raiders honest.
+  if (lvl('barracks') >= 1 && lvl('wall') < 4 && minProd >= lvl('wall') + 4) return 'wall';
 
   // A harbor opens the way to expansion.
   if (lvl('harbor') === 0 && lvl('barracks') >= 2 && minProd >= 6) return 'harbor';
@@ -74,6 +80,11 @@ function maybeTrain(world, bot, island, now) {
   }
   if (island.buildings.barracks < 1) return;
   if (Math.random() > 0.5) return;
+  // A few scouts for counter-espionage, then a defense-weighted garrison.
+  if (island.units.scout < 5 && Math.random() < 0.3) {
+    tryTrain(world, island, 'scout', 2, now);
+    return;
+  }
   const roll = Math.random();
   const unit = roll < 0.45 ? 'sentinel' : roll < 0.75 ? 'spearman' : 'raider';
   tryTrain(world, island, unit, 3, now); // silently skips if unaffordable

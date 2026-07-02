@@ -185,6 +185,9 @@ th { background: #eadfc4; }
   padding: 3px 0;
 }
 
+.scout-box { margin-left: 12px; white-space: nowrap; }
+.scout-box input { width: 56px; padding: 4px; border: 1px solid #b0a488; font: inherit; }
+
 /* ---------- reports ---------- */
 
 .badge {
