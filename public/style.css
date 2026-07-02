@@ -132,11 +132,19 @@ th { background: #eadfc4; }
 #map-grid {
   display: grid;
   gap: 1px;
-  background: var(--sea-light);
+  position: relative;
+  background: var(--sea);
   border: 2px solid var(--sea-light);
   width: fit-content;
   max-width: 100%;
   overflow: auto;
+}
+
+#map-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
 }
 
 :root { --cell: 16px; }
@@ -144,7 +152,8 @@ th { background: #eadfc4; }
 .cell {
   width: var(--cell);
   height: var(--cell);
-  background: var(--sea);
+  position: relative;
+  z-index: 1;
 }
 
 .cell.island { background: #c47f2a; border-radius: 50%; cursor: pointer; }

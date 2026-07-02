@@ -459,7 +459,132 @@ async function loadMap() {
   // Center the view on your island.
   if (myCell) myCell.scrollIntoView({ block: 'center', inline: 'center' });
 
+  lastMapData = data;
+  await paintMapBackground(data);
   drawMinimap(data);
+}
+
+// ---------------------------------------------------------------- map background
+
+// Two painters over the same grid: 'generated' draws a seeded fictional
+// chart from value noise; 'aegean' draws a real coastline mask (Natural
+// Earth, public domain). Both are pure decoration — the server never knows.
+
+let lastMapData = null;
+let rasterCache = null;
+let rasterKey = '';
+let regionMask = null; // fetched land mask for real-world themes
+
+function hash2(x, y, seed) {
+  let h = seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+function valueNoise(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const sm = (t) => t * t * (3 - 2 * t);
+  const tx = sm(x - xi), ty = sm(y - yi);
+  const a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed);
+  const c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed);
+  return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
+}
+
+function fbm(x, y, seed) {
+  return 0.55 * valueNoise(x, y, seed)
+    + 0.3 * valueNoise(x * 2.1, y * 2.1, seed ^ 99991)
+    + 0.15 * valueNoise(x * 4.3, y * 4.3, seed ^ 31337);
+}
+
+// Build the offscreen raster once per (theme, seed): 5 px per grid cell.
+function buildRaster(data) {
+  const key = data.theme + ':' + data.seed;
+  if (rasterCache && rasterKey === key) return rasterCache;
+  const P = 5;
+  const RES = data.size * P;
+  const canvas = document.createElement('canvas');
+  canvas.width = RES;
+  canvas.height = RES;
+  const ctx = canvas.getContext('2d');
+
+  // 0 = deep sea, 1 = land
+  const land = new Uint8Array(RES * RES);
+  if (data.theme === 'aegean' && regionMask) {
+    for (let y = 0; y < RES; y++) {
+      const my = Math.floor((y / RES) * regionMask.h);
+      const row = regionMask.rows[my];
+      for (let x = 0; x < RES; x++) {
+        land[y * RES + x] = row[Math.floor((x / RES) * regionMask.w)] === '1' ? 1 : 0;
+      }
+    }
+  } else {
+    for (let y = 0; y < RES; y++) {
+      for (let x = 0; x < RES; x++) {
+        land[y * RES + x] = fbm(x / 34, y / 34, data.seed) > 0.60 ? 1 : 0;
+      }
+    }
+  }
+
+  // Every game island sits in a dredged lagoon — no dots on dry land.
+  for (const isl of data.islands) {
+    const cx = (isl.x + 0.5) * P, cy = (isl.y + 0.5) * P;
+    for (let y = Math.max(0, cy - 7 | 0); y < Math.min(RES, cy + 7); y++) {
+      for (let x = Math.max(0, cx - 7 | 0); x < Math.min(RES, cx + 7); x++) {
+        if ((x - cx) ** 2 + (y - cy) ** 2 <= 42) land[y * RES + x] = 0;
+      }
+    }
+  }
+
+  const img = ctx.createImageData(RES, RES);
+  const set = (i, r, g, b) => {
+    img.data[i * 4] = r; img.data[i * 4 + 1] = g;
+    img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
+  };
+  const isLand = (x, y) => x >= 0 && y >= 0 && x < RES && y < RES && land[y * RES + x] === 1;
+  for (let y = 0; y < RES; y++) {
+    for (let x = 0; x < RES; x++) {
+      const i = y * RES + x;
+      const n = hash2(x, y, data.seed ^ 7) * 12 - 6; // subtle texture
+      if (land[i]) {
+        const coast = !isLand(x - 1, y) || !isLand(x + 1, y) || !isLand(x, y - 1) || !isLand(x, y + 1);
+        if (coast) set(i, 143 + n, 124 + n, 82 + n);
+        else set(i, 201 + n, 185 + n, 138 + n);
+      } else {
+        let shallow = false;
+        for (let dy = -2; dy <= 2 && !shallow; dy++) {
+          for (let dx = -2; dx <= 2 && !shallow; dx++) {
+            if (isLand(x + dx, y + dy)) shallow = true;
+          }
+        }
+        if (shallow) set(i, 29 + n, 90 + n, 116 + n);
+        else set(i, 18 + n, 52 + n, 76 + n);
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  rasterCache = canvas;
+  rasterKey = key;
+  return canvas;
+}
+
+async function paintMapBackground(data) {
+  if (data.theme === 'aegean' && !regionMask) {
+    try {
+      regionMask = await (await fetch('/maps/aegean.json')).json();
+    } catch { /* fall back to generated look */ }
+  }
+  const grid = $('map-grid');
+  let bg = $('map-bg');
+  if (!bg) {
+    bg = document.createElement('canvas');
+    bg.id = 'map-bg';
+    grid.insertBefore(bg, grid.firstChild);
+  }
+  bg.width = grid.scrollWidth;
+  bg.height = grid.scrollHeight;
+  const ctx = bg.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(buildRaster(data), 0, 0, bg.width, bg.height);
 }
 
 // ---------------------------------------------------------------- minimap & zoom
@@ -475,6 +600,8 @@ function drawMinimap(data) {
   const px = canvas.width / data.size;
   ctx.fillStyle = '#0e2a3f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(buildRaster(data), 0, 0, canvas.width, canvas.height);
   for (const isl of data.islands) {
     const kind = isl.isYou ? 'you'
       : isl.relation === 'war' ? 'war'
@@ -497,6 +624,7 @@ const ZOOM_SIZES = [8, 11, 16, 22];
 function applyZoom(px) {
   document.documentElement.style.setProperty('--cell', px + 'px');
   localStorage.setItem('cellSize', px);
+  if (lastMapData) paintMapBackground(lastMapData);
 }
 
 function zoomStep(dir) {

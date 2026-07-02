@@ -30,6 +30,7 @@ shutdown. Delete that file to start a fresh world.
 | `GAME_SPEED` | 5 | Multiplies production, divides build times. 1 ≈ classic pace (hours), 5 = minutes. |
 | `BOTS` | 20 | Bots spawned when a new world is created |
 | `FREE_ISLES` | 30 | Uncharted (colonizable) islands on a new world |
+| `WORLD_THEME` | generated | Map backdrop: `generated` (seeded fictional chart) or `aegean` (real coastlines from public-domain Natural Earth data; build other regions with `tools/build-region.js`) |
 
 ## Gameplay
 

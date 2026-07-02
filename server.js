@@ -804,7 +804,12 @@ async function handleApi(req, res, pathname, query) {
         points: game.islandPoints(i),
       };
     });
-    return sendJson(res, 200, { size: game.MAP_SIZE, islands });
+    return sendJson(res, 200, {
+      size: game.MAP_SIZE,
+      theme: world.theme || 'generated',
+      seed: world.mapSeed || 1,
+      islands,
+    });
   }
 
   return sendErr(res, 404, lang, 'err.notFound');

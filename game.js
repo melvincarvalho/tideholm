@@ -1520,9 +1520,13 @@ function playerPoints(world, playerId) {
   return playerIslands(world, playerId).reduce((s, i) => s + islandPoints(i), 0);
 }
 
+const MAP_THEMES = ['generated', 'aegean'];
+
 function createWorld() {
   return {
     createdAt: Date.now(),
+    theme: MAP_THEMES.includes(process.env.WORLD_THEME) ? process.env.WORLD_THEME : 'generated',
+    mapSeed: crypto.randomInt(1, 2147483647),
     nextId: 1,
     players: [],
     islands: [],
@@ -1544,6 +1548,8 @@ function migrateWorld(world) {
   if (!world.alliances) world.alliances = [];
   if (!world.offers) world.offers = [];
   if (!world.boards) world.boards = {};
+  if (!world.theme) world.theme = 'generated';
+  if (!world.mapSeed) world.mapSeed = (world.createdAt % 2147483645) + 1;
   for (const a of world.alliances) {
     if (!a.diplomacy) a.diplomacy = {};
   }

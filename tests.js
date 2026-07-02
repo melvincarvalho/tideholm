@@ -800,6 +800,32 @@ console.log('speed scaling');
   })());
 }
 
+// ---------------------------------------------------------------- map themes
+
+console.log('map themes');
+{
+  const w = g.createWorld();
+  check('new worlds get a theme and a seed',
+    w.theme === 'generated' && Number.isInteger(w.mapSeed) && w.mapSeed >= 1);
+  delete w.theme;
+  delete w.mapSeed;
+  g.migrateWorld(w);
+  check('migration backfills theme and seed',
+    w.theme === 'generated' && Number.isInteger(w.mapSeed) && w.mapSeed >= 1);
+
+  const region = JSON.parse(require('fs').readFileSync('./public/maps/aegean.json', 'utf8'));
+  const landCells = region.rows.reduce(
+    (s, row) => s + [...row].filter((c) => c === '1').length, 0);
+  check('aegean land mask is well-formed',
+    region.w === 200 && region.h === 200 &&
+    region.rows.length === 200 && region.rows.every((r) => r.length === 200));
+  check('aegean mask has believable land/sea balance',
+    landCells > 5000 && landCells < 30000);
+  // Crete: a land run in the southern quarter
+  const south = region.rows.slice(150, 175).join('');
+  check('the south has islands (Crete lives)', south.includes('11111111'));
+}
+
 // ---------------------------------------------------------------- i18n
 
 console.log('i18n');
