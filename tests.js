@@ -275,9 +275,8 @@ console.log('i18n');
 
   // Reports render in each recipient's language.
   const w = g.createWorld();
-  const att = g.createPlayer(w, 'Angreifer', 'pw', false).player;
-  const def = g.createPlayer(w, 'Obránce', 'pw', false).player;
-  att.lang = 'de'; def.lang = 'cs';
+  const att = g.createPlayer(w, 'Angreifer', 'pw', false, 'de').player;
+  const def = g.createPlayer(w, 'Obránce', 'pw', false, 'cs').player;
   att.protectionBroken = def.protectionBroken = true;
   const ia = g.playerIsland(w, att.id), ib = g.playerIsland(w, def.id);
   ia.units.raider = 30; ib.units.sentinel = 2;
@@ -287,6 +286,34 @@ console.log('i18n');
   const defRep = w.reports.find((x) => x.ownerId === def.id);
   check('attacker report is German', atkRep && atkRep.title.startsWith('Sieg bei'));
   check('defender report is Czech', defRep && defRep.title.includes('vypleněn'));
+  check('report lines use recipient language for unit names',
+    atkRep && atkRep.lines.some((l) => l.includes('Plünderer')) &&
+    defRep && defRep.lines.some((l) => l.includes('Nájezdníci') || l.includes('Nájezdník')));
+  check('report lines use recipient language for resources',
+    atkRep && atkRep.lines.some((l) => l.includes('Holz')));
+
+  // Generated island names follow the owner's language.
+  check('German player home island named in German',
+    g.playerIsland(w, att.id).name === 'Insel von Angreifer');
+  check('Czech player home island named in Czech',
+    g.playerIsland(w, def.id).name === 'Ostrov hráče Obránce');
+
+  // Conquest names: colony in settler's language, refuge in the victim's.
+  const free = g.newUnchartedIsland(w);
+  free.x = 0; free.y = 1;
+  ia.units.colonyship = 1;
+  const rc = g.sendColonize(w, att, ia, free, t0 + 500000);
+  g.resolveWorld(w, rc.arrive + 1);
+  check('colony named in settler language', free.name === 'Kolonie von Angreifer');
+
+  ia.units.raider = 80; ia.units.flagship = 1;
+  const islandsBefore = g.playerIslands(w, def.id).map((i) => i.id);
+  const rq = g.sendAttack(w, att, ia, g.playerIsland(w, def.id), { raider: 80, flagship: 1 }, t0 + 1000000);
+  g.resolveWorld(w, rq.arrive + 1);
+  const refuge = g.playerIslands(w, def.id).find((i) => !islandsBefore.includes(i.id));
+  check('refuge named in victim language', !!refuge && refuge.name === 'Útočiště hráče Obránce');
+  check('conquest report to victim is Czech',
+    w.reports.some((x) => x.ownerId === def.id && x.title.includes('padl')));
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

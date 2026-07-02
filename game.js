@@ -516,7 +516,7 @@ function applyMovement(world, m) {
     const L = langOf(world, m.ownerId);
     if (dest.ownerId == null && settler) {
       dest.ownerId = settler.id;
-      dest.name = `${settler.name}'s Colony`;
+      dest.name = t(L, 'name.colony', { name: settler.name });
       dest.buildings = {
         lumberyard: 1, quarry: 1, goldmine: 1,
         storehouse: 1, hall: 1, barracks: 0, harbor: 0,
@@ -547,10 +547,10 @@ function applyMovement(world, m) {
 
   // Attack arrives. Everyone stationed at the destination defends.
   const attacker = world.players.find((p) => p.id === m.ownerId);
-  const attackerName = attacker ? attacker.name : 'Unknown';
   const where = `${dest.name} (${dest.x}:${dest.y})`;
   const atkLang = langOf(world, m.ownerId);
   const defLang = langOf(world, dest.ownerId);
+  const attackerNameFor = (lang) => (attacker ? attacker.name : t(lang, 'player.unknown'));
 
   // If the island became the attacker's own while the army was at sea
   // (e.g. captured by an earlier wave), the army reinforces it instead.
@@ -610,12 +610,12 @@ function applyMovement(world, m) {
         addReport(world, oldOwner.id, m.arrive,
           t(defLang, 'report.fallen.title', { where }), [
             t(defLang, 'report.fallen.l1', {
-              attacker: attackerName, origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
+              attacker: attackerNameFor(defLang), origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
             }),
             t(defLang, 'report.fallen.l2', { defLost: fmtUnits(defendersLost, defLang) }),
           ]);
         if (playerIslands(world, oldOwner.id).length === 0) {
-          const refuge = newIsland(world, oldOwner.id, `${oldOwner.name}'s Refuge`);
+          const refuge = newIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
           addReport(world, oldOwner.id, m.arrive,
             t(defLang, 'report.refuge.title'), [
               t(defLang, 'report.refuge.l1', { coords: `(${refuge.x}:${refuge.y})` }),
@@ -660,7 +660,7 @@ function applyMovement(world, m) {
     addReport(world, dest.ownerId, m.arrive,
       t(defLang, 'report.raided.title', { where }), [
         t(defLang, 'report.raided.l1', {
-          attacker: attackerName, origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
+          attacker: attackerNameFor(defLang), origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
         }),
         t(defLang, 'report.raided.l2', { defLost: fmtUnits(defendersLost, defLang) }),
         t(defLang, 'report.raided.l3', { loot: fmtRes(loot, defLang) }),
@@ -683,7 +683,7 @@ function applyMovement(world, m) {
     addReport(world, dest.ownerId, m.arrive,
       t(defLang, 'report.repelled.title', { where }), [
         t(defLang, 'report.repelled.l1', {
-          attacker: attackerName, origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
+          attacker: attackerNameFor(defLang), origin: originFor(defLang), sent: fmtUnits(m.units, defLang),
         }),
         t(defLang, 'report.repelled.l2', { defLost: fmtUnits(defendersLost, defLang) }),
       ]);
@@ -745,17 +745,18 @@ function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 32).toString('hex');
 }
 
-function createPlayer(world, name, password, isBot) {
+function createPlayer(world, name, password, isBot, lang) {
   if (world.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
     return { error: 'err.nameTaken' };
   }
-  const player = { id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang: 'en' };
+  lang = LANGS.includes(lang) ? lang : 'en';
+  const player = { id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
     player.hash = hashPassword(password, player.salt);
   }
   world.players.push(player);
-  newIsland(world, player.id, `${name}'s Isle`);
+  newIsland(world, player.id, t(lang, 'name.isle', { name }));
   return { player };
 }
 

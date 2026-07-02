@@ -216,6 +216,9 @@ function unitCatalog(island, lang) {
 }
 
 function movementsFor(world, player) {
+  const lang = player.lang || 'en';
+  // Uncharted islands keep a canonical stored name; show it in the viewer's language.
+  const shownName = (i) => (i.ownerId == null ? t(lang, 'name.uncharted') : i.name);
   const mine = new Set(game.playerIslands(world, player.id).map((i) => i.id));
   const outgoing = [];
   const incoming = [];
@@ -224,7 +227,7 @@ function movementsFor(world, player) {
       const dest = world.islands.find((i) => i.id === m.toId);
       outgoing.push({
         type: m.type,
-        target: dest ? `${dest.name} (${dest.x}:${dest.y})` : '?',
+        target: dest ? `${shownName(dest)} (${dest.x}:${dest.y})` : '?',
         units: m.units,
         loot: m.loot || null,
         arrive: m.arrive,
@@ -312,9 +315,8 @@ async function handleApi(req, res, pathname, query) {
       return sendErr(res, 400, lang, 'err.nameFormat');
     }
     if (password.length < 3) return sendErr(res, 400, lang, 'err.passwordShort');
-    const result = game.createPlayer(world, name, password, false);
+    const result = game.createPlayer(world, name, password, false, lang);
     if (result.error) return gameErr(res, lang, result);
-    result.player.lang = lang;
     startSession(res, result.player.id);
     game.saveWorld(world);
     return sendJson(res, 200, { ok: true });
@@ -533,7 +535,7 @@ async function handleApi(req, res, pathname, query) {
       return {
         x: i.x,
         y: i.y,
-        name: i.name,
+        name: i.ownerId == null ? t(lang, 'name.uncharted') : i.name,
         owner: owner ? owner.name : null,
         alliance: alliance ? alliance.tag : null,
         unowned: i.ownerId == null,

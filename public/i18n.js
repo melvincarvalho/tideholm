@@ -139,6 +139,13 @@
       'report.repelled.l2': 'You lost {defLost} holding the line.',
       'mail.invite': 'You are invited to join [{tag}] {name}. Open the Alliance tab to accept.',
       'origin.unknown': 'parts unknown',
+      'player.unknown': 'Unknown',
+
+      // generated island names (fixed at creation, in the owner's language)
+      'name.isle': "{name}'s Isle",
+      'name.colony': "{name}'s Colony",
+      'name.refuge': "{name}'s Refuge",
+      'name.uncharted': 'Uncharted Isle',
 
       // client chrome
       'ui.tab.island': 'My Island',
@@ -343,6 +350,13 @@
       'report.repelled.l2': 'Du hast {defLost} bei der Verteidigung verloren.',
       'mail.invite': 'Du bist eingeladen, [{tag}] {name} beizutreten. Öffne den Allianz-Tab, um anzunehmen.',
       'origin.unknown': 'unbekannten Gewässern',
+      'player.unknown': 'Unbekannt',
+
+      // generated island names
+      'name.isle': 'Insel von {name}',
+      'name.colony': 'Kolonie von {name}',
+      'name.refuge': 'Zuflucht von {name}',
+      'name.uncharted': 'Unerforschte Insel',
 
       // client chrome
       'ui.tab.island': 'Meine Insel',
@@ -547,6 +561,13 @@
       'report.repelled.l2': 'Při obraně jsi ztratil {defLost}.',
       'mail.invite': 'Jsi pozván do aliance [{tag}] {name}. Přijmi v záložce Aliance.',
       'origin.unknown': 'neznámých vod',
+      'player.unknown': 'Neznámý',
+
+      // generated island names
+      'name.isle': 'Ostrov hráče {name}',
+      'name.colony': 'Kolonie hráče {name}',
+      'name.refuge': 'Útočiště hráče {name}',
+      'name.uncharted': 'Neprobádaný ostrov',
 
       // client chrome
       'ui.tab.island': 'Můj ostrov',
