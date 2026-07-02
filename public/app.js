@@ -192,6 +192,16 @@ function renderState() {
   mailBadge.classList.toggle('hidden', !state.unreadMessages);
   mailBadge.textContent = state.unreadMessages || '';
 
+  // Tutorial quest
+  const qbox = $('quest-box');
+  qbox.classList.toggle('hidden', !state.quest);
+  if (state.quest) {
+    const q = state.quest;
+    qbox.innerHTML = `<b>${T('ui.quest.progress', { i: q.i, n: q.n })} ${q.name}</b><br>
+      <span>${q.desc}</span><br>
+      <small>${T('ui.quest.reward')} 🪵${q.reward.wood} 🪨${q.reward.stone} 🪙${q.reward.gold}</small>`;
+  }
+
   renderMovements();
 
   $('res-cap').textContent = fmtNum(isl.capacity);

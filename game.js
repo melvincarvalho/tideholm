@@ -368,6 +368,11 @@ function tryTrain(world, island, key, count, now) {
     count,
     finish: start + trainTime(key, island.buildings[need]) * 1000 * count,
   });
+  const owner = world.players.find((p) => p.id === island.ownerId);
+  if (owner && !owner.isBot) {
+    owner.stats = owner.stats || {};
+    owner.stats.trained = (owner.stats.trained || 0) + count;
+  }
   return { ok: true };
 }
 
@@ -880,6 +885,10 @@ function applyMovement(world, m) {
   };
 
   if (A > D) {
+    if (attacker && !attacker.isBot) {
+      attacker.stats = attacker.stats || {};
+      attacker.stats.wins = (attacker.stats.wins || 0) + 1;
+    }
     const lossFrac = D > 0 ? Math.pow(D / A, 1.5) : 0;
     const survivors = scaleUnits(m.units, 1 - lossFrac);
     if (totalUnits(survivors) === 0) {
@@ -1040,6 +1049,67 @@ function applyMovement(world, m) {
   }
 }
 
+// ---------------------------------------------------------------- quests
+
+// A linear tutorial chain, checked server-side. Rewards land on the first
+// island; a veteran whose empire already satisfies later steps chain-clears.
+const QUESTS = [
+  { id: 'lumber2', reward: { wood: 50, stone: 50, gold: 25 },
+    done: (world, p) => playerIslands(world, p.id).some((i) => i.buildings.lumberyard >= 2) },
+  { id: 'store2', reward: { wood: 80, stone: 80, gold: 40 },
+    done: (world, p) => playerIslands(world, p.id).some((i) => i.buildings.storehouse >= 2) },
+  { id: 'barracks1', reward: { wood: 100, stone: 80, gold: 50 },
+    done: (world, p) => playerIslands(world, p.id).some((i) => i.buildings.barracks >= 1) },
+  { id: 'train5', reward: { wood: 120, stone: 100, gold: 60 },
+    done: (world, p) => (p.stats && p.stats.trained || 0) >= 5 },
+  { id: 'wall1', reward: { wood: 100, stone: 150, gold: 50 },
+    done: (world, p) => playerIslands(world, p.id).some((i) => i.buildings.wall >= 1) },
+  { id: 'win1', reward: { wood: 150, stone: 120, gold: 80 },
+    done: (world, p) => (p.stats && p.stats.wins || 0) >= 1 },
+  { id: 'harbor1', reward: { wood: 250, stone: 200, gold: 120 },
+    done: (world, p) => playerIslands(world, p.id).some((i) => i.buildings.harbor >= 1) },
+  { id: 'expand2', reward: { wood: 400, stone: 400, gold: 200 },
+    done: (world, p) => playerIslands(world, p.id).length >= 2 },
+];
+
+function checkQuests(world, player, now) {
+  if (player.isBot) return;
+  if (player.questIndex == null) player.questIndex = 0;
+  const L = player.lang || 'en';
+  while (player.questIndex < QUESTS.length) {
+    const quest = QUESTS[player.questIndex];
+    if (!quest.done(world, player)) break;
+    const home = playerIsland(world, player.id);
+    if (home) {
+      resolveIsland(home, now);
+      const cap = storageCapacity(home.buildings.storehouse);
+      for (const r of RESOURCES) {
+        home.resources[r] = Math.min(cap, home.resources[r] + quest.reward[r]);
+      }
+      addReport(world, player.id, now,
+        t(L, 'report.quest.title', { quest: t(L, `quest.${quest.id}.name`) }), [
+          t(L, 'report.quest.l1', { island: home.name, res: fmtRes(quest.reward, L) }),
+        ]);
+    }
+    player.questIndex++;
+  }
+}
+
+// The current quest, localized, or null when the chain is finished.
+function currentQuest(world, player) {
+  const idx = player.questIndex || 0;
+  if (player.isBot || idx >= QUESTS.length) return null;
+  const L = player.lang || 'en';
+  const quest = QUESTS[idx];
+  return {
+    i: idx + 1,
+    n: QUESTS.length,
+    name: t(L, `quest.${quest.id}.name`),
+    desc: t(L, `quest.${quest.id}.desc`),
+    reward: quest.reward,
+  };
+}
+
 // ---------------------------------------------------------------- victory
 
 // A player or alliance holding WIN_SHARE of all islands wins the world.
@@ -1159,7 +1229,10 @@ function createPlayer(world, name, password, isBot, lang) {
     return { error: 'err.nameTaken' };
   }
   lang = LANGS.includes(lang) ? lang : 'en';
-  const player = { id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang };
+  const player = {
+    id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang,
+    questIndex: 0, stats: {},
+  };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
     player.hash = hashPassword(password, player.salt);
@@ -1210,6 +1283,8 @@ function migrateWorld(world) {
   if (!world.alliances) world.alliances = [];
   for (const p of world.players) {
     if (p.protectionBroken == null) p.protectionBroken = !!p.isBot;
+    if (p.questIndex == null) p.questIndex = 0;
+    if (!p.stats) p.stats = {};
   }
   for (const island of world.islands) {
     for (const key of Object.keys(BUILDINGS)) {
@@ -1263,7 +1338,7 @@ module.exports = {
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
-  tradeCapacity, sendTrade, renameIsland, checkVictory,
+  tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

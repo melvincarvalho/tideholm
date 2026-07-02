@@ -192,6 +192,15 @@ th { background: #eadfc4; }
 
 .small-btn { font-size: 11px; padding: 2px 8px; }
 
+#quest-box {
+  border: 1px solid var(--accent);
+  border-left: 5px solid var(--accent);
+  border-radius: 4px;
+  background: #fdf6df;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
 #winner-banner {
   background: linear-gradient(90deg, #b8860b, #e0b13d, #b8860b);
   color: #fff;

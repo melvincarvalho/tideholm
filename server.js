@@ -258,6 +258,7 @@ function myIsland(player, islandId) {
 function stateFor(player, islandId) {
   const now = Date.now();
   const lang = player.lang || 'en';
+  game.checkQuests(world, player, now);
   const mine = game.playerIslands(world, player.id);
   const island = myIsland(player, islandId);
   game.resolveIsland(island, now);
@@ -320,6 +321,7 @@ function stateFor(player, islandId) {
     unreadReports: world.reports.filter((r) => r.ownerId === player.id && !r.read).length,
     unreadMessages: world.messages.filter((msg) => msg.toId === player.id && !msg.read).length,
     winner: world.winner || null,
+    quest: game.currentQuest(world, player),
   };
 }
 

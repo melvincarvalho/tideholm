@@ -436,6 +436,59 @@ console.log('beginner protection');
   check('bots spawn without protection', bot.protectionBroken === true);
 }
 
+// ---------------------------------------------------------------- quests
+
+console.log('quests');
+{
+  const { w, a, b, ia } = freshWorld();
+  g.checkQuests(w, a, t0);
+  let q = g.currentQuest(w, a);
+  check('new player starts on quest 1/8', q && q.i === 1 && q.n === 8);
+
+  // complete quest 1: lumberyard to 2
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 0, stone: 0, gold: 0 };
+  ia.buildings.lumberyard = 2;
+  g.checkQuests(w, a, t0);
+  check('quest 1 auto-completes and advances', g.currentQuest(w, a).i === 2);
+  check('reward delivered', ia.resources.wood >= 50 && ia.resources.gold >= 25);
+  check('completion report written',
+    w.reports.some((x) => x.ownerId === a.id && x.title.startsWith('Quest complete')));
+
+  // training counter feeds quest 4
+  ia.buildings.barracks = 1;
+  ia.buildings.storehouse = 2;
+  ia.resources = { wood: 800, stone: 800, gold: 800 };
+  g.tryTrain(w, ia, 'spearman', 5, t0);
+  g.checkQuests(w, a, t0);
+  check('state quests chain-clear (store2, barracks1, train5)', g.currentQuest(w, a).i === 5);
+
+  // wins counter feeds quest 6
+  ia.buildings.wall = 1;
+  g.checkQuests(w, a, t0);
+  check('wall quest cleared', g.currentQuest(w, a).i === 6);
+  ia.units.raider = 20;
+  const r = g.sendAttack(w, a, ia, g.playerIsland(w, b.id), { raider: 20 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  g.checkQuests(w, a, r.arrive + 1);
+  check('first victory clears the battle quest', g.currentQuest(w, a).i === 7);
+
+  // harbor + second island finish the chain
+  ia.buildings.harbor = 1;
+  const free = g.newUnchartedIsland(w);
+  free.ownerId = a.id;
+  g.checkQuests(w, a, r.arrive + 2);
+  check('chain finished — no quest shown', g.currentQuest(w, a) === null);
+  check('quest rewards clamp at storehouse capacity',
+    ia.resources.wood <= g.storageCapacity(ia.buildings.storehouse));
+}
+{
+  const w = g.createWorld();
+  const bot = g.createPlayer(w, 'Reef Rat', null, true).player;
+  g.checkQuests(w, bot, t0);
+  check('bots have no quests', g.currentQuest(w, bot) === null);
+}
+
 // ---------------------------------------------------------------- morale & victory
 
 console.log('morale & victory');
