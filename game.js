@@ -868,6 +868,7 @@ function applyMovement(world, m) {
     const coords = `(${dest.x}:${dest.y})`;
     const L = langOf(world, m.ownerId);
     if (dest.ownerId == null && settler) {
+      if (world.metrics) world.metrics.colonizations++;
       dest.ownerId = settler.id;
       dest.name = t(L, 'name.colony', { name: settler.name });
       dest.buildings = {
@@ -1062,6 +1063,17 @@ function applyMovement(world, m) {
       ]);
   };
 
+  // Optional playtest metrics (world.metrics is absent in normal play).
+  const M = world.metrics;
+  if (M) {
+    M.battles++;
+    if (A > D) M.attackerWins++;
+    if (wallBefore > 0) {
+      M.walledBattles++;
+      if (A <= D) M.walledHolds++;
+    }
+  }
+
   if (A > D) {
     if (attacker && !attacker.isBot) {
       attacker.stats = attacker.stats || {};
@@ -1099,8 +1111,11 @@ function applyMovement(world, m) {
       loyaltyLine = { from: before, to: Math.max(0, Math.round(dest.loyalty)) };
     }
 
+    if (M && loyaltyLine) M.loyaltyStrikes++;
+
     // Conquest only when loyalty is fully broken.
     if (survivors.flagship >= 1 && dest.loyalty <= 0) {
+      if (M) M.conquests++;
       const oldOwner = world.players.find((p) => p.id === dest.ownerId);
       survivors.flagship -= 1; // the Flagship becomes the seat of power
       dest.ownerId = m.ownerId;
@@ -1131,6 +1146,7 @@ function applyMovement(world, m) {
             t(defLang, 'report.fallen.l2', { defLost: fmtUnits(defendersLost, defLang) }),
           ]);
         if (playerIslands(world, oldOwner.id).length === 0) {
+          if (M) M.respawns++;
           const refuge = newIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
           addReport(world, oldOwner.id, m.arrive,
             t(defLang, 'report.refuge.title'), [
@@ -1148,6 +1164,12 @@ function applyMovement(world, m) {
     for (const r of RESOURCES) {
       loot[r] = Math.floor(dest.resources[r] * f);
       dest.resources[r] -= loot[r];
+    }
+
+    if (M) {
+      M.lootHauled += loot.wood + loot.stone + loot.gold;
+      M.atkUnitsLost += totalUnits(m.units) - totalUnits(survivors);
+      M.defUnitsLost += totalUnits(defendersLost);
     }
 
     const duration = m.arrive - m.depart;
@@ -1190,6 +1212,7 @@ function applyMovement(world, m) {
         t(defLang, 'report.raided.l3', { loot: fmtRes(loot, defLang) }),
       ].filter(Boolean));
   } else {
+    if (M) M.atkUnitsLost += totalUnits(m.units);
     const defLossFrac = D > 0 ? Math.pow(A / D, 1.5) : 0;
     const defendersBefore = { ...dest.units };
     dest.units = scaleUnits(dest.units, 1 - defLossFrac);

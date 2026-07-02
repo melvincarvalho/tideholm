@@ -696,6 +696,8 @@ console.log('bot war college');
   Object.assign(pi.buildings, { lumberyard: 10, quarry: 10, goldmine: 9, storehouse: 6, hall: 4 });
   Object.assign(bi.buildings, { lumberyard: 12, quarry: 12, goldmine: 11, storehouse: 8, hall: 6, barracks: 4, harbor: 2 });
   bi.units.raider = 40; bi.units.spearman = 20; bi.units.scout = 5; bi.units.flagship = 1;
+  // conquest and raids require fresh intel now — seed a soft reading
+  bot.intel = { [pi.id]: { def: 100, time: t0 } };
 
   let scouted = false, conquestSent = false;
   for (let i = 0; i < 600 && !(scouted && conquestSent); i++) {
@@ -706,11 +708,35 @@ console.log('bot war college');
     }
     w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
     bi.units.raider = 40; bi.units.spearman = 20; bi.units.scout = 5; bi.units.flagship = 1;
+    bot.intel[pi.id] = { def: 100, time: t0 + i };
   }
-  check('bot sends scouting missions', scouted);
   check('bot launches flagship conquest campaigns', conquestSent);
+  // scouting targets islands WITHOUT fresh intel — drop the intel and watch
+  bot.intel = {};
+  for (let i = 0; i < 400 && !scouted; i++) {
+    botTick(w, t0 + 1000 + i);
+    if (w.movements.some((m) => m.type === 'scout' && m.ownerId === bot.id)) scouted = true;
+    w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
+    bi.units.scout = 5;
+    bot.intel = {}; // keep the target unknown
+  }
+  check('bot sends scouting missions at unknown targets', scouted);
+  check('bot never raids blind (no intel, no attack)', (() => {
+    bot.intel = {};
+    let blind = false;
+    for (let i = 0; i < 300; i++) {
+      botTick(w, t0 + 2000 + i);
+      if (w.movements.some((m) => m.type === 'attack' && m.ownerId === bot.id)) blind = true;
+      w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
+      bi.units.raider = 40; bi.units.spearman = 20;
+      bi.units.flagship = 0;
+      bot.intel = {};
+    }
+    return !blind;
+  })());
 
   // intel is captured machine-readably when bot scouts succeed
+  bi.units.scout = 5;
   const r = g.sendScout(w, bot, bi, pi, 3, t0 + 100000);
   g.resolveWorld(w, r.arrive + 1);
   check('bot stores intel from scouts',
@@ -741,6 +767,7 @@ console.log('bot war college');
   Object.assign(si.buildings, { lumberyard: 6, quarry: 6, goldmine: 5 }); // ~90 pts: raidable, not conquerable
   Object.assign(bi.buildings, { lumberyard: 12, quarry: 12, goldmine: 11, barracks: 4, harbor: 2 });
   bi.units.raider = 40; bi.units.spearman = 20; bi.units.flagship = 1;
+  bot.intel = { [si.id]: { def: 10, time: t0 } }; // intel says trivially soft
   let flagshipAtSmall = false;
   for (let i = 0; i < 400; i++) {
     botTick(w, t0 + i);

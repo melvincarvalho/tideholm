@@ -16,11 +16,22 @@ const MIN_RAID_POWER = 150;      // don't sail with a token force
 const SAFE_POINTS = 40;          // beginner protection: owners below this are left alone
 const BULLY_RATIO = 3;           // don't attack owners more than 3x your points
 const MAX_BOT_ISLANDS = 3;
-const SCOUT_CHANCE = 0.1;         // per bot per tick
+const SCOUT_CHANCE = 0.25;        // per bot per tick — intel drives everything
+const SCOUTS_KEEP = 12;           // standing scout pool per island
+const SCOUT_PARTY = 6;            // scouts per mission
 const CONQUER_CHANCE = 0.06;      // per bot per tick, once a flagship is ready
 const MIN_CONQUER_POWER = 600;    // don't sail a flagship with a token escort
 const HUMAN_CONQUER_FLOOR = 150;  // never run conquest campaigns vs small humans
 const INTEL_MAX_AGE = 12 * 3600 * 1000; // intel goes stale after 12h
+const RAID_EDGE = 1.3;            // required advantage over known defense
+
+// Expected morale factor if this bot attacks that owner (mirrors the engine).
+function moraleEst(world, bot, ownerId) {
+  const mine = playerPoints(world, bot.id);
+  const theirs = playerPoints(world, ownerId);
+  if (mine > theirs && theirs > 0) return Math.max(0.3, Math.sqrt(theirs / mine));
+  return 1;
+}
 
 const BOT_NAMES = [
   'Barnacle Bill', 'Coral Kate', 'Driftwood Dan', 'Kelpie', 'Old Wrack',
@@ -94,9 +105,9 @@ function maybeTrain(world, bot, island, now) {
     return;
   }
   if (Math.random() > 0.5) return;
-  // A few scouts for counter-espionage and reconnaissance.
-  if (island.units.scout < 8 && Math.random() < 0.3) {
-    tryTrain(world, island, 'scout', 2, now);
+  // A standing scout pool for counter-espionage and reconnaissance.
+  if (island.units.scout < SCOUTS_KEEP && Math.random() < 0.35) {
+    tryTrain(world, island, 'scout', 3, now);
     return;
   }
   const roll = Math.random();
@@ -115,7 +126,9 @@ function raidArmy(island) {
   };
 }
 
-function pickRaidTarget(world, bot, from, myPower, now) {
+// mode 'raid': only targets with fresh intel the army can decisively beat
+// (accounting for morale). mode 'scout': targets we lack fresh intel on.
+function pickRaidTarget(world, bot, from, myPower, now, mode) {
   const myPoints = playerPoints(world, bot.id);
   const grudges = bot.grudges || {};
   const intel = bot.intel || {};
@@ -128,15 +141,19 @@ function pickRaidTarget(world, bot, from, myPower, now) {
     const ownerPoints = playerPoints(world, island.ownerId);
     if (ownerPoints < SAFE_POINTS) continue;           // leave beginners alone
     if (ownerPoints > myPoints * BULLY_RATIO) continue; // don't poke giants
+    const known = intel[island.id];
+    const fresh = known && now - known.time < INTEL_MAX_AGE;
+    if (mode === 'raid') {
+      // No blind raids: attack only what the scouts have measured.
+      if (!fresh) continue;
+      if (known.def * RAID_EDGE >= myPower * moraleEst(world, bot, island.ownerId)) continue;
+    } else if (mode === 'scout' && fresh) {
+      continue; // already know this one
+    }
     // Prefer whoever wronged us, then close and weak.
     const grudge = grudges[island.ownerId] || 0;
     let score = grudge * 50 - dist * 2 - ownerPoints / 20;
-    // Scouted intel: skip known fortresses, favor known soft targets.
-    const known = intel[island.id];
-    if (known && now - known.time < INTEL_MAX_AGE && myPower) {
-      if (known.def >= myPower) continue;
-      if (known.def < myPower * 0.7) score += 30;
-    }
+    if (mode === 'raid' && fresh) score -= known.def / 10; // softest known target
     if (score > bestScore) {
       bestScore = score;
       best = island;
@@ -155,7 +172,7 @@ function maybeRaid(world, bot, now) {
   const army = raidArmy(from);
   const power = unitPower(army, 'atk');
   if (power < MIN_RAID_POWER) return; // still mustering
-  const target = pickRaidTarget(world, bot, from, power, now);
+  const target = pickRaidTarget(world, bot, from, power, now, 'raid');
   if (!target) return;
   const result = sendAttack(world, bot, from, target, army, now);
   if (!result.error && bot.grudges && bot.grudges[target.ownerId]) {
@@ -170,9 +187,9 @@ function maybeScout(world, bot, now) {
   const islands = playerIslands(world, bot.id);
   const from = islands.find((i) => i.units.scout >= 3);
   if (!from) return;
-  const target = pickRaidTarget(world, bot, from, 0, now);
+  const target = pickRaidTarget(world, bot, from, 0, now, 'scout');
   if (!target) return;
-  sendScout(world, bot, from, target, 3, now);
+  sendScout(world, bot, from, target, Math.min(from.units.scout, SCOUT_PARTY), now);
 }
 
 // Conquest campaigns: a flagship, a real escort, and a target it can bully —
@@ -187,6 +204,8 @@ function maybeConquer(world, bot, now) {
   army.flagship = 1;
   if (unitPower(army, 'atk') < MIN_CONQUER_POWER) return;
   const myPoints = playerPoints(world, bot.id);
+  const power = unitPower(army, 'atk');
+  const intel = bot.intel || {};
   let best = null;
   let bestDist = Infinity;
   for (const island of world.islands) {
@@ -198,6 +217,10 @@ function maybeConquer(world, bot, now) {
     if (ownerPoints < SAFE_POINTS * 2) continue;        // no stomping the small
     if (owner && !owner.isBot && ownerPoints < HUMAN_CONQUER_FLOOR) continue;
     if (ownerPoints > myPoints) continue;               // only fight downhill
+    // Conquest fleets sail only against scouted, beatable defenses.
+    const known = intel[island.id];
+    if (!known || now - known.time >= INTEL_MAX_AGE) continue;
+    if (known.def * RAID_EDGE >= power * moraleEst(world, bot, island.ownerId)) continue;
     if (dist < bestDist) { bestDist = dist; best = island; }
   }
   if (best) sendAttack(world, bot, from, best, army, now);
