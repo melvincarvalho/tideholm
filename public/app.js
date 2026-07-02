@@ -375,6 +375,19 @@ $('island-select').addEventListener('change', () => {
   refresh();
 });
 
+$('rename-btn').addEventListener('click', async () => {
+  const name = prompt(T('ui.rename.prompt'), state ? state.island.name : '');
+  if (!name) return;
+  $('build-error').textContent = '';
+  try {
+    state = await api('/api/rename', { name, islandId: activeIslandId });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+  } catch (err) {
+    $('build-error').textContent = err.message;
+  }
+});
+
 async function refresh() {
   try {
     state = await api('/api/state' + (activeIslandId ? `?island=${activeIslandId}` : ''));
@@ -394,8 +407,9 @@ async function refresh() {
 async function loadMap() {
   const data = await api('/api/map');
   const grid = $('map-grid');
-  grid.style.gridTemplateColumns = `repeat(${data.size}, 16px)`;
+  grid.style.gridTemplateColumns = `repeat(${data.size}, var(--cell))`;
   grid.innerHTML = '';
+  let myCell = null;
   const byCoord = new Map(data.islands.map((i) => [`${i.x},${i.y}`, i]));
   for (let y = 0; y < data.size; y++) {
     for (let x = 0; x < data.size; x++) {
@@ -409,11 +423,14 @@ async function loadMap() {
           : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner + (isl.isBot ? ' ' + T('ui.map.bot') : '');
         cell.title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} ${T('ui.map.pts')}`;
         const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
+        if (isActive) myCell = cell;
         if (!isActive) cell.addEventListener('click', () => openAttackPanel(isl));
       }
       grid.appendChild(cell);
     }
   }
+  // Center the view on your island.
+  if (myCell) myCell.scrollIntoView({ block: 'center', inline: 'center' });
 }
 
 // ---------------------------------------------------------------- attack
@@ -426,6 +443,7 @@ function openAttackPanel(target) {
   $('attack-form').classList.toggle('hidden', target.unowned);
   $('colonize-form').classList.toggle('hidden', !target.unowned);
 
+  $('trade-form').classList.add('hidden');
   if (target.unowned) {
     $('attack-title').textContent = T('ui.colonize.title', { name: target.name, x: target.x, y: target.y });
     const ships = state.unitTypes.colonyship;
@@ -435,6 +453,11 @@ function openAttackPanel(target) {
       T('ui.colonize.hint', { island: state.island.name, n: ships.count, eta });
     $('colonize-send').disabled = ships.count < 1;
   } else {
+    // Trade form for any inhabited island (own islands included).
+    $('trade-form').classList.remove('hidden');
+    $('trade-cap').textContent = T('ui.trade.cap', { cap: state.island.tradeCap });
+    $('trade-send').disabled = state.island.tradeCap < 1;
+
     const supportOnly = target.isYou;
     $('attack-title').textContent = supportOnly
       ? T('ui.support.title', { name: target.name, x: target.x, y: target.y })
@@ -458,8 +481,11 @@ function openAttackPanel(target) {
     $('scout-n').max = state.unitTypes.scout.count;
     for (const input of box.querySelectorAll('input')) {
       input.addEventListener('input', updateAttackEta);
+      input.addEventListener('input', runSimulator);
     }
     updateAttackEta();
+    $('sim-box').classList.toggle('hidden', supportOnly);
+    if (!supportOnly) renderSimulator();
   }
   $('attack-panel').classList.remove('hidden');
   $('attack-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -504,6 +530,85 @@ $('scout-send').addEventListener('click', async () => {
     $('attack-error').textContent = err.message;
   }
 });
+
+$('trade-send').addEventListener('click', async () => {
+  if (!attackTarget) return;
+  $('attack-error').textContent = '';
+  try {
+    state = await api('/api/trade', {
+      x: attackTarget.x,
+      y: attackTarget.y,
+      resources: {
+        wood: Number($('trade-wood').value),
+        stone: Number($('trade-stone').value),
+        gold: Number($('trade-gold').value),
+      },
+      islandId: activeIslandId,
+    });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+    $('attack-panel').classList.add('hidden');
+    attackTarget = null;
+    showTab('island');
+  } catch (err) {
+    $('attack-error').textContent = err.message;
+  }
+});
+
+// ---------------------------------------------------------------- simulator
+
+// Same formula the server uses: D = (def + 15*wall) * (1 + 0.08*wall).
+function runSimulator() {
+  if (!state) return;
+  const army = selectedArmy();
+  let A = 0;
+  for (const [k, n] of Object.entries(army)) A += state.unitTypes[k].atk * n;
+  let def = 0;
+  const defenders = {};
+  for (const input of document.querySelectorAll('[data-sim-unit]')) {
+    const n = Math.max(0, Math.floor(Number(input.value) || 0));
+    defenders[input.dataset.simUnit] = n;
+    def += state.unitTypes[input.dataset.simUnit].def * n;
+  }
+  const wall = Math.max(0, Math.floor(Number($('sim-wall').value) || 0));
+  const D = Math.round((def + 15 * wall) * (1 + 0.08 * wall));
+  const out = $('sim-result');
+  if (A === 0 && def === 0) { out.textContent = ''; return; }
+  if (A > D) {
+    const lossFrac = D > 0 ? Math.pow(D / A, 1.5) : 0;
+    const surv = Object.entries(army)
+      .map(([k, n]) => [k, Math.max(0, Math.min(n, Math.round(n * (1 - lossFrac))))])
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${n} ${state.unitTypes[k].name}`).join(', ') || '—';
+    out.textContent = T('ui.sim.win', { units: surv });
+  } else {
+    const defLossFrac = D > 0 ? Math.pow(A / D, 1.5) : 0;
+    const left = Object.entries(defenders)
+      .map(([k, n]) => [k, Math.max(0, Math.min(n, Math.round(n * (1 - defLossFrac))))])
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${n} ${state.unitTypes[k].name}`).join(', ') || '—';
+    out.textContent = T('ui.sim.hold', { units: left });
+  }
+}
+
+function renderSimulator() {
+  const box = $('sim-units');
+  box.innerHTML = '';
+  for (const [key, u] of Object.entries(state.unitTypes)) {
+    if (u.ship || key === 'scout' || key === 'flagship') continue;
+    const label = document.createElement('label');
+    label.className = 'sim-cell';
+    label.innerHTML = `${u.name} <input type="number" min="0" value="0" data-sim-unit="${key}">`;
+    box.appendChild(label);
+  }
+  for (const input of box.querySelectorAll('input')) {
+    input.addEventListener('input', runSimulator);
+  }
+  $('sim-wall').value = 0;
+  $('sim-result').textContent = '';
+}
+
+$('sim-wall').addEventListener('input', runSimulator);
 
 $('colonize-send').addEventListener('click', async () => {
   if (!attackTarget) return;

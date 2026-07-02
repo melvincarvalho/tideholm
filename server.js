@@ -287,6 +287,7 @@ function stateFor(player, islandId) {
       queueMax: game.QUEUE_MAX,
       loyalty: Math.round(island.loyalty),
       loyaltyMax: game.LOYALTY_MAX,
+      tradeCap: game.tradeCapacity(island.buildings.harbor),
       popUsed: game.popUsed(island),
       popCap: game.popCap(island.buildings.farm),
       support: (island.support || []).map((c) => {
@@ -330,7 +331,7 @@ async function handleApi(req, res, pathname, query) {
     if (!body) return sendErr(res, 400, lang, 'err.badRequest');
     const name = String(body.name || '').trim();
     const password = String(body.password || '');
-    if (!/^[\w .'-]{2,24}$/.test(name)) {
+    if (!/^[\p{L}\p{N} .'-]{2,24}$/u.test(name)) {
       return sendErr(res, 400, lang, 'err.nameFormat');
     }
     if (password.length < 3) return sendErr(res, 400, lang, 'err.passwordShort');
@@ -455,6 +456,28 @@ async function handleApi(req, res, pathname, query) {
     );
     if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
     const result = game.sendScout(world, player, island, target, body.count, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, stateFor(player, island.id));
+  }
+
+  if (req.method === 'POST' && pathname === '/api/trade') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const island = myIsland(player, body.islandId);
+    const target = world.islands.find(
+      (i) => i.x === Number(body.x) && i.y === Number(body.y)
+    );
+    if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
+    const result = game.sendTrade(world, player, island, target, body.resources, Date.now());
+    if (result.error) return gameErr(res, lang, result);
+    return sendJson(res, 200, stateFor(player, island.id));
+  }
+
+  if (req.method === 'POST' && pathname === '/api/rename') {
+    const body = await readBody(req);
+    if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+    const island = myIsland(player, body.islandId);
+    const result = game.renameIsland(world, player, island, body.name);
     if (result.error) return gameErr(res, lang, result);
     return sendJson(res, 200, stateFor(player, island.id));
   }

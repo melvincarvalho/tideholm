@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tideholm</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -60,6 +61,7 @@
     <main>
       <section id="view-island">
         <h2 id="island-title"></h2>
+        <p><button id="rename-btn" class="small-btn" data-i18n="ui.rename"></button></p>
 
         <div id="movements"></div>
 
@@ -119,6 +121,25 @@
               <input type="number" id="scout-n" min="1" max="500" value="1">
               <button id="scout-send" data-i18n="ui.scout.send"></button>
             </span>
+
+            <div id="sim-box">
+              <h4 data-i18n="ui.sim.title"></h4>
+              <div id="sim-units" class="sim-row"></div>
+              <label class="sim-row"><span data-i18n="ui.sim.wall"></span>
+                <input type="number" id="sim-wall" min="0" max="30" value="0"></label>
+              <p id="sim-result" class="hint"></p>
+            </div>
+          </div>
+
+          <div id="trade-form" class="hidden">
+            <h4 data-i18n="ui.trade.title"></h4>
+            <div class="sim-row">
+              🪵 <input type="number" id="trade-wood" min="0" value="0">
+              🪨 <input type="number" id="trade-stone" min="0" value="0">
+              🪙 <input type="number" id="trade-gold" min="0" value="0">
+            </div>
+            <p class="hint" id="trade-cap"></p>
+            <button id="trade-send" data-i18n="ui.trade.send"></button>
           </div>
           <div id="colonize-form" class="hidden">
             <p class="hint" id="colonize-hint"></p>

@@ -355,6 +355,49 @@ console.log('scouts');
   check('survivors sail home', ret && ret.units.scout === 4);
 }
 
+// ---------------------------------------------------------------- trade & rename
+
+console.log('trade & rename');
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  check('trade capacity: harbor 1 carries 250, harbor 3 carries 563',
+    g.tradeCapacity(1) === 250 && g.tradeCapacity(3) === 563 && g.tradeCapacity(0) === 0);
+
+  // no harbor -> rejected
+  let r = g.sendTrade(w, a, ia, ib, { wood: 100 }, t0);
+  check('trade requires a harbor', r.error === 'err.buildFirst');
+
+  ia.buildings.harbor = 1;
+  ia.resources = { wood: 300, stone: 300, gold: 300 };
+  check('empty shipment rejected', g.sendTrade(w, a, ia, ib, {}, t0).error === 'err.tradeAmount');
+  check('overweight shipment rejected',
+    g.sendTrade(w, a, ia, ib, { wood: 200, stone: 100 }, t0).error === 'err.tradeCapacity');
+  check('cannot send more than you have',
+    g.sendTrade(w, a, ia, ib, { gold: 301 }, t0).error === 'err.noResources');
+
+  r = g.sendTrade(w, a, ia, ib, { wood: 120, gold: 80 }, t0);
+  check('valid shipment sails', !r.error);
+  check('resources deducted at once', Math.floor(ia.resources.wood) === 180);
+  g.resolveIsland(ib, t0);
+  ib.resources = { wood: 0, stone: 0, gold: 0 }; // drained stores, room to receive
+  g.resolveWorld(w, r.arrive + 1);
+  check('shipment delivered', ib.resources.wood >= 120 && ib.resources.gold >= 80);
+  // a full store clamps: deliveries can't overflow the storehouse
+  const cap = g.storageCapacity(ib.buildings.storehouse);
+  check('delivery clamps at storage capacity', ib.resources.wood <= cap);
+  check('both sides got reports',
+    w.reports.some((x) => x.ownerId === a.id && x.title.startsWith('Shipment delivered')) &&
+    w.reports.some((x) => x.ownerId === b.id && x.title.startsWith('Shipment arrived')));
+}
+{
+  const { w, a, ia } = freshWorld();
+  check('rename works', !g.renameIsland(w, a, ia, 'Šťastný Ostrov').error &&
+    ia.name === 'Šťastný Ostrov');
+  check('unicode letters accepted', !g.renameIsland(w, a, ia, 'Über-Insel').error);
+  check('too-short name rejected', g.renameIsland(w, a, ia, 'x').error === 'err.badName');
+  check('markup rejected', g.renameIsland(w, a, ia, '<script>x</script>').error === 'err.badName');
+}
+
 // ---------------------------------------------------------------- beginner protection
 
 console.log('beginner protection');

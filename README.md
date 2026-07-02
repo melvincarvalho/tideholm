@@ -61,6 +61,10 @@ shutdown. Delete that file to start a fresh world.
 - Wall strengthens all defenders and takes damage when the island is
   sacked. Farm caps population: every unit costs pop, bigger armies need
   bigger farms.
+- Trade: ship resources to any inhabited island (allies or your own) from
+  the Harbor — capacity 250 × 1.5^(level-1) per shipment.
+- Quality of life: rename your islands, a battle simulator in the attack
+  panel, the map centers on your island, and unicode player names.
 - Rankings tab: every player by total points. Mail tab: write to any human
   player. Alliance tab: found an alliance (name + tag), invite players,
   accept or decline invitations. Allies cannot attack each other, and
@@ -98,6 +102,7 @@ already own (e.g. captured by an earlier wave) reinforces it.
 5. ✅ Bot war AI: raids, grudges and retaliation, bot expansion
 6. ✅ Alliances, messaging, rankings
 7. ✅ War depth: loyalty conquest, support troops, scouts, wall, farm cap
+8. ✅ Trade shipments + QoL: renaming, battle simulator, map centering
 
 ## Running it for real
 

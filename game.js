@@ -448,6 +448,51 @@ function withdrawSupport(world, player, target, now) {
   return { ok: true };
 }
 
+// Trade shipments sail from the Harbor; heavier harbors carry more.
+const TRADE_SPEED = 8; // minutes per field at game speed 1
+
+function tradeCapacity(harborLevel) {
+  return harborLevel < 1 ? 0 : Math.round(250 * Math.pow(1.5, harborLevel - 1));
+}
+
+function sendTrade(world, player, island, target, resources, now) {
+  resolveIsland(island, now);
+  if (island.buildings.harbor < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: '@building.harbor.name' } };
+  }
+  const load = {};
+  let total = 0;
+  for (const r of RESOURCES) {
+    const n = Math.floor(Number((resources && resources[r]) || 0));
+    if (n < 0 || !Number.isFinite(n)) return { error: 'err.badRequest' };
+    if (n > island.resources[r]) return { error: 'err.noResources' };
+    load[r] = n;
+    total += n;
+  }
+  if (total < 1) return { error: 'err.tradeAmount' };
+  const cap = tradeCapacity(island.buildings.harbor);
+  if (total > cap) return { error: 'err.tradeCapacity', errorParams: { cap } };
+  if (target.ownerId == null) return { error: 'err.uninhabited' };
+  if (target.id === island.id) return { error: 'err.ownIsland' };
+  for (const r of RESOURCES) island.resources[r] -= load[r];
+  const dist = Math.hypot(island.x - target.x, island.y - target.y);
+  const arrive = now + Math.max(5000, Math.round((dist * TRADE_SPEED * 60000) / SPEED));
+  world.movements.push({
+    id: world.nextId++, type: 'trade', ownerId: player.id,
+    fromId: island.id, toId: target.id, units: zeroUnits(), loot: load,
+    depart: now, arrive,
+  });
+  return { ok: true, arrive };
+}
+
+// Rename one of your islands. Unicode letters welcome — this is user text.
+function renameIsland(world, player, island, name) {
+  name = String(name || '').trim();
+  if (!/^[\p{L}\p{N} .,'-]{2,30}$/u.test(name)) return { error: 'err.badName' };
+  island.name = name;
+  return { ok: true };
+}
+
 // Espionage. Scouts fight only enemy scouts; survivors bring intel home.
 function sendScout(world, player, island, target, count, now) {
   count = Math.floor(Number(count));
@@ -500,7 +545,7 @@ function createAlliance(world, player, name, tag) {
   name = String(name || '').trim();
   tag = String(tag || '').trim().toUpperCase();
   if (player.allianceId) return { error: 'err.inAlliance' };
-  if (!/^[\w .'-]{3,30}$/.test(name)) return { error: 'err.allianceName' };
+  if (!/^[\p{L}\p{N} .'-]{3,30}$/u.test(name)) return { error: 'err.allianceName' };
   if (!/^[A-Z0-9]{2,5}$/.test(tag)) return { error: 'err.allianceTag' };
   if (world.alliances.some((a) =>
     a.name.toLowerCase() === name.toLowerCase() || a.tag === tag)) {
@@ -662,6 +707,26 @@ function applyMovement(world, m) {
   const atkLang = langOf(world, m.ownerId);
   const defLang = langOf(world, dest.ownerId);
   const attackerNameFor = (lang) => (attacker ? attacker.name : t(lang, 'player.unknown'));
+
+  if (m.type === 'trade') {
+    const cap = storageCapacity(dest.buildings.storehouse);
+    for (const r of RESOURCES) {
+      dest.resources[r] = Math.min(cap, dest.resources[r] + m.loot[r]);
+    }
+    addReport(world, m.ownerId, m.arrive,
+      t(atkLang, 'report.trade.sent.title', { where }), [
+        t(atkLang, 'report.trade.sent.l1', { res: fmtRes(m.loot, atkLang) }),
+      ]);
+    if (dest.ownerId !== m.ownerId) {
+      addReport(world, dest.ownerId, m.arrive,
+        t(defLang, 'report.trade.recv.title', { where }), [
+          t(defLang, 'report.trade.recv.l1', {
+            from: attackerNameFor(defLang), res: fmtRes(m.loot, defLang),
+          }),
+        ]);
+    }
+    return;
+  }
 
   if (m.type === 'support') {
     if (dest.ownerId === m.ownerId) {
@@ -1110,6 +1175,7 @@ module.exports = {
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
+  tradeCapacity, sendTrade, renameIsland,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

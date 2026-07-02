@@ -125,9 +125,11 @@ th { background: #eadfc4; }
   overflow: auto;
 }
 
+:root { --cell: 16px; }
+
 .cell {
-  width: 16px;
-  height: 16px;
+  width: var(--cell);
+  height: var(--cell);
   background: var(--sea);
 }
 
@@ -188,6 +190,22 @@ th { background: #eadfc4; }
 .scout-box { margin-left: 12px; white-space: nowrap; }
 .scout-box input { width: 56px; padding: 4px; border: 1px solid #b0a488; font: inherit; }
 
+.small-btn { font-size: 11px; padding: 2px 8px; }
+
+#sim-box, #trade-form {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px dashed var(--accent);
+  border-radius: 4px;
+  background: #faf3e0;
+}
+#sim-box h4, #trade-form h4 { margin: 0 0 6px; }
+.sim-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 2px 0; }
+.sim-cell { white-space: nowrap; }
+.sim-row input, .sim-cell input {
+  width: 64px; padding: 3px; border: 1px solid #b0a488; font: inherit;
+}
+
 /* ---------- reports ---------- */
 
 .badge {
@@ -236,6 +254,7 @@ th { background: #eadfc4; }
 /* ---------- small screens ---------- */
 
 @media (max-width: 700px) {
+  :root { --cell: 11px; }
   header { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
   nav { display: flex; flex-wrap: wrap; gap: 4px; }
   #resbar { flex-wrap: wrap; gap: 10px; padding: 6px 8px; }
