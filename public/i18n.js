@@ -35,6 +35,8 @@
       'building.wall.desc': 'Strengthens the defenders. Takes damage when the island falls to raiders.',
       'building.farm.name': 'Farm',
       'building.farm.desc': 'Feeds your people. Raises the population cap for troops.',
+      'building.wonder.name': 'Great Beacon',
+      'building.wonder.desc': 'A colossal lighthouse, visible across the world. Complete level 5 and the world is yours.',
 
       // units
       'unit.spearman.name': 'Spearman',
@@ -100,6 +102,7 @@
       'err.ownOffer': 'That is your own offer.',
       'err.notLeader': 'Only the alliance founder can do that.',
       'err.pact': 'You have a pact with that alliance.',
+      'err.requiresLevel': 'Requires {building} level {n}.',
 
       // server errors
       'err.badRequest': 'Bad request.',
@@ -186,6 +189,12 @@
       'ui.winner': '🏆 {name} has won the world — {n} of {total} islands ({share}%).',
       'report.dip.war.title': 'War declared!',
       'report.dip.war.l1': '[{a}] and [{b}] are now at war.',
+      'report.wonder.title': 'The Great Beacon rises!',
+      'report.wonder.l1': '{name} raised the Great Beacon on {island} to level {lvl} of {max}.',
+      'ui.hof.title': 'Hall of Fame',
+      'ui.hof.line': 'Season {n}: {name} — {islands} of {total} islands ({share}%)',
+      'ui.wonder.title': 'Great Beacons',
+      'ui.wonder.progress': '🗼 {name}: {island} — level {lvl}/{max}',
       'ui.tab.market': 'Market',
       'ui.market.open': 'Open offers',
       'ui.market.none': 'No offers. The sea lanes are quiet.',
@@ -359,6 +368,8 @@
       'building.wall.desc': 'Stärkt die Verteidiger. Wird beschädigt, wenn die Insel Plünderern unterliegt.',
       'building.farm.name': 'Hof',
       'building.farm.desc': 'Ernährt dein Volk. Erhöht das Bevölkerungslimit für Truppen.',
+      'building.wonder.name': 'Großer Leuchtturm',
+      'building.wonder.desc': 'Ein kolossaler Leuchtturm, in der ganzen Welt sichtbar. Vollende Stufe 5 und die Welt gehört dir.',
 
       // units
       'unit.spearman.name': 'Speerträger',
@@ -424,6 +435,7 @@
       'err.ownOffer': 'Das ist dein eigenes Angebot.',
       'err.notLeader': 'Das kann nur der Gründer der Allianz.',
       'err.pact': 'Du hast einen Pakt mit dieser Allianz.',
+      'err.requiresLevel': 'Erfordert {building} Stufe {n}.',
 
       // server errors
       'err.badRequest': 'Ungültige Anfrage.',
@@ -510,6 +522,12 @@
       'ui.winner': '🏆 {name} hat die Welt erobert — {n} von {total} Inseln ({share}%).',
       'report.dip.war.title': 'Krieg erklärt!',
       'report.dip.war.l1': '[{a}] und [{b}] befinden sich nun im Krieg.',
+      'report.wonder.title': 'Der Große Leuchtturm wächst!',
+      'report.wonder.l1': '{name} hat den Großen Leuchtturm auf {island} auf Stufe {lvl} von {max} erhöht.',
+      'ui.hof.title': 'Ruhmeshalle',
+      'ui.hof.line': 'Saison {n}: {name} — {islands} von {total} Inseln ({share}%)',
+      'ui.wonder.title': 'Große Leuchttürme',
+      'ui.wonder.progress': '🗼 {name}: {island} — Stufe {lvl}/{max}',
       'ui.tab.market': 'Markt',
       'ui.market.open': 'Offene Angebote',
       'ui.market.none': 'Keine Angebote. Die Seewege sind still.',
@@ -683,6 +701,8 @@
       'building.wall.desc': 'Posilují obránce. Při dobytí nájezdníky se poškodí.',
       'building.farm.name': 'Statek',
       'building.farm.desc': 'Živí tvůj lid. Zvyšuje populační limit pro jednotky.',
+      'building.wonder.name': 'Velký maják',
+      'building.wonder.desc': 'Kolosální maják viditelný přes celý svět. Dokonči úroveň 5 a svět je tvůj.',
 
       // units
       'unit.spearman.name': 'Kopiník',
@@ -748,6 +768,7 @@
       'err.ownOffer': 'To je tvá vlastní nabídka.',
       'err.notLeader': 'To může jen zakladatel aliance.',
       'err.pact': 'S touto aliancí máš pakt.',
+      'err.requiresLevel': 'Vyžaduje budovu {building} úrovně {n}.',
 
       // server errors
       'err.badRequest': 'Neplatný požadavek.',
@@ -834,6 +855,12 @@
       'ui.winner': '🏆 {name} dobyl svět — {n} z {total} ostrovů ({share}%).',
       'report.dip.war.title': 'Vyhlášena válka!',
       'report.dip.war.l1': '[{a}] a [{b}] jsou nyní ve válce.',
+      'report.wonder.title': 'Velký maják roste!',
+      'report.wonder.l1': '{name} pozvedl Velký maják na ostrově {island} na úroveň {lvl} z {max}.',
+      'ui.hof.title': 'Síň slávy',
+      'ui.hof.line': 'Sezóna {n}: {name} — {islands} z {total} ostrovů ({share}%)',
+      'ui.wonder.title': 'Velké majáky',
+      'ui.wonder.progress': '🗼 {name}: {island} — úroveň {lvl}/{max}',
       'ui.tab.market': 'Trh',
       'ui.market.open': 'Otevřené nabídky',
       'ui.market.none': 'Žádné nabídky. Námořní cesty jsou tiché.',

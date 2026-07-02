@@ -513,7 +513,19 @@ async function handleApi(req, res, pathname, query) {
         };
       })
       .sort((a, b) => b.points - a.points);
-    return sendJson(res, 200, { rankings: rows });
+    const wonders = world.islands
+      .filter((i) => (i.buildings.wonder || 0) > 0)
+      .map((i) => {
+        const owner = world.players.find((p) => p.id === i.ownerId);
+        return {
+          name: owner ? owner.name : '?',
+          island: `${i.name} (${i.x}:${i.y})`,
+          level: i.buildings.wonder,
+          max: game.WONDER_WIN_LEVEL,
+        };
+      })
+      .sort((a, b) => b.level - a.level);
+    return sendJson(res, 200, { rankings: rows, wonders, hallOfFame: game.loadHall() });
   }
 
   if (req.method === 'GET' && pathname === '/api/messages') {

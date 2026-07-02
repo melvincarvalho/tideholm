@@ -4,7 +4,11 @@
 'use strict';
 
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
+process.env.HALL_FILE = require('path').join(require('os').tmpdir(), `tideholm-hall-test-${process.pid}.json`);
 const g = require('./game');
+process.on('exit', () => {
+  try { require('fs').rmSync(process.env.HALL_FILE, { force: true }); } catch { /* gone */ }
+});
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -631,6 +635,49 @@ console.log('morale & victory');
   check('humans got the announcement',
     w.reports.filter((x) => x.title === 'The world has been won!').length === 2);
   check('victory fires only once', g.checkVictory(w, t0 + 1000) === null);
+}
+
+// ---------------------------------------------------------------- wonder & hall of fame
+
+console.log('wonder & hall of fame');
+{
+  const { w, a, ia } = freshWorld();
+  ia.resources = { wood: 90000, stone: 90000, gold: 90000 };
+  ia.buildings.storehouse = 15;
+  check('Great Beacon requires Island Hall 10',
+    g.tryBuild(w, ia, 'wonder', t0).error === 'err.requiresLevel');
+  ia.buildings.hall = 10;
+  check('with hall 10 it builds', !g.tryBuild(w, ia, 'wonder', t0).error);
+
+  // level completions are announced to all humans, once each
+  ia.queue = [];
+  ia.buildings.wonder = 3;
+  g.checkVictory(w, t0);
+  g.checkVictory(w, t0 + 1000);
+  const announcements = w.reports.filter((x) => x.title === 'The Great Beacon rises!');
+  check('wonder progress announced once per level (2 humans)', announcements.length === 2);
+  check('no winner below level 5', !w.winner);
+
+  // level 5 wins the world
+  ia.buildings.wonder = 5;
+  const win = g.checkVictory(w, t0 + 2000);
+  check('completed Beacon wins the world', !!win && win.via === 'wonder' && win.name === 'A');
+  const hall = g.loadHall();
+  check('hall of fame entry recorded', hall.length >= 1 &&
+    hall[hall.length - 1].name === 'A' && hall[hall.length - 1].via === 'wonder');
+}
+{
+  // the hall survives a world reset
+  const before = g.loadHall().length;
+  const w2 = g.createWorld(); // fresh world, same hall file
+  const a2 = g.createPlayer(w2, 'Dynasty', 'pw', false).player;
+  for (let i = 0; i < 3; i++) g.newUnchartedIsland(w2);
+  for (const island of w2.islands) island.ownerId = a2.id;
+  g.checkVictory(w2, t0);
+  const hall = g.loadHall();
+  check('hall persists across worlds and numbers seasons',
+    hall.length === before + 1 && hall[hall.length - 1].season === before + 1);
+  check('dominance entries tagged', hall[hall.length - 1].via === 'dominance');
 }
 
 // ---------------------------------------------------------------- bot AI phase 2

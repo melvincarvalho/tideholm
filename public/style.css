@@ -115,6 +115,20 @@ th { background: #eadfc4; }
 
 /* ---------- map ---------- */
 
+.map-tools {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+#minimap {
+  border: 2px solid var(--sea-light);
+  border-radius: 3px;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+
 #map-grid {
   display: grid;
   gap: 1px;

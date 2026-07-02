@@ -112,6 +112,13 @@
       <section id="view-map" class="hidden">
         <h2 data-i18n="ui.map.title"></h2>
         <p class="hint" data-i18n="ui.map.hint"></p>
+        <div class="map-tools">
+          <canvas id="minimap" width="160" height="160"></canvas>
+          <span class="zoom-btns">
+            <button id="zoom-out" class="small-btn">−</button>
+            <button id="zoom-in" class="small-btn">+</button>
+          </span>
+        </div>
         <div id="map-grid"></div>
         <div id="attack-panel" class="hidden">
           <h3 id="attack-title"></h3>
@@ -160,6 +167,14 @@
 
       <section id="view-rankings" class="hidden">
         <h2 data-i18n="ui.rankings.title"></h2>
+        <div id="wonders-box" class="hidden">
+          <h3 data-i18n="ui.wonder.title"></h3>
+          <div id="wonders-list"></div>
+        </div>
+        <div id="hof-box" class="hidden">
+          <h3 data-i18n="ui.hof.title"></h3>
+          <div id="hof-list"></div>
+        </div>
         <table id="ranking-table">
           <thead>
             <tr>

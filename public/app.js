@@ -458,7 +458,58 @@ async function loadMap() {
   }
   // Center the view on your island.
   if (myCell) myCell.scrollIntoView({ block: 'center', inline: 'center' });
+
+  drawMinimap(data);
 }
+
+// ---------------------------------------------------------------- minimap & zoom
+
+const MINI_COLORS = {
+  you: '#3faf46', ally: '#2ab5a5', war: '#ff5544',
+  player: '#3b7dd8', bot: '#e08030', unowned: '#a9b0b8',
+};
+
+function drawMinimap(data) {
+  const canvas = $('minimap');
+  const ctx = canvas.getContext('2d');
+  const px = canvas.width / data.size;
+  ctx.fillStyle = '#0e2a3f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const isl of data.islands) {
+    const kind = isl.isYou ? 'you'
+      : isl.relation === 'war' ? 'war'
+      : isl.relation === 'ally' || isl.relation === 'same' ? 'ally'
+      : isl.unowned ? 'unowned' : isl.isBot ? 'bot' : 'player';
+    ctx.fillStyle = MINI_COLORS[kind];
+    ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
+  }
+  canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * data.size);
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * data.size);
+    const cell = $('map-grid').children[y * data.size + x];
+    if (cell) cell.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+  };
+}
+
+const ZOOM_SIZES = [8, 11, 16, 22];
+
+function applyZoom(px) {
+  document.documentElement.style.setProperty('--cell', px + 'px');
+  localStorage.setItem('cellSize', px);
+}
+
+function zoomStep(dir) {
+  const cur = Number(localStorage.getItem('cellSize')) || 16;
+  const idx = Math.max(0, Math.min(ZOOM_SIZES.length - 1,
+    ZOOM_SIZES.indexOf(ZOOM_SIZES.reduce((a, b) =>
+      Math.abs(b - cur) < Math.abs(a - cur) ? b : a)) + dir));
+  applyZoom(ZOOM_SIZES[idx]);
+}
+
+$('zoom-in').addEventListener('click', () => zoomStep(1));
+$('zoom-out').addEventListener('click', () => zoomStep(-1));
+if (localStorage.getItem('cellSize')) applyZoom(Number(localStorage.getItem('cellSize')));
 
 // ---------------------------------------------------------------- attack
 
@@ -721,6 +772,34 @@ async function loadReports() {
 
 async function loadRankings() {
   const data = await api('/api/rankings');
+
+  // Great Beacons in progress
+  $('wonders-box').classList.toggle('hidden', !data.wonders.length);
+  const wbox = $('wonders-list');
+  wbox.innerHTML = '';
+  for (const won of data.wonders) {
+    const div = document.createElement('div');
+    div.className = 'movement';
+    div.textContent = T('ui.wonder.progress', {
+      name: won.name, island: won.island, lvl: won.level, max: won.max,
+    });
+    wbox.appendChild(div);
+  }
+
+  // Hall of fame — past seasons
+  $('hof-box').classList.toggle('hidden', !data.hallOfFame.length);
+  const hbox = $('hof-list');
+  hbox.innerHTML = '';
+  for (const entry of [...data.hallOfFame].reverse()) {
+    const div = document.createElement('div');
+    div.className = 'movement';
+    div.textContent = '🏆 ' + T('ui.hof.line', {
+      n: entry.season, name: entry.name, islands: entry.islands,
+      total: entry.total, share: entry.share,
+    }) + (entry.via === 'wonder' ? ' 🗼' : '');
+    hbox.appendChild(div);
+  }
+
   const tbody = $('ranking-table').querySelector('tbody');
   tbody.innerHTML = '';
   data.rankings.forEach((row, idx) => {

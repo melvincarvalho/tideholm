@@ -76,7 +76,16 @@ const BUILDINGS = {
     base: { wood: 120, stone: 100, gold: 30 },
     time: 150,
   },
+  wonder: {
+    name: 'Great Beacon',
+    desc: 'Complete level 5 and the world is yours.',
+    base: { wood: 5000, stone: 5000, gold: 3000 },
+    time: 3600,
+    requires: { hall: 10 },
+  },
 };
+
+const WONDER_WIN_LEVEL = 5;
 
 // speed = minutes per map field at game speed 1 (lower is faster).
 // pop = population each unit consumes against the Farm's cap.
@@ -277,6 +286,17 @@ function tryBuild(world, island, key, now) {
   if (!BUILDINGS[key]) return { error: 'err.unknownBuilding' };
   resolveIsland(island, now);
   if (island.queue.length >= QUEUE_MAX) return { error: 'err.queueFull' };
+  const req = BUILDINGS[key].requires;
+  if (req) {
+    for (const [needKey, needLvl] of Object.entries(req)) {
+      if ((island.buildings[needKey] || 0) < needLvl) {
+        return {
+          error: 'err.requiresLevel',
+          errorParams: { building: `@building.${needKey}.name`, n: needLvl },
+        };
+      }
+    }
+  }
   const target = pendingLevel(island, key) + 1;
   const cost = upgradeCost(key, target);
   if (!canAfford(island, cost)) return { error: 'err.noResources' };
@@ -852,7 +872,7 @@ function applyMovement(world, m) {
       dest.name = t(L, 'name.colony', { name: settler.name });
       dest.buildings = {
         lumberyard: 1, quarry: 1, goldmine: 1, storehouse: 1, hall: 1,
-        barracks: 0, harbor: 0, wall: 0, farm: 1,
+        barracks: 0, harbor: 0, wall: 0, farm: 1, wonder: 0,
       };
       dest.resources = { wood: 150, stone: 150, gold: 80 };
       dest.units = zeroUnits();
@@ -1270,11 +1290,77 @@ function currentQuest(world, player) {
 
 // ---------------------------------------------------------------- victory
 
-// A player or alliance holding WIN_SHARE of all islands wins the world.
-// The winner is recorded once and announced to every human player.
+// The hall of fame lives in its own file so it survives world resets.
+const HALL_FILE = process.env.HALL_FILE || path.join(__dirname, 'data', 'hall-of-fame.json');
+
+function loadHall() {
+  try { return JSON.parse(fs.readFileSync(HALL_FILE, 'utf8')); } catch { return []; }
+}
+
+function appendHall(entry) {
+  const hall = loadHall();
+  hall.push({ season: hall.length + 1, ...entry });
+  fs.mkdirSync(path.dirname(HALL_FILE), { recursive: true });
+  fs.writeFileSync(HALL_FILE, JSON.stringify(hall, null, 2));
+  return hall;
+}
+
+function crownWinner(world, winner, now) {
+  world.winner = { ...winner, time: now };
+  appendHall(world.winner);
+  for (const p of world.players) {
+    if (p.isBot) continue;
+    const L = p.lang || 'en';
+    addReport(world, p.id, now, t(L, 'report.worldWon.title'), [
+      t(L, 'report.worldWon.l1', {
+        name: winner.name, n: winner.islands, total: winner.total,
+      }),
+    ]);
+  }
+  return world.winner;
+}
+
+// A player or alliance holding WIN_SHARE of all islands wins the world —
+// or anyone completing the Great Beacon. Wonder progress is announced to all.
 function checkVictory(world, now) {
+  // Wonder announcements fire even after a win (bragging rights).
+  world.wonderAnnounced = world.wonderAnnounced || {};
+  for (const island of world.islands) {
+    const lvl = island.buildings.wonder || 0;
+    if (lvl > (world.wonderAnnounced[island.id] || 0)) {
+      world.wonderAnnounced[island.id] = lvl;
+      const owner = world.players.find((p) => p.id === island.ownerId);
+      for (const p of world.players) {
+        if (p.isBot) continue;
+        const L = p.lang || 'en';
+        addReport(world, p.id, now, t(L, 'report.wonder.title'), [
+          t(L, 'report.wonder.l1', {
+            name: owner ? owner.name : '?',
+            island: `${island.name} (${island.x}:${island.y})`,
+            lvl,
+            max: WONDER_WIN_LEVEL,
+          }),
+        ]);
+      }
+    }
+  }
   if (world.winner) return null;
   const total = world.islands.length;
+
+  // Wonder victory
+  for (const island of world.islands) {
+    if ((island.buildings.wonder || 0) >= WONDER_WIN_LEVEL && island.ownerId != null) {
+      const owner = world.players.find((p) => p.id === island.ownerId);
+      const islands = world.islands.filter((i) => i.ownerId === island.ownerId).length;
+      return crownWinner(world, {
+        name: owner ? owner.name : '?',
+        islands,
+        total,
+        share: Math.round((100 * islands) / total),
+        via: 'wonder',
+      }, now);
+    }
+  }
   const byPlayer = new Map();
   for (const island of world.islands) {
     if (island.ownerId == null) continue;
@@ -1301,20 +1387,12 @@ function checkVictory(world, now) {
     }
   }
   if (!winner) return null;
-  world.winner = {
+  return crownWinner(world, {
     ...winner,
     total,
     share: Math.round((100 * winner.islands) / total),
-    time: now,
-  };
-  for (const p of world.players) {
-    if (p.isBot) continue;
-    const L = p.lang || 'en';
-    addReport(world, p.id, now, t(L, 'report.worldWon.title'), [
-      t(L, 'report.worldWon.l1', { name: world.winner.name, n: winner.islands, total }),
-    ]);
-  }
-  return world.winner;
+    via: 'dominance',
+  }, now);
 }
 
 // ---------------------------------------------------------------- world
@@ -1340,7 +1418,7 @@ function newIsland(world, ownerId, name) {
     resources: { wood: 250, stone: 250, gold: 120 },
     buildings: {
       lumberyard: 1, quarry: 1, goldmine: 1, storehouse: 1, hall: 1,
-      barracks: 0, harbor: 0, wall: 0, farm: 1,
+      barracks: 0, harbor: 0, wall: 0, farm: 1, wonder: 0,
     },
     units: zeroUnits(),
     support: [],
@@ -1365,7 +1443,7 @@ function newUnchartedIsland(world) {
     resources: { wood: 0, stone: 0, gold: 0 },
     buildings: {
       lumberyard: 0, quarry: 0, goldmine: 0, storehouse: 0, hall: 0,
-      barracks: 0, harbor: 0, wall: 0, farm: 0,
+      barracks: 0, harbor: 0, wall: 0, farm: 0, wonder: 0,
     },
     units: zeroUnits(),
     support: [],
@@ -1504,6 +1582,7 @@ module.exports = {
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
+  loadHall, WONDER_WIN_LEVEL,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
