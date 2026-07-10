@@ -48,7 +48,7 @@
     const token = () => $('token').value.trim();
 
     async function call(path, method, body) {
-      const res = await fetch(path, {
+      const res = await fetch(path.replace(/^\//, ''), {
         method,
         headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token() },
         body: body ? JSON.stringify(body) : undefined,

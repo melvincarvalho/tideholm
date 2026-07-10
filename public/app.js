@@ -68,7 +68,9 @@ applyStatic();
 // ---------------------------------------------------------------- api
 
 async function api(path, body) {
-  const res = await fetch(path, {
+  // Relative fetch: works when the game is served at / or mounted under a
+  // prefix (e.g. /tideholm/ inside a host server).
+  const res = await fetch(path.replace(/^\//, ''), {
     method: body ? 'POST' : 'GET',
     headers: body ? { 'Content-Type': 'application/json' } : {},
     body: body ? JSON.stringify(body) : undefined,
@@ -570,7 +572,7 @@ function buildRaster(data) {
 async function paintMapBackground(data) {
   if (data.theme === 'aegean' && !regionMask) {
     try {
-      regionMask = await (await fetch('/maps/aegean.json')).json();
+      regionMask = await (await fetch('maps/aegean.json')).json();
     } catch { /* fall back to generated look */ }
   }
   const grid = $('map-grid');

@@ -133,9 +133,15 @@ API is disabled entirely.
 
 ## Layout
 
+- `tests.js` / `tests.app.js` — engine invariants and app-layer (HTTP,
+  prefix mount, host identity) tests: `node tests.js && node tests.app.js`
 - `game.js` — pure game engine (formulas, lazy time resolution, actions, persistence)
 - `bots.js` — bot spawn + decision tick, built on the same engine actions
-- `server.js` — zero-dependency HTTP server, sessions, JSON API, static files,
+- `app.js` — application core: world lifecycle, sessions, JSON API, static
+  files. `createApp({ basePath, identify, ... })` is transport-agnostic so a
+  host process (e.g. a JSS plugin) can mount the game under a prefix with its
+  own identity provider (WebID → player)
+- `server.js` — thin standalone launcher: socket, signals, port hopping,
   rate limiting, lockfile, backups
 - `public/` — vanilla JS single-page client (+ `help.html`)
 - `tests.js` — engine math and invariant tests

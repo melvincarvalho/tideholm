@@ -1314,7 +1314,8 @@ function currentQuest(world, player) {
 // ---------------------------------------------------------------- victory
 
 // The hall of fame lives in its own file so it survives world resets.
-const HALL_FILE = process.env.HALL_FILE || path.join(__dirname, 'data', 'hall-of-fame.json');
+const HALL_FILE = process.env.HALL_FILE
+  || path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'hall-of-fame.json');
 
 function loadHall() {
   try { return JSON.parse(fs.readFileSync(HALL_FILE, 'utf8')); } catch { return []; }
@@ -1584,7 +1585,9 @@ function migrateWorld(world) {
 
 // ---------------------------------------------------------------- persistence
 
-const DATA_DIR = path.join(__dirname, 'data');
+// Overridable so tests and embedding hosts (e.g. a JSS plugin) can point the
+// world at their own storage instead of the repo's data/.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const WORLD_FILE = path.join(DATA_DIR, 'world.json');
 
 function loadWorld() {
