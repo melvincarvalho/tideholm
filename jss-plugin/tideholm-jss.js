@@ -92,15 +92,12 @@ export async function tideholmApp(opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Future #206 loader contract. Expects from `api`:
-//   api.fastify              scoped Fastify instance
-//   api.config               plugins.entries.tideholm.config
-//   api.auth.getAgent(req)   -> webId | null   (the seam this plugin forces)
-//   api.storage.pluginDir(id)-> private server-side data dir
-// and jss.plugin.json points here.
+// #206 loader contract: createServer({ plugins: [{ module, prefix }] }) calls
+// activate(api) with api.fastify, api.prefix, api.config, api.auth.getAgent,
+// and api.storage.pluginDir() (private server-side data dir).
 export async function activate(api) {
   const app = await tideholmApp({
-    prefix: (api.config && api.config.prefix) || '/tideholm',
+    prefix: api.prefix || (api.config && api.config.prefix) || '/tideholm',
     dataDir: api.storage && api.storage.pluginDir
       ? api.storage.pluginDir('tideholm')
       : undefined,
