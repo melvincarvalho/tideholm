@@ -138,7 +138,7 @@ Tideholm doubles as "plugin zero" for JSS's plugin system
 mounted at `/tideholm` inside a pod server, where **your WebID is your
 player** — no password, auto-provisioned on first request. See
 `jss-plugin/` (adapter + manifest) and run the end-to-end proof with
-`npm install && node jss-plugin/demo.js` (JSS >= 0.0.213 comes from the
+`npm install && node jss-plugin/demo.js` (JSS >= 0.0.214 comes from the
 devDependency; the game itself stays zero-dependency).
 
 ## Layout

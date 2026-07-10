@@ -9,8 +9,9 @@ loader issues (JavaScriptSolidServer #206, #582, #583, #584) and eventual PRs.
   an 8-line local diff to JSS `createServer`.
 - **Fastify content parsers eat raw bodies** → scoped pass-through parser
   (#583); cost an hour of "why does POST hang".
-- **Identity needs no new code, only a public blessing** →
-  `getWebIdFromRequestAsync` covers Bearer/DPoP/NIP-98/LWS-CID (#584).
+- **Identity needs no new code, only a public blessing** → shipped as
+  `getAgent` in `javascript-solid-server/auth.js` (JSS 0.0.214, #584/#586).
+  This repo migrated onto it — no more internal-path auth imports.
 
 ## From building the browser bridge
 

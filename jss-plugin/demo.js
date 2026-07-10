@@ -3,8 +3,8 @@
 //
 //   npm install && node jss-plugin/demo.js
 //
-// JSS comes from the javascript-solid-server devDependency (>= 0.0.213 for
-// the appPaths seam). To run against a local JSS checkout instead:
+// JSS comes from the javascript-solid-server devDependency (>= 0.0.214 for
+// the appPaths + getAgent seams). To run against a local JSS checkout instead:
 //   npm install /path/to/JavaScriptSolidServer
 //
 // Boots JSS (IDP on, appPaths seam), registers a pod account over HTTP,
@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createServer } from 'javascript-solid-server/src/server.js';
-import { getWebIdFromRequestAsync } from 'javascript-solid-server/src/auth/token.js';
+import { getAgent } from 'javascript-solid-server/auth.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tideholm-jss-demo-'));
 process.env.HALL_FILE = path.join(tmp, 'hall-of-fame.json');
@@ -39,10 +39,7 @@ const game = await tideholmApp({
   botCount: 2,
   freeIsles: 2,
   log: { log() {}, error: console.error },
-  getWebId: async (request) => {
-    const { webId } = await getWebIdFromRequestAsync(request);
-    return webId;
-  },
+  getWebId: getAgent, // public seam since JSS 0.0.214 (#584)
 });
 
 // The IdP needs its issuer URL before listen — reserve a free port first.

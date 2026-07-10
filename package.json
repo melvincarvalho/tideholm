@@ -9,6 +9,6 @@
     "test": "node tests.js && node tests.app.js"
   },
   "devDependencies": {
-    "javascript-solid-server": "^0.0.213"
+    "javascript-solid-server": "^0.0.214"
   }
 }

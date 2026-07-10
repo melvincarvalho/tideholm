@@ -3,7 +3,7 @@
 //   node jss-plugin/serve.js            # or under pm2
 //   PORT=3210 ADMIN_TOKEN=... node jss-plugin/serve.js
 //
-// JSS comes from the javascript-solid-server devDependency (>= 0.0.213).
+// JSS comes from the javascript-solid-server devDependency (>= 0.0.214).
 // To run against a local JSS checkout: npm install /path/to/checkout.
 //
 // Boots a real JavaScript Solid Server (IdP on, appPaths seam) with Tideholm
@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'javascript-solid-server/src/server.js';
-import { getWebIdFromRequestAsync } from 'javascript-solid-server/src/auth/token.js';
+import { getAgent } from 'javascript-solid-server/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,10 +28,7 @@ const { tideholmApp } = await import(new URL('./tideholm-jss.js', import.meta.ur
 const game = await tideholmApp({
   dataDir: path.join(DATA, 'game'),
   adminToken: process.env.ADMIN_TOKEN,
-  getWebId: async (request) => {
-    const { webId } = await getWebIdFromRequestAsync(request);
-    return webId;
-  },
+  getWebId: getAgent, // public seam since JSS 0.0.214 (#584)
 });
 
 const fastify = createServer({
