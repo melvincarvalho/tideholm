@@ -20,6 +20,10 @@ import { getAgent } from 'javascript-solid-server/auth.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT || 3210);
+// Behind a TLS-terminating proxy, set PUBLIC_URL to the public origin
+// (e.g. https://tideholm.example) so the IdP issues tokens for the right
+// issuer. Defaults to the local address for laptop use.
+const PUBLIC_URL = (process.env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const DATA = path.join(__dirname, 'data');
 fs.mkdirSync(DATA, { recursive: true });
 
@@ -34,7 +38,7 @@ const game = await tideholmApp({
 const fastify = createServer({
   root: path.join(DATA, 'pods'),
   idp: true,
-  idpIssuer: `http://localhost:${PORT}`,
+  idpIssuer: PUBLIC_URL,
   appPaths: [game.prefix],
 });
 await game.register(fastify);
@@ -48,6 +52,6 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 }
 
 await fastify.listen({ port: PORT, host: '0.0.0.0' });
-console.log(`Testbed up:`);
-console.log(`  game:  http://localhost:${PORT}${game.prefix}/   (sign in with your pod)`);
-console.log(`  pods:  http://localhost:${PORT}/idp/register     (create a pod)`);
+console.log(`Tideholm + pods up:`);
+console.log(`  game:  ${PUBLIC_URL}${game.prefix}/   (sign in with your pod)`);
+console.log(`  pods:  ${PUBLIC_URL}/idp/register     (create a pod)`);
