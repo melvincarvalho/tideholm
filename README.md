@@ -6,6 +6,13 @@ alliances-and-raids gameplay. Original name, assets, text and numbers.
 
 Bots play alongside humans using the exact same rules and actions.
 
+**Play it live: https://nostr.social/tideholm/** — sign in with a pod
+([create one](https://nostr.social/idp/register)).
+
+| Your island | The world map |
+|---|---|
+| ![Island overview](screenshots/island.png) | ![World map](screenshots/map.png) |
+
 Available in **English, German and Czech** — pick a language on the login
 screen or in-game; the whole UI, error messages and even battle reports are
 rendered in each player's own language (`public/i18n.js` holds the

@@ -427,10 +427,47 @@ console.log('beginner protection');
   const { w, a, b, ia, ib } = freshWorld();
   // over 40 points -> attackable regardless of protectionBroken
   b.protectionBroken = false;
+  b.joinedAt = 0; // long past the join-grace window (explicit: no wall-clock dependence)
   Object.assign(ib.buildings, { lumberyard: 8, quarry: 8, goldmine: 6 });
   ia.units.raider = 10;
   const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
   check('protection ends at 40 points', !r.error);
+}
+{
+  const { w, a, b, ia, ib } = freshWorld();
+  // join grace: a fresh human above 40 points is still protected for 72h game-time
+  b.protectionBroken = false;
+  Object.assign(ib.buildings, { lumberyard: 8, quarry: 8, goldmine: 6 }); // >40 pts
+  b.joinedAt = t0 - 1000; // joined moments ago
+  ia.units.raider = 10;
+  let r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  check('fresh human above 40 pts keeps join grace', r.error === 'err.protected');
+  b.joinedAt = t0 - g.PROTECT_GRACE_MS - 1000;
+  r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  check('join grace expires after 72h game-time', !r.error);
+  b.joinedAt = t0 - 1000;
+  b.protectionBroken = true;
+  check('attacking a human forfeits grace too', g.isProtected(w, b, t0) === false);
+  const bot = g.createPlayer(w, 'Gracebot', null, true).player;
+  check('bots never get join grace', g.isProtected(w, bot, t0) === false);
+}
+{
+  // downward bully guard: a big bot leaves small-but-legal humans alone
+  const { w, b, ib } = freshWorld();
+  const { botTick } = await import('./bots.js');
+  b.protectionBroken = false;
+  b.joinedAt = 0; // grace long over
+  Object.assign(ib.buildings, { lumberyard: 8, quarry: 8, goldmine: 6 }); // ~45 pts: legal target
+  const bot = g.createPlayer(w, 'Bully', null, true).player;
+  const bi = g.playerIsland(w, bot.id);
+  Object.assign(bi.buildings, { lumberyard: 20, quarry: 20, goldmine: 20, hall: 15, barracks: 10 }); // huge
+  bi.x = 10; bi.y = 10; ib.x = 14; ib.y = 10; // in raid range
+  bi.units.raider = 60; // plenty of power
+  bot.intel = { [ib.id]: { def: 0, time: t0 } }; // fresh intel: soft target
+  check('setup: bot is >3x the human', g.playerPoints(w, bot.id) > 3 * g.playerPoints(w, b.id));
+  for (let i = 0; i < 300; i++) botTick(w, t0 + i * 15000);
+  check('big bot never raids a small human (downward bully guard)',
+    !w.movements.some((m) => m.type === 'attack' && m.toId === ib.id));
 }
 {
   const { w, a, ia } = freshWorld();

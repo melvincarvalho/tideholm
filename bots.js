@@ -5,14 +5,14 @@
 import { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
         tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
         popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
-        createPlayer, playerIsland, playerIslands, playerPoints } from './game.js';
+        createPlayer, playerIsland, playerIslands, playerPoints,
+        isProtected, PROTECTED_POINTS } from './game.js';
 
 // Tuning knobs for bot aggression.
 const RAID_CHANCE = 0.12;        // per bot per tick, once armed
 const RAID_RANGE = 15;           // max fields to a raid target
 const MIN_RAID_POWER = 150;      // don't sail with a token force
-const SAFE_POINTS = 40;          // beginner protection: owners below this are left alone
-const BULLY_RATIO = 3;           // don't attack owners more than 3x your points
+const BULLY_RATIO = 3;           // no punching up OR down past this points ratio
 const MAX_BOT_ISLANDS = 3;
 const SCOUT_CHANCE = 0.25;        // per bot per tick — intel drives everything
 const SCOUTS_KEEP = 12;           // standing scout pool per island
@@ -136,9 +136,11 @@ function pickRaidTarget(world, bot, from, myPower, now, mode) {
     if (island.ownerId == null || island.ownerId === bot.id) continue;
     const dist = Math.hypot(island.x - from.x, island.y - from.y);
     if (dist > RAID_RANGE) continue;
+    const owner = world.players.find((p) => p.id === island.ownerId);
+    if (isProtected(world, owner, now)) continue;       // beginners + fresh humans
     const ownerPoints = playerPoints(world, island.ownerId);
-    if (ownerPoints < SAFE_POINTS) continue;           // leave beginners alone
-    if (ownerPoints > myPoints * BULLY_RATIO) continue; // don't poke giants
+    if (ownerPoints > myPoints * BULLY_RATIO) continue;  // don't poke giants
+    if (ownerPoints * BULLY_RATIO < myPoints) continue;  // don't stomp the small
     const known = intel[island.id];
     const fresh = known && now - known.time < INTEL_MAX_AGE;
     if (mode === 'raid') {
@@ -211,8 +213,9 @@ function maybeConquer(world, bot, now) {
     const dist = Math.hypot(island.x - from.x, island.y - from.y);
     if (dist > RAID_RANGE) continue;
     const owner = world.players.find((p) => p.id === island.ownerId);
+    if (isProtected(world, owner, now)) continue;        // beginners + fresh humans
     const ownerPoints = playerPoints(world, island.ownerId);
-    if (ownerPoints < SAFE_POINTS * 2) continue;        // no stomping the small
+    if (ownerPoints < PROTECTED_POINTS * 2) continue;    // no stomping the small
     if (owner && !owner.isBot && ownerPoints < HUMAN_CONQUER_FLOOR) continue;
     if (ownerPoints > myPoints) continue;               // only fight downhill
     // Conquest fleets sail only against scouted, beatable defenses.

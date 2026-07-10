@@ -134,6 +134,18 @@ const TRAIN_QUEUE_MAX = 5;
 // Players below this many points cannot be attacked until they attack
 // a human themselves. Bots already respect this; this enforces it for everyone.
 const PROTECTED_POINTS = 40;
+// New humans additionally get a 72h (game-time) grace window after joining,
+// so crossing the points threshold isn't a cliff into twenty bot armies.
+const PROTECT_GRACE_MS = Math.round(72 * 3600 * 1000 / SPEED);
+
+// Can this player be attacked? Attacking a human forfeits your own
+// protection (protectionBroken), whatever your points or age.
+function isProtected(world, p, now) {
+  if (!p || p.protectionBroken) return false;
+  if (playerPoints(world, p.id) < PROTECTED_POINTS) return true;
+  if (!p.isBot && now - (p.joinedAt || 0) < PROTECT_GRACE_MS) return true;
+  return false;
+}
 
 // Loyalty: a victorious Flagship lowers it by 25-40; at 0 the island falls.
 // It regenerates over time (scaled by game speed, like production).
@@ -432,8 +444,7 @@ function sendAttack(world, attacker, island, target, units, now) {
     const rel = allianceRelation(world, attacker.allianceId, targetOwner.allianceId);
     if (rel === 'ally' || rel === 'nap') return { error: 'err.pact' };
   }
-  if (targetOwner && !targetOwner.protectionBroken &&
-      playerPoints(world, targetOwner.id) < PROTECTED_POINTS) {
+  if (targetOwner && isProtected(world, targetOwner, now)) {
     return { error: 'err.protected' };
   }
   // Attacking a human forfeits your own protection.
@@ -1493,7 +1504,7 @@ function createPlayer(world, name, password, isBot, lang) {
   lang = LANGS.includes(lang) ? lang : 'en';
   const player = {
     id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang,
-    questIndex: 0, stats: {},
+    questIndex: 0, stats: {}, joinedAt: Date.now(),
   };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
@@ -1558,6 +1569,7 @@ function migrateWorld(world) {
   }
   for (const p of world.players) {
     if (p.protectionBroken == null) p.protectionBroken = !!p.isBot;
+    if (p.joinedAt == null) p.joinedAt = world.createdAt || 0;
     if (p.questIndex == null) p.questIndex = 0;
     if (!p.stats) p.stats = {};
   }
@@ -1607,7 +1619,7 @@ function saveWorld(world) {
 }
 
 export {
-  SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, RESOURCES, BUILDINGS, UNITS,
+  SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, PROTECT_GRACE_MS, isProtected, RESOURCES, BUILDINGS, UNITS,
   LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,
   islandRates, islandPoints,
