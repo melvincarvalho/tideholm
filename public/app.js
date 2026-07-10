@@ -70,15 +70,25 @@ applyStatic();
 async function api(path, body) {
   // Relative fetch: works when the game is served at / or mounted under a
   // prefix (e.g. /tideholm/ inside a host server).
+  const headers = body ? { 'Content-Type': 'application/json' } : {};
+  const token = localStorage.getItem('tideholm-token');
+  if (token) headers.Authorization = 'Bearer ' + token;
   const res = await fetch(path.replace(/^\//, ''), {
     method: body ? 'POST' : 'GET',
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+  if (!res.ok) {
+    // Expired/revoked pod token: forget it so the login screen comes back.
+    if (res.status === 401 && token) localStorage.removeItem('tideholm-token');
+    throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+  }
   return data;
 }
+
+// Host metadata: who owns identity (password mode vs pod mode)?
+let META = { mode: 'password', podLoginUrl: null };
 
 // ---------------------------------------------------------------- auth
 
@@ -90,6 +100,27 @@ for (const btn of document.querySelectorAll('.auth-buttons button')) {
     const mode = btn.dataset.mode;
     $('auth-error').textContent = '';
     try {
+      if (META.mode === 'pod') {
+        // The host (e.g. a Solid pod server) owns identity: trade pod
+        // credentials for a Bearer token at the host's endpoint (absolute
+        // path — it lives at the host root, not under the game's prefix).
+        const res = await fetch(META.podLoginUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: $('auth-name').value,
+            password: $('auth-pass').value,
+          }),
+        });
+        const cred = await res.json().catch(() => ({}));
+        if (!res.ok || !cred.access_token) {
+          throw new Error(cred.error_description || cred.error || res.statusText);
+        }
+        localStorage.setItem('tideholm-token', cred.access_token);
+        await api('/api/lang', { lang: LANG }).catch(() => {});
+        enterGame();
+        return;
+      }
       await api(`/api/${mode}`, {
         name: $('auth-name').value,
         password: $('auth-pass').value,
@@ -103,7 +134,8 @@ for (const btn of document.querySelectorAll('.auth-buttons button')) {
 }
 
 $('logout').addEventListener('click', async () => {
-  await api('/api/logout', {});
+  await api('/api/logout', {}).catch(() => {});
+  localStorage.removeItem('tideholm-token');
   clearInterval(pollTimer);
   state = null;
   $('game').classList.add('hidden');
@@ -1185,7 +1217,31 @@ function enterGame() {
   pollTimer = setInterval(refresh, 5000);
 }
 
+function setupPodAuth() {
+  // One button ("sign in with your pod"), pod-username placeholder, and a
+  // link to the host's pod-registration page.
+  $('auth-name').placeholder = T('ui.auth.podName.ph');
+  const login = document.querySelector('.auth-buttons button[data-mode="login"]');
+  const register = document.querySelector('.auth-buttons button[data-mode="register"]');
+  login.textContent = T('ui.auth.podLogin');
+  register.classList.add('hidden');
+  const tagline = document.querySelector('[data-i18n="ui.auth.tagline"]');
+  if (tagline) tagline.textContent = T('ui.auth.podTagline');
+  const help = $('auth-help');
+  if (help && !$('pod-create')) {
+    const a = document.createElement('a');
+    a.id = 'pod-create';
+    a.href = '/idp/register';
+    a.target = '_blank';
+    a.textContent = T('ui.auth.podCreate');
+    help.parentNode.insertBefore(a, help);
+    help.parentNode.insertBefore(document.createTextNode(' · '), help);
+  }
+}
+
 (async function boot() {
+  META = await api('/api/meta').catch(() => ({ mode: 'password', podLoginUrl: null }));
+  if (META.mode === 'pod') setupPodAuth();
   try {
     state = await api('/api/state');
     clockSkew = state.serverNow - Date.now();

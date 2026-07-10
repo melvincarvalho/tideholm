@@ -45,6 +45,7 @@ export function createApp(opts = {}) {
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
   const adminToken = opts.adminToken ?? (process.env.ADMIN_TOKEN || '');
   const identify = opts.identify || null;
+  const podLoginUrl = opts.podLoginUrl || '/idp/credentials';
   const base = (opts.basePath || '').replace(/\/+$/, '');
   const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
   const lockFile = path.join(dataDir, 'server.lock');
@@ -388,6 +389,16 @@ export function createApp(opts = {}) {
   }
 
   async function handleApi(req, res, pathname, query) {
+    // Who runs identity here? Lets the client pick its login UI: Tideholm's
+    // own password form, or the host's pod credentials flow.
+    if (req.method === 'GET' && pathname === '/api/meta') {
+      return sendJson(res, 200, {
+        mode: identify ? 'pod' : 'password',
+        podLoginUrl: identify ? podLoginUrl : null,
+        speed: game.SPEED,
+      });
+    }
+
     // Password auth is Tideholm's own; a host with `identify` owns identity
     // and these endpoints go dark.
     if (req.method === 'POST' && pathname === '/api/register') {

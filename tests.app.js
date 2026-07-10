@@ -78,6 +78,9 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   r = await req(port, 'GET', '/');
   check('serves the client at /', r.status === 200);
 
+  r = await req(port, 'GET', '/api/meta');
+  check('meta reports password mode', r.status === 200 && r.data.mode === 'password' && r.data.podLoginUrl === null);
+
   srv.close();
 
   // ---------------------------------------------------------------- prefix mount
@@ -112,6 +115,10 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   });
   const h = await serve(podApp);
   const alice = { 'x-test-webid': 'https://alice.pod/profile#me', 'x-test-name': 'Alice' };
+
+  r = await req(h.port, 'GET', '/api/meta');
+  check('meta reports pod mode + login url', r.status === 200
+    && r.data.mode === 'pod' && r.data.podLoginUrl === '/idp/credentials');
 
   r = await req(h.port, 'GET', '/api/state');
   check('no identity is 401', r.status === 401);

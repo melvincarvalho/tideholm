@@ -339,6 +339,10 @@
       'ui.auth.login': 'Log in',
       'ui.auth.register': 'New island',
       'ui.auth.howto': 'How to play',
+      'ui.auth.podName.ph': 'Pod username',
+      'ui.auth.podLogin': 'Sign in with your pod',
+      'ui.auth.podCreate': 'Create a pod',
+      'ui.auth.podTagline': 'Your pod identity is your captain.',
     },
 
     de: {
@@ -673,6 +677,10 @@
       'ui.auth.login': 'Anmelden',
       'ui.auth.register': 'Neue Insel',
       'ui.auth.howto': 'Spielanleitung',
+      'ui.auth.podName.ph': 'Pod-Benutzername',
+      'ui.auth.podLogin': 'Mit deinem Pod anmelden',
+      'ui.auth.podCreate': 'Pod erstellen',
+      'ui.auth.podTagline': 'Deine Pod-Identität ist dein Kapitän.',
     },
 
     cs: {
@@ -1007,6 +1015,10 @@
       'ui.auth.login': 'Přihlásit',
       'ui.auth.register': 'Nový ostrov',
       'ui.auth.howto': 'Jak hrát',
+      'ui.auth.podName.ph': 'Uživatelské jméno podu',
+      'ui.auth.podLogin': 'Přihlásit se podem',
+      'ui.auth.podCreate': 'Vytvořit pod',
+      'ui.auth.podTagline': 'Tvá pod identita je tvůj kapitán.',
     },
   };
 
