@@ -98,12 +98,14 @@ export async function tideholmApp(opts = {}) {
 export async function activate(api) {
   const app = await tideholmApp({
     prefix: api.prefix || (api.config && api.config.prefix) || '/tideholm',
-    dataDir: api.storage && api.storage.pluginDir
-      ? api.storage.pluginDir('tideholm')
-      : undefined,
+    // config.dataDir lets an existing deployment keep its world in place;
+    // fresh installs default to the loader's private plugin dir.
+    dataDir: (api.config && api.config.dataDir)
+      || (api.storage && api.storage.pluginDir ? api.storage.pluginDir('tideholm') : undefined),
     getWebId: api.auth && api.auth.getAgent
       ? (req) => api.auth.getAgent(req)
       : undefined,
+    adminToken: api.config && api.config.adminToken,
     botCount: api.config && api.config.bots,
     freeIsles: api.config && api.config.freeIsles,
     log: api.log,
