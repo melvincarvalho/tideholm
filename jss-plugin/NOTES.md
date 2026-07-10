@@ -26,10 +26,11 @@ loader issues (JavaScriptSolidServer #206, #582, #583, #584) and eventual PRs.
   standalone and mounted deployments. A loader-provided convention would be
   nicer than every app inventing its own meta endpoint.
 - **`/idp/credentials` tokens expire in 3600s** and there is no refresh
-  flow for this path. After an hour the game 401s; the client drops the
-  token and shows the login screen again. Fine for a testbed, rude
-  mid-battle. Candidate follow-ups: longer app-token TTL option in JSS, or
-  silent re-auth in the client.
+  flow for this path. ~~After an hour the game 401s~~ **Mitigated**: a
+  verified host identity now mints the game's own HttpOnly session cookie,
+  so play survives token expiry (a live token still outranks the cookie,
+  and logout clears it). The ecosystem-level fix — a token refresh
+  endpoint — is proposed upstream as a JSS issue.
 
 ## Open questions for playtesting
 

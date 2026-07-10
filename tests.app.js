@@ -145,6 +145,26 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   r = await req(h.port, 'POST', '/api/login', { body: { name: 'X', password: 'yyy' } });
   check('password login is disabled under host identity', r.status === 404);
 
+  // Session bridge: a verified host identity mints a game session cookie so
+  // play survives host-token expiry (the 3600s /idp/credentials TTL).
+  r = await req(h.port, 'GET', '/api/state', { headers: alice });
+  const bridge = (r.headers.get('set-cookie') || '').split(';')[0];
+  check('host identity mints a game session cookie', bridge.startsWith('session='));
+
+  r = await req(h.port, 'GET', '/api/state', { cookie: bridge }); // token "expired"
+  check('session survives host-token expiry', r.status === 200 && r.data.player.name === 'Alice',
+    JSON.stringify(r.data && r.data.player));
+
+  // A live token from a different pod outranks a stale cookie.
+  r = await req(h.port, 'GET', '/api/state', { cookie: bridge, headers: alice2 });
+  check('live host token outranks the bridge cookie', r.status === 200
+    && r.data.player.name !== 'Alice' && r.data.player.name.startsWith('Alice'));
+
+  r = await req(h.port, 'POST', '/api/logout', { cookie: bridge });
+  check('logout clears the bridge session', r.status === 200);
+  r = await req(h.port, 'GET', '/api/state', { cookie: bridge });
+  check('cleared bridge session is 401', r.status === 401);
+
   h.srv.close();
 
   // stop() releases the lock and saves — must be idempotent across instances

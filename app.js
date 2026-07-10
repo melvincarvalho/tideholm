@@ -227,12 +227,23 @@ export function createApp(opts = {}) {
     return null;
   }
 
-  // Who is making this request? Host identity wins when configured;
-  // otherwise Tideholm's own cookie sessions.
-  async function requestPlayer(req) {
+  // Who is making this request? Host identity wins when configured, and a
+  // verified host identity also mints the game's own session cookie — so
+  // play survives the host token's expiry (JSS /idp/credentials tokens die
+  // after 3600s with no refresh flow). Cookie is the fallback, not the
+  // authority: a live host token always names the player.
+  async function requestPlayer(req, res) {
     if (identify) {
       const ident = await identify(req);
-      return ident && ident.id ? playerForIdentity(ident) : null;
+      if (ident && ident.id) {
+        const player = playerForIdentity(ident);
+        if (player && res) {
+          const existing = sessionPlayer(req);
+          if (!existing || existing.id !== player.id) startSession(res, player.id);
+        }
+        return player;
+      }
+      return sessionPlayer(req); // token absent/expired: our own session
     }
     return sessionPlayer(req);
   }
@@ -441,7 +452,8 @@ export function createApp(opts = {}) {
     }
 
     if (req.method === 'POST' && pathname === '/api/logout') {
-      if (identify) return sendJson(res, 200, { ok: true }); // host owns sessions
+      // Clear the game session either way — in host-identity mode this is
+      // the bridge cookie; the host token is the client's to discard.
       const token = getCookie(req, 'session');
       if (token) delete world.sessions[token];
       res.setHeader('Set-Cookie', 'session=; Path=/; Max-Age=0');
@@ -522,7 +534,7 @@ export function createApp(opts = {}) {
     }
 
     // Everything below requires a session (or host identity).
-    const player = await requestPlayer(req);
+    const player = await requestPlayer(req, res);
     if (!player) return sendErr(res, 401, 'en', 'err.notLoggedIn');
     const lang = player.lang || 'en';
 
