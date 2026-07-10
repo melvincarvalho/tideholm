@@ -131,6 +131,16 @@ announcements to all players, and season reset (archives the old world to
 `data/backups/`, keeps the hall of fame). Without the env var the admin
 API is disabled entirely.
 
+## Run inside a Solid server (JSS)
+
+Tideholm doubles as "plugin zero" for JSS's plugin system
+([JavaScriptSolidServer#206](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/issues/206)):
+mounted at `/tideholm` inside a pod server, where **your WebID is your
+player** — no password, auto-provisioned on first request. See
+`jss-plugin/` (adapter + manifest) and run the end-to-end proof with
+`JSS_PATH=/path/to/JavaScriptSolidServer node jss-plugin/demo.mjs`
+(needs the `appPaths` seam in JSS's createServer).
+
 ## Layout
 
 - `tests.js` / `tests.app.js` — engine invariants and app-layer (HTTP,

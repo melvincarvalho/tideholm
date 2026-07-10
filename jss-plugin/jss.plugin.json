@@ -1,0 +1,6 @@
+{
+  "id": "tideholm",
+  "version": "1.0.0",
+  "entry": "./tideholm-jss.mjs",
+  "description": "Island empire strategy game — log in with your pod (WebID → player)"
+}
