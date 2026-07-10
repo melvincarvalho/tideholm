@@ -18,15 +18,16 @@
 // Storage lives in env DATA_DIR (default: ./data) — game.js resolves the
 // same way, so set DATA_DIR before requiring this module.
 
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import * as game from './game.js';
+import { spawnBots, botTick } from './bots.js';
+import { t } from './public/i18n.js';
 
-const game = require('./game');
-const { spawnBots, botTick } = require('./bots');
-const { t } = require('./public/i18n.js');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const BACKUP_KEEP = 24;
@@ -37,7 +38,7 @@ const MIME = {
   '.json': 'application/json',
 };
 
-function createApp(opts = {}) {
+export function createApp(opts = {}) {
   const log = opts.log || console;
   const botCount = opts.botCount ?? Number(process.env.BOTS || 20);
   const freeIsles = opts.freeIsles ?? Number(process.env.FREE_ISLES || 30);
@@ -934,5 +935,3 @@ function createApp(opts = {}) {
     get world() { return world; },
   };
 }
-
-module.exports = { createApp };

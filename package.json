@@ -1,0 +1,11 @@
+{
+  "name": "tideholm",
+  "version": "1.0.0",
+  "description": "Island empire browser strategy game. Zero dependencies.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests.js && node tests.app.js"
+  }
+}

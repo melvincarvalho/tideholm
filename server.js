@@ -6,10 +6,8 @@
 // e.g. a JSS plugin — can mount the same application under its own server,
 // prefix, and identity provider. This file only owns the socket and signals.
 
-'use strict';
-
-const http = require('http');
-const { createApp } = require('./app');
+import http from 'node:http';
+import { createApp } from './app.js';
 
 const PORT = Number(process.env.PORT || 3000);
 

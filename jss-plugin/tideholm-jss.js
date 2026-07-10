@@ -16,10 +16,6 @@
 // (app.js createApp), with the pod identity resolved per request: your
 // WebID *is* your player — no password, auto-provisioned on first visit.
 
-import { createRequire } from 'node:module';
-
-const require_ = createRequire(import.meta.url);
-
 // "https://alice.pods.example/profile#me" -> "alice"
 // "http://localhost:3210/alice/profile/card#me" -> "alice"
 export function nameFromWebId(webId) {
@@ -43,14 +39,15 @@ export function nameFromWebId(webId) {
  *                                              forwarded to createApp
  * @param {object}   [opts.log]                 console-like
  */
-export function tideholmApp(opts = {}) {
+export async function tideholmApp(opts = {}) {
   const prefix = (opts.prefix || '/tideholm').replace(/\/+$/, '');
   const getWebId = opts.getWebId || (async () => null);
 
-  // game.js resolves DATA_DIR at require time — set it before first require.
-  // One world per process; a second app with a different dataDir would race.
+  // game.js resolves DATA_DIR when its module evaluates — set the env before
+  // the (dynamic) import below. One world per process; a second app with a
+  // different dataDir would race.
   if (opts.dataDir) process.env.DATA_DIR = opts.dataDir;
-  const { createApp } = require_('../app.js');
+  const { createApp } = await import('../app.js');
 
   const app = createApp({
     basePath: prefix,
@@ -101,7 +98,7 @@ export function tideholmApp(opts = {}) {
 //   api.storage.pluginDir(id)-> private server-side data dir
 // and jss.plugin.json points here.
 export async function activate(api) {
-  const app = tideholmApp({
+  const app = await tideholmApp({
     prefix: (api.config && api.config.prefix) || '/tideholm',
     dataDir: api.storage && api.storage.pluginDir
       ? api.storage.pluginDir('tideholm')

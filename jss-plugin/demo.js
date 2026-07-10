@@ -1,7 +1,7 @@
 // End-to-end proof for the plugin-zero RFC (#206): Tideholm mounted inside
 // a real JavaScript Solid Server, playing as a pod identity.
 //
-//   JSS_PATH=/path/to/JavaScriptSolidServer node jss-plugin/demo.mjs
+//   JSS_PATH=/path/to/JavaScriptSolidServer node jss-plugin/demo.js
 //
 // Boots JSS (IDP on, appPaths seam), registers a pod account over HTTP,
 // obtains a Bearer token from /idp/credentials, and plays the game at
@@ -30,11 +30,11 @@ function check(name, cond, detail) {
 
 const { createServer } = await import(pathToFileURL(path.join(JSS_PATH, 'src/server.js')));
 const { getWebIdFromRequestAsync } = await import(pathToFileURL(path.join(JSS_PATH, 'src/auth/token.js')));
-const { tideholmApp } = await import(new URL('./tideholm-jss.mjs', import.meta.url));
+const { tideholmApp } = await import(new URL('./tideholm-jss.js', import.meta.url));
 
 // ---------------------------------------------------------------- boot
 
-const game = tideholmApp({
+const game = await tideholmApp({
   dataDir: path.join(tmp, 'game'),
   botCount: 2,
   freeIsles: 2,

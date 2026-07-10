@@ -138,7 +138,7 @@ Tideholm doubles as "plugin zero" for JSS's plugin system
 mounted at `/tideholm` inside a pod server, where **your WebID is your
 player** — no password, auto-provisioned on first request. See
 `jss-plugin/` (adapter + manifest) and run the end-to-end proof with
-`JSS_PATH=/path/to/JavaScriptSolidServer node jss-plugin/demo.mjs`
+`JSS_PATH=/path/to/JavaScriptSolidServer node jss-plugin/demo.js`
 (needs the `appPaths` seam in JSS's createServer).
 
 ## Layout

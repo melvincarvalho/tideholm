@@ -2,14 +2,15 @@
 // Simulates a bots-only world on a virtual clock at classic pace (speed 1)
 // and reports pacing, economy waste, combat balance and inequality.
 
-'use strict';
-
 process.env.GAME_SPEED = process.env.GAME_SPEED || '1';
-process.env.HALL_FILE = require('path').join(
-  require('os').tmpdir(), `tideholm-playtest-hall-${process.pid}.json`);
+import os from 'node:os';
+import path from 'node:path';
 
-const g = require('./game');
-const { spawnBots, botTick } = require('./bots');
+process.env.HALL_FILE = path.join(
+  os.tmpdir(), `tideholm-playtest-hall-${process.pid}.json`);
+
+const g = await import('./game.js'); // dynamic: after the env above is set
+const { spawnBots, botTick } = await import('./bots.js');
 
 const DAYS = Number(process.argv[2] || 45);
 const BOTS = Number(process.argv[3] || 20);

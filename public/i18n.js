@@ -1,15 +1,10 @@
-// Tideholm — translations. One dictionary for server and client.
-// Server: const { t } = require('./public/i18n.js')
-// Client: <script src="i18n.js"></script> then window.I18N.t(lang, key, params)
+// Tideholm — translations. One dictionary for server and client (ES module).
+// Server: import { t } from './public/i18n.js'
+// Client: <script type="module" src="i18n.js"></script>; also exposed as
+//         window.I18N for classic-script consumers.
 //
 // t() interpolates {name} params; a param value starting with '@' is itself
 // resolved as a key ('@building.barracks.name' → the localized building name).
-
-(function (root, factory) {
-  if (typeof module !== 'undefined' && module.exports) module.exports = factory();
-  else root.I18N = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
-  'use strict';
 
   const STRINGS = {
     en: {
@@ -1029,5 +1024,6 @@
     return s;
   }
 
-  return { STRINGS, LANGS, t };
-});
+export { STRINGS, LANGS, t };
+
+if (typeof window !== 'undefined') window.I18N = { STRINGS, LANGS, t };

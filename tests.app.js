@@ -4,12 +4,10 @@
 // mounting, the pluggable identity provider, and password-mode auth —
 // the contract an embedding host (e.g. a JSS plugin) relies on.
 
-'use strict';
-
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const http = require('http');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
 
 // Isolated storage: never touch the repo's live world.
 process.env.GAME_SPEED = '1';
@@ -19,7 +17,7 @@ process.on('exit', () => {
   try { fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true }); } catch { /* gone */ }
 });
 
-const { createApp } = require('./app');
+const { createApp } = await import('./app.js'); // dynamic: after DATA_DIR above
 
 let failures = 0;
 function check(name, cond, detail) {

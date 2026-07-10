@@ -2,12 +2,10 @@
 // Bots are regular players (isBot: true) driven by a server-side tick.
 // They use the exact same game actions as humans, so the rules stay honest.
 
-'use strict';
-
-const { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
+import { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
         tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
         popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
-        createPlayer, playerIsland, playerIslands, playerPoints } = require('./game');
+        createPlayer, playerIsland, playerIslands, playerPoints } from './game.js';
 
 // Tuning knobs for bot aggression.
 const RAID_CHANCE = 0.12;        // per bot per tick, once armed
@@ -265,4 +263,4 @@ function botTick(world, now) {
   }
 }
 
-module.exports = { spawnBots, botTick, BOT_NAMES };
+export { spawnBots, botTick, BOT_NAMES };

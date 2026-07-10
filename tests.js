@@ -1,13 +1,15 @@
 // Tideholm — engine math tests. Run: node tests.js  (exits non-zero on failure)
 // Pins the game's formulas and invariants so balance changes are deliberate.
 
-'use strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
-process.env.HALL_FILE = require('path').join(require('os').tmpdir(), `tideholm-hall-test-${process.pid}.json`);
-const g = require('./game');
+process.env.HALL_FILE = path.join(os.tmpdir(), `tideholm-hall-test-${process.pid}.json`);
+const g = await import('./game.js'); // dynamic: after the env above is set
 process.on('exit', () => {
-  try { require('fs').rmSync(process.env.HALL_FILE, { force: true }); } catch { /* gone */ }
+  try { fs.rmSync(process.env.HALL_FILE, { force: true }); } catch { /* gone */ }
 });
 
 let failures = 0;
@@ -684,7 +686,7 @@ console.log('wonder & hall of fame');
 
 console.log('bot war college');
 {
-  const { botTick } = require('./bots');
+  const { botTick } = await import('./bots.js');
   const w = g.createWorld();
   const bot = g.createPlayer(w, 'Warbot', null, true).player;
   const prey = g.createPlayer(w, 'Prey Human', 'pw', false).player;
@@ -756,7 +758,7 @@ console.log('bot war college');
 }
 {
   // small humans are never conquest targets, even when raid-eligible
-  const { botTick } = require('./bots');
+  const { botTick } = await import('./bots.js');
   const w = g.createWorld();
   const bot = g.createPlayer(w, 'Warbot', null, true).player;
   const small = g.createPlayer(w, 'Small Human', 'pw', false).player;
@@ -784,20 +786,20 @@ console.log('speed scaling');
 {
   // SPEED multiplies production and divides times — capacity is fixed by design,
   // which is why very high speeds pin resources at the cap.
-  delete require.cache[require.resolve('./game')];
+  // ESM has no require.cache to bust: a unique query string forces a fresh
+  // evaluation of game.js under the changed GAME_SPEED.
   process.env.GAME_SPEED = '5';
-  const g5 = require('./game');
+  const g5 = await import('./game.js?speed=5');
   check('production scales linearly with speed',
     close(g5.productionPerHour('lumberyard', 4), 5 * 40 * 4 * Math.pow(1.12, 3)));
   check('build time divides by speed (above the 5s floor)',
     close(g5.upgradeTime('harbor', 8, 1), Math.round(300 * Math.pow(1.5, 7) / 5), 0.01));
   check('capacity does NOT scale with speed', g5.storageCapacity(2) === 900);
-  check('user report: lumberyard 4 at speed 2000 → 449,577/h', (() => {
-    delete require.cache[require.resolve('./game')];
-    process.env.GAME_SPEED = '2000';
-    const g2k = require('./game');
-    return Math.round(g2k.productionPerHour('lumberyard', 4)) === 449577;
-  })());
+  process.env.GAME_SPEED = '2000';
+  const g2k = await import('./game.js?speed=2000');
+  check('user report: lumberyard 4 at speed 2000 → 449,577/h',
+    Math.round(g2k.productionPerHour('lumberyard', 4)) === 449577);
+  process.env.GAME_SPEED = '1'; // restore for anything after
 }
 
 // ---------------------------------------------------------------- map themes
@@ -813,7 +815,7 @@ console.log('map themes');
   check('migration backfills theme and seed',
     w.theme === 'generated' && Number.isInteger(w.mapSeed) && w.mapSeed >= 1);
 
-  const region = JSON.parse(require('fs').readFileSync('./public/maps/aegean.json', 'utf8'));
+  const region = JSON.parse(fs.readFileSync('./public/maps/aegean.json', 'utf8'));
   const landCells = region.rows.reduce(
     (s, row) => s + [...row].filter((c) => c === '1').length, 0);
   check('aegean land mask is well-formed',
@@ -830,7 +832,7 @@ console.log('map themes');
 
 console.log('i18n');
 {
-  const { STRINGS, LANGS, t: tr } = require('./public/i18n.js');
+  const { STRINGS, LANGS, t: tr } = await import('./public/i18n.js');
   check('languages available: en, de, cs',
     LANGS.includes('en') && LANGS.includes('de') && LANGS.includes('cs'));
 

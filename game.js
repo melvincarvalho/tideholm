@@ -2,12 +2,14 @@
 // All game state lives in a single `world` object, persisted as JSON.
 // Time is lazy: islands are resolved forward to `now` whenever they are read.
 
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const { t, LANGS } = require('./public/i18n.js');
+import { t, LANGS } from './public/i18n.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SPEED = Number(process.env.GAME_SPEED || 5); // multiplies production and divides build times
 const MAP_SIZE = 40;
@@ -1604,7 +1606,7 @@ function saveWorld(world) {
   fs.renameSync(tmp, WORLD_FILE);
 }
 
-module.exports = {
+export {
   SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, RESOURCES, BUILDINGS, UNITS,
   LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,
