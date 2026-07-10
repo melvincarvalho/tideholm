@@ -1,7 +1,11 @@
 // End-to-end proof for the plugin-zero RFC (#206): Tideholm mounted inside
 // a real JavaScript Solid Server, playing as a pod identity.
 //
-//   JSS_PATH=/path/to/JavaScriptSolidServer node jss-plugin/demo.js
+//   npm install && node jss-plugin/demo.js
+//
+// JSS comes from the javascript-solid-server devDependency (>= 0.0.213 for
+// the appPaths seam). To run against a local JSS checkout instead:
+//   npm install /path/to/JavaScriptSolidServer
 //
 // Boots JSS (IDP on, appPaths seam), registers a pod account over HTTP,
 // obtains a Bearer token from /idp/credentials, and plays the game at
@@ -11,10 +15,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-
-const JSS_PATH = process.env.JSS_PATH
-  || '/home/melvin/remote/github.com/JavaScriptSolidServer/JavaScriptSolidServer';
+import { createServer } from 'javascript-solid-server/src/server.js';
+import { getWebIdFromRequestAsync } from 'javascript-solid-server/src/auth/token.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tideholm-jss-demo-'));
 process.env.HALL_FILE = path.join(tmp, 'hall-of-fame.json');
@@ -28,8 +30,6 @@ function check(name, cond, detail) {
   else { failures++; console.log('FAIL  ' + name + (detail !== undefined ? ' — ' + detail : '')); }
 }
 
-const { createServer } = await import(pathToFileURL(path.join(JSS_PATH, 'src/server.js')));
-const { getWebIdFromRequestAsync } = await import(pathToFileURL(path.join(JSS_PATH, 'src/auth/token.js')));
 const { tideholmApp } = await import(new URL('./tideholm-jss.js', import.meta.url));
 
 // ---------------------------------------------------------------- boot

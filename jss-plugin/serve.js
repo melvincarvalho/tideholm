@@ -1,7 +1,10 @@
 // Persistent JSS + Tideholm testbed — the composed instance for local play.
 //
 //   node jss-plugin/serve.js            # or under pm2
-//   PORT=3210 JSS_PATH=... ADMIN_TOKEN=... node jss-plugin/serve.js
+//   PORT=3210 ADMIN_TOKEN=... node jss-plugin/serve.js
+//
+// JSS comes from the javascript-solid-server devDependency (>= 0.0.213).
+// To run against a local JSS checkout: npm install /path/to/checkout.
 //
 // Boots a real JavaScript Solid Server (IdP on, appPaths seam) with Tideholm
 // mounted at /tideholm. Pod accounts are game accounts: register a pod at
@@ -10,18 +13,16 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'javascript-solid-server/src/server.js';
+import { getWebIdFromRequestAsync } from 'javascript-solid-server/src/auth/token.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT || 3210);
-const JSS_PATH = process.env.JSS_PATH
-  || '/home/melvin/remote/github.com/JavaScriptSolidServer/JavaScriptSolidServer';
 const DATA = path.join(__dirname, 'data');
 fs.mkdirSync(DATA, { recursive: true });
 
-const { createServer } = await import(pathToFileURL(path.join(JSS_PATH, 'src/server.js')));
-const { getWebIdFromRequestAsync } = await import(pathToFileURL(path.join(JSS_PATH, 'src/auth/token.js')));
 const { tideholmApp } = await import(new URL('./tideholm-jss.js', import.meta.url));
 
 const game = await tideholmApp({
