@@ -725,7 +725,10 @@ function openAttackPanel(target) {
     }
     updateAttackEta();
     $('sim-box').classList.toggle('hidden', supportOnly);
-    if (!supportOnly) renderSimulator();
+    if (!supportOnly) {
+      renderSimulator();
+      runSimulator(); // show the scouted-defense verdict immediately on select
+    }
   }
   $('attack-panel').classList.remove('hidden');
   $('attack-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -797,12 +800,55 @@ $('trade-send').addEventListener('click', async () => {
 
 // ---------------------------------------------------------------- simulator
 
-// Same formula the server uses: D = (def + 15*wall) * (1 + 0.08*wall).
+// Same formula the server uses: D = (def + 15*wall) * (1 + 0.08*wall), and
+// A = raw attack * morale. Morale (#9): an attacker who far outweighs the
+// defender loses power — max(0.3, sqrt(defPts/atkPts)) — exactly as game.js
+// resolves it. When the selected target has scout intel we simulate against
+// that real (effective) defense; the manual boxes remain for hypotheticals.
 function runSimulator() {
   if (!state) return;
   const army = selectedArmy();
-  let A = 0;
-  for (const [k, n] of Object.entries(army)) A += state.unitTypes[k].atk * n;
+  let Araw = 0;
+  for (const [k, n] of Object.entries(army)) Araw += state.unitTypes[k].atk * n;
+
+  const atkPts = (state.player && state.player.points) || 0;
+  const defPts = (attackTarget && attackTarget.ownerPoints) || 0;
+  let morale = 1;
+  if (atkPts > 0 && defPts > 0 && atkPts > defPts) morale = Math.max(0.3, Math.sqrt(defPts / atkPts));
+  const A = Araw * morale;
+  const moraleNote = morale < 0.995 ? ` (${T('ui.sim.morale', { pct: Math.round(morale * 100) })})` : '';
+
+  // A verdict for an A-vs-D matchup. Attacker survivors on a win; defender
+  // survivors on a hold only when their unit breakdown is known (manual box
+  // case) — scouted intel is an aggregate number, so it holds "plain".
+  const verdict = (a, d, defenders) => {
+    if (a > d) {
+      const lossFrac = d > 0 ? Math.pow(d / a, 1.5) : 0;
+      const surv = Object.entries(army)
+        .map(([k, n]) => [k, Math.max(0, Math.min(n, Math.round(n * (1 - lossFrac))))])
+        .filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${state.unitTypes[k].name}`).join(', ') || '—';
+      return T('ui.sim.win', { units: surv });
+    }
+    if (defenders) {
+      const defLossFrac = d > 0 ? Math.pow(a / d, 1.5) : 0;
+      const left = Object.entries(defenders)
+        .map(([k, n]) => [k, Math.max(0, Math.min(n, Math.round(n * (1 - defLossFrac))))])
+        .filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${state.unitTypes[k].name}`).join(', ') || '—';
+      return T('ui.sim.hold', { units: left });
+    }
+    return T('ui.sim.holdPlain');
+  };
+
+  const lines = [];
+
+  // Primary line: the real target's latest scout intel, if we have it.
+  if (attackTarget && attackTarget.intel) {
+    lines.push(`${T('ui.sim.scouted', { h: attackTarget.intel.hours })} ${verdict(A, attackTarget.intel.def, null)}${moraleNote}`);
+  }
+
+  // Manual "assumed defense" from the boxes.
   let def = 0;
   const defenders = {};
   for (const input of document.querySelectorAll('[data-sim-unit]')) {
@@ -812,22 +858,14 @@ function runSimulator() {
   }
   const wall = Math.max(0, Math.floor(Number($('sim-wall').value) || 0));
   const D = Math.round((def + 15 * wall) * (1 + 0.08 * wall));
+  if (def > 0) lines.push(`${verdict(A, D, defenders)}${moraleNote}`);
+
   const out = $('sim-result');
-  if (A === 0 && def === 0) { out.textContent = ''; return; }
-  if (A > D) {
-    const lossFrac = D > 0 ? Math.pow(D / A, 1.5) : 0;
-    const surv = Object.entries(army)
-      .map(([k, n]) => [k, Math.max(0, Math.min(n, Math.round(n * (1 - lossFrac))))])
-      .filter(([, n]) => n > 0)
-      .map(([k, n]) => `${n} ${state.unitTypes[k].name}`).join(', ') || '—';
-    out.textContent = T('ui.sim.win', { units: surv });
-  } else {
-    const defLossFrac = D > 0 ? Math.pow(A / D, 1.5) : 0;
-    const left = Object.entries(defenders)
-      .map(([k, n]) => [k, Math.max(0, Math.min(n, Math.round(n * (1 - defLossFrac))))])
-      .filter(([, n]) => n > 0)
-      .map(([k, n]) => `${n} ${state.unitTypes[k].name}`).join(', ') || '—';
-    out.textContent = T('ui.sim.hold', { units: left });
+  out.innerHTML = '';
+  for (const line of lines) {
+    const div = document.createElement('div');
+    div.textContent = line;
+    out.appendChild(div);
   }
 }
 
