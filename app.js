@@ -340,7 +340,7 @@ export function createApp(opts = {}) {
       serverNow: now,
       speed: game.SPEED,
       lang,
-      player: { name: player.name },
+      player: { name: player.name, points: game.playerPoints(world, player.id) },
       islands: mine.map((i) => ({ id: i.id, name: i.name, x: i.x, y: i.y })),
       island: {
         id: island.id,
@@ -892,6 +892,9 @@ export function createApp(opts = {}) {
           isBot: owner ? !!owner.isBot : false,
           isYou: i.ownerId === player.id,
           points: game.islandPoints(i),
+          // Owner's TOTAL points — the battle simulator needs this to apply
+          // the same morale multiplier the server does (#9).
+          ownerPoints: i.ownerId != null ? game.playerPoints(world, i.ownerId) : null,
         };
       });
       return sendJson(res, 200, {
