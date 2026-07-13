@@ -158,7 +158,14 @@ const WALL_FLAT_DEF = 15;
 const WALL_DEF_BONUS = 0.08;
 
 // Morale: attacking a much smaller player weakens the attack, down to 30%.
-const MORALE_FLOOR = 0.3;
+// Morale: attacking a much smaller defender blunts your force. Configurable
+// so a world can be gentler or harsher. BOT_MORALE_FLOOR is a separate floor
+// used when the DEFENDER is a bot — set it to 1 to remove the penalty against
+// bots entirely, so a dominant player has real PvE to fight while human
+// newcomers stay protected by the normal floor. Defaults preserve prior
+// behavior (bots penalized the same as humans).
+const MORALE_FLOOR = Number(process.env.MORALE_FLOOR ?? 0.3);
+const BOT_MORALE_FLOOR = Number(process.env.BOT_MORALE_FLOOR ?? MORALE_FLOOR);
 
 // Optional night defense bonus, e.g. NIGHT_BONUS=22-6 (server-local hours).
 const NIGHT = String(process.env.NIGHT_BONUS || '').match(/^(\d{1,2})-(\d{1,2})$/);
@@ -1052,7 +1059,10 @@ function applyMovement(world, m) {
   if (attacker && defOwner) {
     const ap = playerPoints(world, attacker.id);
     const dp = playerPoints(world, defOwner.id);
-    if (ap > dp && dp > 0) morale = Math.max(MORALE_FLOOR, Math.sqrt(dp / ap));
+    if (ap > dp && dp > 0) {
+      const floor = defOwner.isBot ? BOT_MORALE_FLOOR : MORALE_FLOOR;
+      morale = Math.max(floor, Math.sqrt(dp / ap));
+    }
   }
   const A = unitPower(m.units, 'atk') * morale;
   dest.support = dest.support || [];
@@ -1626,6 +1636,7 @@ export {
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
+  MORALE_FLOOR, BOT_MORALE_FLOOR,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   loadHall, WONDER_WIN_LEVEL,
