@@ -133,10 +133,16 @@ const TRAIN_QUEUE_MAX = 5;
 
 // Players below this many points cannot be attacked until they attack
 // a human themselves. Bots already respect this; this enforces it for everyone.
-const PROTECTED_POINTS = 40;
+const PROTECTED_POINTS = Number(process.env.PROTECTED_POINTS ?? 40);
 // New humans additionally get a 72h (game-time) grace window after joining,
 // so crossing the points threshold isn't a cliff into twenty bot armies.
-const PROTECT_GRACE_MS = Math.round(72 * 3600 * 1000 / SPEED);
+// Newcomer shield length (#7). Default is 72 game-hours ÷ speed — which at a
+// fast speed is only a few real hours, the newcomer-cliff problem. Set
+// PROTECT_GRACE_HOURS to a fixed number of REAL hours (independent of speed)
+// to give newcomers a proper runway, e.g. 48 for two real days.
+const PROTECT_GRACE_MS = process.env.PROTECT_GRACE_HOURS
+  ? Math.round(Number(process.env.PROTECT_GRACE_HOURS) * 3600 * 1000)
+  : Math.round(72 * 3600 * 1000 / SPEED);
 
 // Can this player be attacked? Attacking a human forfeits your own
 // protection (protectionBroken), whatever your points or age.
