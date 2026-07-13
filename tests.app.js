@@ -201,6 +201,25 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   pg.srv.close();
   pre.stop();
 
+  // ---------------------------------------------------------------- season reset scheduling (#2)
+  console.log('admin reset can schedule the next season (countdown)');
+  fs.rmSync(path.join(process.env.DATA_DIR, 'world.json'), { force: true });
+  const seasonApp = createApp({ botCount: 2, freeIsles: 2, adminToken: 'sekrit-admin', log: silent });
+  const sa = await serve(seasonApp);
+
+  r = await req(sa.port, 'GET', '/api/meta');
+  check('a fresh default world is live', r.status === 200 && r.data.phase === 'live');
+
+  r = await req(sa.port, 'POST', '/api/admin/reset', { body: { token: 'sekrit-admin', startInHours: 1 } });
+  check('admin reset with startInHours archives + schedules', r.status === 200 && r.data.ok
+    && r.data.startAt > Date.now() + 3000000, JSON.stringify(r.data));
+
+  r = await req(sa.port, 'GET', '/api/meta');
+  check('the next season opens in pregame with a countdown', r.status === 200 && r.data.phase === 'pregame');
+
+  sa.srv.close();
+  seasonApp.stop();
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

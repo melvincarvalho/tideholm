@@ -114,6 +114,34 @@ export function createApp(opts = {}) {
     }
   }
 
+  // Archive the current world to the backups/hall of fame and start a fresh
+  // season in place. nextStartAt schedules the new season's launch (#8) — a
+  // future time opens a signup countdown; now = immediate. Reused by the
+  // admin reset and the auto-season cadence (#2).
+  function resetWorld(nextStartAt) {
+    backupWorld();
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const src = path.join(dataDir, 'world.json');
+    if (fs.existsSync(src)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+      fs.copyFileSync(src, path.join(backupDir, `world-season-end-${stamp}.json`));
+    }
+    world = game.createWorld();
+    if (nextStartAt != null) world.startAt = nextStartAt;
+    spawnBots(world, botCount);
+    for (let i = 0; i < freeIsles; i++) game.newUnchartedIsland(world);
+    game.saveWorld(world);
+    return stamp;
+  }
+
+  // Season automation (#2): once a winner has stood for SEASON_END_GRACE_HOURS
+  // (bragging window), auto-archive and open the next season with a
+  // SEASON_SIGNUP_HOURS pregame countdown. Opt-in — default off, so a world
+  // only recycles when the operator asks.
+  const SEASON_AUTO = /^(1|true|yes|on)$/i.test(process.env.SEASON_AUTO || '');
+  const SEASON_END_GRACE_MS = Number(process.env.SEASON_END_GRACE_HOURS ?? 48) * 3600 * 1000;
+  const SEASON_SIGNUP_MS = Number(process.env.SEASON_SIGNUP_HOURS ?? 24) * 3600 * 1000;
+
   // ---------------------------------------------------------------- lifecycle
 
   let timers = [];
@@ -125,6 +153,13 @@ export function createApp(opts = {}) {
       }, 15000),
       setInterval(() => game.resolveWorld(world, Date.now()), 5000), // battles land on time
       setInterval(() => game.checkVictory(world, Date.now()), 60000),
+      setInterval(() => {
+        // Auto-season (#2): recycle a finished world after its bragging window.
+        if (!SEASON_AUTO || !world.winner) return;
+        if (Date.now() - (world.winner.time || 0) < SEASON_END_GRACE_MS) return;
+        const stamp = resetWorld(Date.now() + SEASON_SIGNUP_MS);
+        log.log(`SEASON: auto-reset after winner; next launch in ${SEASON_SIGNUP_MS / 3.6e6}h (${stamp})`);
+      }, 60000),
       setInterval(() => game.saveWorld(world), 30000),
       setInterval(backupWorld, 15 * 60 * 1000),
       setInterval(() => {
@@ -533,20 +568,13 @@ export function createApp(opts = {}) {
       }
 
       if (req.method === 'POST' && pathname === '/api/admin/reset') {
-        // Archive the old world, then start a fresh season in place.
-        backupWorld();
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const src = path.join(dataDir, 'world.json');
-        if (fs.existsSync(src)) {
-          fs.mkdirSync(backupDir, { recursive: true });
-          fs.copyFileSync(src, path.join(backupDir, `world-season-end-${stamp}.json`));
-        }
-        world = game.createWorld();
-        spawnBots(world, botCount);
-        for (let i = 0; i < freeIsles; i++) game.newUnchartedIsland(world);
-        game.saveWorld(world);
-        log.log(`ADMIN: world reset (${stamp})`);
-        return sendJson(res, 200, { ok: true, archived: `world-season-end-${stamp}.json` });
+        // Archive the old world, then start a fresh season. An optional
+        // startInHours opens a signup countdown (#8) instead of launching now.
+        const hrs = Number((body && body.startInHours) || 0);
+        const nextStartAt = hrs > 0 ? Date.now() + hrs * 3600 * 1000 : Date.now();
+        const stamp = resetWorld(nextStartAt);
+        log.log(`ADMIN: world reset (${stamp})${hrs > 0 ? `, launch in ${hrs}h` : ''}`);
+        return sendJson(res, 200, { ok: true, archived: `world-season-end-${stamp}.json`, startAt: world.startAt });
       }
 
       return sendErr(res, 404, 'en', 'err.notFound');
