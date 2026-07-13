@@ -813,8 +813,12 @@ function runSimulator() {
 
   const atkPts = (state.player && state.player.points) || 0;
   const defPts = (attackTarget && attackTarget.ownerPoints) || 0;
+  // Match the server: a separate morale floor when the defender is a bot.
+  const floor = attackTarget && attackTarget.isBot
+    ? (state.botMoraleFloor ?? 0.3)
+    : (state.moraleFloor ?? 0.3);
   let morale = 1;
-  if (atkPts > 0 && defPts > 0 && atkPts > defPts) morale = Math.max(0.3, Math.sqrt(defPts / atkPts));
+  if (atkPts > 0 && defPts > 0 && atkPts > defPts) morale = Math.max(floor, Math.sqrt(defPts / atkPts));
   const A = Araw * morale;
 
   // Show the attacker's own side so the matchup is legible at a glance —

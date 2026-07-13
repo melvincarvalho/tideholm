@@ -341,6 +341,10 @@ export function createApp(opts = {}) {
       speed: game.SPEED,
       lang,
       player: { name: player.name, points: game.playerPoints(world, player.id) },
+      // Morale floors so the battle simulator matches the server's combat,
+      // including a separate floor when the defender is a bot (#config).
+      moraleFloor: game.MORALE_FLOOR,
+      botMoraleFloor: game.BOT_MORALE_FLOOR,
       islands: mine.map((i) => ({ id: i.id, name: i.name, x: i.x, y: i.y })),
       island: {
         id: island.id,
