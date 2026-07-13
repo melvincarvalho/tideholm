@@ -380,7 +380,11 @@ export function createApp(opts = {}) {
     game.checkQuests(world, player, now);
     const mine = game.playerIslands(world, player.id);
     const island = myIsland(player, islandId);
-    game.resolveIsland(island, now);
+    // Freeze the clock at startAt during pregame: resolveIsland advances
+    // lastUpdate to whatever time it's given, so passing the real `now` would
+    // let production accrue poll-by-poll before launch. Clamping to startAt
+    // keeps every island frozen until the season actually begins (#8).
+    game.resolveIsland(island, Math.max(now, world.startAt || 0));
     return {
       serverNow: now,
       speed: game.SPEED,

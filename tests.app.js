@@ -194,6 +194,11 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   check('state reports pregame + startAt', r.status === 200 && r.data.phase === 'pregame' && r.data.startAt > Date.now());
   const eb = pre.world.players.find((p) => p.name === 'Early Bird');
   check('a pregame player joined at launch, not now', eb && Math.abs(pre.world.startAt - eb.joinedAt) < 5);
+  // A state poll must not advance the island clock past launch — otherwise
+  // production would accrue poll-by-poll while the world is meant to be frozen.
+  const ebIsland = pre.world.islands.find((i) => i.ownerId === eb.id);
+  check('pregame poll keeps the island clock frozen at startAt',
+    ebIsland && ebIsland.lastUpdate === pre.world.startAt, ebIsland && ebIsland.lastUpdate);
 
   r = await req(pg.port, 'POST', '/api/build', { cookie: preCookie, body: { building: 'wall', islandId: r.data.island.id } });
   check('world-mutating actions are blocked during pregame (409)', r.status === 409, JSON.stringify(r.data));
