@@ -1512,16 +1512,20 @@ function createPlayer(world, name, password, isBot, lang) {
     return { error: 'err.nameTaken' };
   }
   lang = LANGS.includes(lang) ? lang : 'en';
+  // Register during the pregame and your clock starts at launch, not now —
+  // so grace and production begin for everyone together (#8).
+  const start = Math.max(Date.now(), world.startAt || 0);
   const player = {
     id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang,
-    questIndex: 0, stats: {}, joinedAt: Date.now(),
+    questIndex: 0, stats: {}, joinedAt: start,
   };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
     player.hash = hashPassword(password, player.salt);
   }
   world.players.push(player);
-  newIsland(world, player.id, t(lang, 'name.isle', { name }));
+  const island = newIsland(world, player.id, t(lang, 'name.isle', { name }));
+  island.lastUpdate = start; // no production accrues before launch
   return { player };
 }
 
@@ -1546,9 +1550,30 @@ function playerPoints(world, playerId) {
 
 const MAP_THEMES = ['generated', 'aegean'];
 
+// Scheduled season start (#8). Until `startAt`, the world is frozen — no
+// production, training, combat, or bot activity — but registration is open
+// and the client shows a countdown, so everyone begins together and no
+// established player exists to swarm newcomers. WORLD_START accepts an epoch
+// (ms) or an ISO date; default is now (immediate launch, backward compatible).
+function parseStart() {
+  const raw = (process.env.WORLD_START || '').trim();
+  if (!raw) return Date.now();
+  const asNum = Number(raw);
+  const t = Number.isFinite(asNum) && raw !== '' && !/[a-zA-Z:-]/.test(raw) ? asNum : Date.parse(raw);
+  return Number.isFinite(t) ? t : Date.now();
+}
+
+// 'pregame' before launch, 'live' after, 'ended' once a winner is crowned.
+function worldPhase(world, now) {
+  if (world.winner) return 'ended';
+  if (world.startAt && now < world.startAt) return 'pregame';
+  return 'live';
+}
+
 function createWorld() {
   return {
     createdAt: Date.now(),
+    startAt: parseStart(),
     theme: MAP_THEMES.includes(process.env.WORLD_THEME) ? process.env.WORLD_THEME : 'generated',
     mapSeed: crypto.randomInt(1, 2147483647),
     nextId: 1,
@@ -1574,6 +1599,7 @@ function migrateWorld(world) {
   if (!world.boards) world.boards = {};
   if (!world.theme) world.theme = 'generated';
   if (!world.mapSeed) world.mapSeed = (world.createdAt % 2147483645) + 1;
+  if (world.startAt == null) world.startAt = world.createdAt || 0; // old saves: already live
   for (const a of world.alliances) {
     if (!a.diplomacy) a.diplomacy = {};
   }
@@ -1636,7 +1662,7 @@ export {
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
-  MORALE_FLOOR, BOT_MORALE_FLOOR,
+  MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   loadHall, WONDER_WIN_LEVEL,

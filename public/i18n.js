@@ -109,6 +109,10 @@
       'err.tooManyReg': 'Too many new islands from your address. Try later.',
       'err.tooManyLogin': 'Too many login attempts. Try later.',
       'err.slowDown': 'Slow down.',
+      'err.pregame': 'The season has not started yet.',
+      'ui.pregame.title': 'Season starts in',
+      'ui.pregame.hint': 'Registration is open — everyone launches together. Build and battle unlock at launch.',
+      'ui.pregame.go': 'The season is live!',
       'err.notFound': 'Not found.',
       'err.serverError': 'Server error.',
 
@@ -452,6 +456,10 @@
       'err.tooManyReg': 'Zu viele neue Inseln von deiner Adresse. Versuche es später.',
       'err.tooManyLogin': 'Zu viele Anmeldeversuche. Versuche es später.',
       'err.slowDown': 'Langsamer.',
+      'err.pregame': 'Die Saison hat noch nicht begonnen.',
+      'ui.pregame.title': 'Saison startet in',
+      'ui.pregame.hint': 'Anmeldung offen — alle starten gemeinsam. Bauen und Kämpfen ab dem Start.',
+      'ui.pregame.go': 'Die Saison läuft!',
       'err.notFound': 'Nicht gefunden.',
       'err.serverError': 'Serverfehler.',
 
@@ -795,6 +803,10 @@
       'err.tooManyReg': 'Příliš mnoho nových ostrovů z tvé adresy. Zkus to později.',
       'err.tooManyLogin': 'Příliš mnoho pokusů o přihlášení. Zkus to později.',
       'err.slowDown': 'Zpomal.',
+      'err.pregame': 'Sezóna ještě nezačala.',
+      'ui.pregame.title': 'Sezóna začíná za',
+      'ui.pregame.hint': 'Registrace otevřena — všichni startují společně. Stavba a boj se odemknou při startu.',
+      'ui.pregame.go': 'Sezóna běží!',
       'err.notFound': 'Nenalezeno.',
       'err.serverError': 'Chyba serveru.',
 

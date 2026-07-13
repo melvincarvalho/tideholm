@@ -30,6 +30,14 @@ import { t } from './public/i18n.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
+
+// World-mutating actions refused during the pregame freeze (#8). Reads,
+// login/register, language, and chat stay open so players can set up and
+// watch the countdown.
+const PREGAME_BLOCKED = new Set([
+  '/api/build', '/api/train', '/api/attack', '/api/support', '/api/withdraw',
+  '/api/scout', '/api/trade', '/api/colonize', '/api/market/create',
+]);
 const BACKUP_KEEP = 24;
 
 const MIME = {
@@ -112,7 +120,9 @@ export function createApp(opts = {}) {
   function start() {
     if (timers.length) return; // already running
     timers = [
-      setInterval(() => botTick(world, Date.now()), 15000),
+      setInterval(() => {
+        if (game.worldPhase(world, Date.now()) === 'live') botTick(world, Date.now());
+      }, 15000),
       setInterval(() => game.resolveWorld(world, Date.now()), 5000), // battles land on time
       setInterval(() => game.checkVictory(world, Date.now()), 60000),
       setInterval(() => game.saveWorld(world), 30000),
@@ -345,6 +355,9 @@ export function createApp(opts = {}) {
       // including a separate floor when the defender is a bot (#config).
       moraleFloor: game.MORALE_FLOOR,
       botMoraleFloor: game.BOT_MORALE_FLOOR,
+      // Season phase + launch time for the pregame countdown (#8).
+      phase: game.worldPhase(world, Date.now()),
+      startAt: world.startAt,
       islands: mine.map((i) => ({ id: i.id, name: i.name, x: i.x, y: i.y })),
       island: {
         id: island.id,
@@ -411,6 +424,8 @@ export function createApp(opts = {}) {
         mode: identify ? 'pod' : 'password',
         podLoginUrl: identify ? podLoginUrl : null,
         speed: game.SPEED,
+        phase: game.worldPhase(world, Date.now()),
+        startAt: world.startAt,
       });
     }
 
@@ -557,6 +572,13 @@ export function createApp(opts = {}) {
 
     // Land any battles/returns due before this request reads or mutates state.
     game.resolveWorld(world, Date.now());
+
+    // Pregame freeze (#8): the world is on hold until launch — reads and
+    // setup are fine, but world-mutating actions are refused with a countdown.
+    if (req.method === 'POST' && PREGAME_BLOCKED.has(pathname)
+        && game.worldPhase(world, Date.now()) === 'pregame') {
+      return sendErr(res, 409, lang, 'err.pregame');
+    }
 
     if (req.method === 'GET' && pathname === '/api/state') {
       return sendJson(res, 200, stateFor(player, query.get('island')));
