@@ -858,7 +858,12 @@ function runSimulator() {
   }
   const wall = Math.max(0, Math.floor(Number($('sim-wall').value) || 0));
   const D = Math.round((def + 15 * wall) * (1 + 0.08 * wall));
-  if (def > 0) lines.push(`${verdict(A, D, defenders)}${moraleNote}`);
+  // Label the manual line so it can't be mistaken for a second verdict on
+  // the real target — it's clearly "vs the numbers you typed" (#9 follow-up).
+  if (def > 0) {
+    const prefix = attackTarget && attackTarget.intel ? `${T('ui.sim.custom')} ` : '';
+    lines.push(`${prefix}${verdict(A, D, defenders)}${moraleNote}`);
+  }
 
   const out = $('sim-result');
   out.innerHTML = '';
