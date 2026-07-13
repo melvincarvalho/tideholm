@@ -816,7 +816,14 @@ function runSimulator() {
   let morale = 1;
   if (atkPts > 0 && defPts > 0 && atkPts > defPts) morale = Math.max(0.3, Math.sqrt(defPts / atkPts));
   const A = Araw * morale;
-  const moraleNote = morale < 0.995 ? ` (${T('ui.sim.morale', { pct: Math.round(morale * 100) })})` : '';
+
+  // Show the attacker's own side so the matchup is legible at a glance —
+  // your power (raw→after-morale when it bites) vs the defence D — instead
+  // of a bare verdict. Makes "my attack is 0" or "morale gutted me" obvious.
+  const num = (n) => Math.round(n).toLocaleString();
+  const power = () => (morale < 0.995
+    ? `${num(Araw)}→${num(A)} (${T('ui.sim.morale', { pct: Math.round(morale * 100) })})`
+    : num(A));
 
   // A verdict for an A-vs-D matchup. Attacker survivors on a win; defender
   // survivors on a hold only when their unit breakdown is known (manual box
@@ -841,11 +848,14 @@ function runSimulator() {
     return T('ui.sim.holdPlain');
   };
 
+  // "⚔️ <your power> vs def <D> — <verdict>"
+  const matchup = (d, defenders) => `${T('ui.sim.matchup', { a: power(), d: num(d) })} — ${verdict(A, d, defenders)}`;
+
   const lines = [];
 
   // Primary line: the real target's latest scout intel, if we have it.
   if (attackTarget && attackTarget.intel) {
-    lines.push(`${T('ui.sim.scouted', { h: attackTarget.intel.hours })} ${verdict(A, attackTarget.intel.def, null)}${moraleNote}`);
+    lines.push(`${T('ui.sim.scouted', { h: attackTarget.intel.hours })} ${matchup(attackTarget.intel.def, null)}`);
   }
 
   // Manual "assumed defense" from the boxes.
@@ -862,7 +872,7 @@ function runSimulator() {
   // the real target — it's clearly "vs the numbers you typed" (#9 follow-up).
   if (def > 0) {
     const prefix = attackTarget && attackTarget.intel ? `${T('ui.sim.custom')} ` : '';
-    lines.push(`${prefix}${verdict(A, D, defenders)}${moraleNote}`);
+    lines.push(`${prefix}${matchup(D, defenders)}`);
   }
 
   const out = $('sim-result');
