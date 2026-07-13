@@ -176,17 +176,22 @@ function fmtTime(seconds) {
   return (h ? `${h}:` : '') + `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-// Pregame countdown (#8): show time-to-launch while the world is frozen.
+// Pregame countdown (#8): show time-to-launch while the world is frozen —
+// on both the login screen (from /api/meta) and in-game (from state).
 function updatePregameBanner() {
-  const el = $('pregame-banner');
-  if (!el) return;
-  const startAt = state && state.startAt;
-  if (!state || state.phase !== 'pregame' || !startAt) { el.classList.add('hidden'); return; }
-  const left = Math.max(0, Math.round((startAt - Date.now()) / 1000));
-  el.classList.remove('hidden');
-  el.textContent = left > 0
-    ? `⏳ ${T('ui.pregame.title')} ${fmtTime(left)} — ${T('ui.pregame.hint')}`
+  const phase = (state && state.phase) || META.phase;
+  const startAt = (state && state.startAt) || META.startAt;
+  const pregame = phase === 'pregame' && !!startAt;
+  const left = pregame ? Math.max(0, Math.round((startAt - Date.now()) / 1000)) : 0;
+  const text = left > 0
+    ? `⏳ ${T('ui.pregame.title')} ${fmtTime(left)}\n${T('ui.pregame.hint')}`
     : T('ui.pregame.go');
+  for (const id of ['pregame-banner', 'auth-pregame']) {
+    const el = $(id);
+    if (!el) continue;
+    el.classList.toggle('hidden', !pregame);
+    if (pregame) el.textContent = text;
+  }
 }
 setInterval(updatePregameBanner, 1000);
 
@@ -1315,6 +1320,7 @@ function setupPodAuth() {
 (async function boot() {
   META = await api('/api/meta').catch(() => ({ mode: 'password', podLoginUrl: null }));
   if (META.mode === 'pod') setupPodAuth();
+  updatePregameBanner(); // show the countdown on the login screen straight away
   try {
     state = await api('/api/state');
     clockSkew = state.serverNow - Date.now();
