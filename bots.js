@@ -5,14 +5,19 @@
 import { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
         tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
         popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
-        createPlayer, playerIsland, playerIslands, playerPoints,
+        createPlayer, playerIsland, playerIslands, playerPoints, islandPoints,
         isProtected, PROTECTED_POINTS } from './game.js';
 
 // Tuning knobs for bot aggression.
 const RAID_CHANCE = 0.12;        // per bot per tick, once armed
 const RAID_RANGE = 15;           // max fields to a raid target
 const MIN_RAID_POWER = 150;      // don't sail with a token force
-const BULLY_RATIO = 3;           // no punching up OR down past this points ratio
+const BULLY_RATIO = Number(process.env.BULLY_RATIO ?? 3); // no punching up OR down past this points ratio
+// Bot garrison cap (#7): once an island's standing defensive-unit power
+// exceeds its building points × this ratio, the bot stops piling on more
+// defence — so bots don't turtle to unbeatable fortresses far above their
+// economy. Default Infinity = uncapped (prior behavior); set e.g. 12 to enable.
+const BOT_GARRISON_RATIO = Number(process.env.BOT_GARRISON_RATIO ?? Infinity);
 const MAX_BOT_ISLANDS = 3;
 const SCOUT_CHANCE = 0.25;        // per bot per tick — intel drives everything
 const SCOUTS_KEEP = 12;           // standing scout pool per island
@@ -110,6 +115,13 @@ function maybeTrain(world, bot, island, now) {
   }
   const roll = Math.random();
   const unit = roll < 0.45 ? 'sentinel' : roll < 0.75 ? 'spearman' : 'raider';
+  // Garrison cap: don't add defensive units (sentinel/spearman) once this
+  // island is already well-defended for its size. Raiders (offensive) are
+  // exempt, so a capped bot shifts toward attacking rather than turtling.
+  if (unit !== 'raider'
+      && unitPower(island.units, 'def') > islandPoints(island) * BOT_GARRISON_RATIO) {
+    return;
+  }
   tryTrain(world, island, unit, 3, now); // silently skips if unaffordable
 }
 
