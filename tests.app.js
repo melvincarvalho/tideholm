@@ -173,6 +173,34 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   podApp.stop();
   check('lock released after stop', !fs.existsSync(path.join(process.env.DATA_DIR, 'server.lock')));
 
+  // ---------------------------------------------------------------- pregame (#8)
+  // Fresh world so WORLD_START takes effect (loadWorld returns nothing).
+  console.log('scheduled season start (pregame freeze)');
+  fs.rmSync(path.join(process.env.DATA_DIR, 'world.json'), { force: true });
+  process.env.WORLD_START = String(Date.now() + 3600000); // launch in 1h
+  const pre = createApp({ botCount: 2, freeIsles: 2, log: silent });
+  delete process.env.WORLD_START;
+  const pg = await serve(pre);
+
+  r = await req(pg.port, 'GET', '/api/meta');
+  check('meta reports pregame phase', r.status === 200 && r.data.phase === 'pregame' && r.data.startAt > Date.now(),
+    JSON.stringify(r.data));
+
+  r = await req(pg.port, 'POST', '/api/register', { body: { name: 'Early Bird', password: 'sekrit', lang: 'en' } });
+  check('registration is open during pregame', r.status === 200 && r.data.ok === true, JSON.stringify(r.data));
+  const preCookie = (r.headers.get('set-cookie') || '').split(';')[0];
+
+  r = await req(pg.port, 'GET', '/api/state', { cookie: preCookie });
+  check('state reports pregame + startAt', r.status === 200 && r.data.phase === 'pregame' && r.data.startAt > Date.now());
+  const eb = pre.world.players.find((p) => p.name === 'Early Bird');
+  check('a pregame player joined at launch, not now', eb && Math.abs(pre.world.startAt - eb.joinedAt) < 5);
+
+  r = await req(pg.port, 'POST', '/api/build', { cookie: preCookie, body: { building: 'wall', islandId: r.data.island.id } });
+  check('world-mutating actions are blocked during pregame (409)', r.status === 409, JSON.stringify(r.data));
+
+  pg.srv.close();
+  pre.stop();
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

@@ -176,6 +176,20 @@ function fmtTime(seconds) {
   return (h ? `${h}:` : '') + `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// Pregame countdown (#8): show time-to-launch while the world is frozen.
+function updatePregameBanner() {
+  const el = $('pregame-banner');
+  if (!el) return;
+  const startAt = state && state.startAt;
+  if (!state || state.phase !== 'pregame' || !startAt) { el.classList.add('hidden'); return; }
+  const left = Math.max(0, Math.round((startAt - Date.now()) / 1000));
+  el.classList.remove('hidden');
+  el.textContent = left > 0
+    ? `⏳ ${T('ui.pregame.title')} ${fmtTime(left)} — ${T('ui.pregame.hint')}`
+    : T('ui.pregame.go');
+}
+setInterval(updatePregameBanner, 1000);
+
 function renderState() {
   if (!state) return;
   const isl = state.island;
@@ -189,6 +203,8 @@ function renderState() {
     fillLangSelect($('game-lang'));
     applyStatic();
   }
+
+  updatePregameBanner();
 
   const banner = $('winner-banner');
   banner.classList.toggle('hidden', !state.winner);
