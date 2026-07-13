@@ -31,13 +31,48 @@ shutdown. Delete that file to start a fresh world.
 
 ### Config (env vars)
 
+**World & server**
+
 | Var | Default | Meaning |
 |-----|---------|---------|
 | `PORT` | 3000 | HTTP port |
-| `GAME_SPEED` | 5 | Multiplies production, divides build times. 1 ≈ classic pace (hours), 5 = minutes. |
+| `GAME_SPEED` | 5 | Multiplies production, divides build times. `1` ≈ classic pace (hours), `5` = minutes. Lower it (`2`–`3`) for a slower, more deliberate world. |
 | `BOTS` | 20 | Bots spawned when a new world is created |
 | `FREE_ISLES` | 30 | Uncharted (colonizable) islands on a new world |
-| `WORLD_THEME` | generated | Map backdrop: `generated` (seeded fictional chart) or `aegean` (real coastlines from public-domain Natural Earth data; build other regions with `tools/build-region.js`) |
+| `WORLD_THEME` | generated | Map backdrop: `generated` (seeded fictional chart) or `aegean` (real coastlines; build other regions with `tools/build-region.js`) |
+| `WIN_SHARE` | 0.6 | Island share a player/alliance must hold for a dominance victory |
+| `NIGHT_BONUS` | — | Night window `HH-HH` (e.g. `22-6`) where defenders get a bonus |
+| `ADMIN_TOKEN` | — | Enables the admin panel at `/admin.html` (stats, announce, reset) |
+
+**Season lifecycle** (#8, #2)
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `WORLD_START` | now | Launch time (epoch ms or ISO date). Before it, the world is frozen and shows a signup countdown so everyone starts together. |
+| `SEASON_AUTO` | off | Auto-recycle a finished world into the next season |
+| `SEASON_END_GRACE_HOURS` | 48 | Bragging window a won world lingers before auto-reset |
+| `SEASON_SIGNUP_HOURS` | 24 | Pregame countdown for the next auto-started season |
+
+**Balance / difficulty** (#7, #13) — all default to prior behavior
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `PROTECT_GRACE_HOURS` | 72 ÷ speed | Newcomer shield in **real** hours (independent of speed). Set e.g. `48` for two real days. |
+| `PROTECTED_POINTS` | 40 | Points below which a player can't be attacked |
+| `BULLY_RATIO` | 3 | Attack point-band: no punching up/down past this ratio |
+| `MORALE_FLOOR` | 0.3 | Min attack-power multiplier when outweighing the defender |
+| `BOT_MORALE_FLOOR` | = `MORALE_FLOOR` | Same, but vs **bot** defenders. Set `1` so the leader can fight bots at full power while human newcomers stay protected. |
+| `BOT_GARRISON_RATIO` | ∞ | Cap a bot's standing defence to `islandPoints × ratio` (raiders exempt). Set e.g. `12` to stop bots turtling into unbeatable fortresses. |
+
+**Example — a fair, self-running "casual" world:**
+
+```bash
+GAME_SPEED=3 \
+WORLD_START=2026-07-20T18:00:00Z \
+PROTECT_GRACE_HOURS=48 BOT_GARRISON_RATIO=12 BOT_MORALE_FLOOR=1 \
+SEASON_AUTO=1 SEASON_SIGNUP_HOURS=24 SEASON_END_GRACE_HOURS=48 \
+ADMIN_TOKEN=... node server.js
+```
 
 ## Gameplay
 
