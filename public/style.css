@@ -158,6 +158,7 @@ th { background: #eadfc4; }
 
 .cell.island { background: #c47f2a; border-radius: 50%; cursor: pointer; }
 .cell.island.bot { background: #e08030; }
+.cell.island.barb { background: #8d7b64; }
 .cell.island.player { background: #3b7dd8; }
 .cell.island.you { background: #3faf46; box-shadow: 0 0 4px 2px #7fff7f; cursor: default; }
 .cell.island.unowned { background: #a9b0b8; }

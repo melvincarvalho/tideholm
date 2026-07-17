@@ -676,6 +676,135 @@ console.log('morale & victory');
   check('victory fires only once', g.checkVictory(w, t0 + 1000) === null);
 }
 
+// ---------------------------------------------------------------- bot personalities (#22)
+
+console.log('bot personalities');
+{
+  const { spawnBots, personaOf, rollPersona } = await import('./bots.js');
+  const w = g.createWorld();
+  spawnBots(w, 20);
+  const kinds = w.players.map((p) => p.persona.kind);
+  const count = (k) => kinds.filter((x) => x === k).length;
+  check('default mix spawns 15 settlers, 2 warlords, 3 barbarians',
+    count('settler') === 15 && count('warlord') === 2 && count('barbarian') === 3);
+  check('personas carry a temperament vector',
+    w.players.every((p) => p.persona.tempo > 0 && p.persona.prodBias
+      && p.persona.trainMix && p.persona.sleepStart >= 0));
+  check('legacy bots fall back to the neutral persona',
+    personaOf({}).tempo === 1 && personaOf({}).sleepLen === 0 && personaOf({}).kind === 'settler');
+}
+{
+  // Barbarians never aggress — armed to the teeth, provoked, and pacifist.
+  const { botTick, rollPersona } = await import('./bots.js');
+  const { w, a, ia } = freshWorld();
+  const barb = g.createPlayer(w, 'Peaceful Pete', null, true).player;
+  barb.persona = { ...rollPersona('barbarian'), tempo: 1, sleepLen: 0 };
+  const bi = g.playerIsland(w, barb.id);
+  bi.x = 0; bi.y = 3;
+  bi.units.raider = 50; bi.units.scout = 10; bi.units.colonyship = 1; bi.units.flagship = 1;
+  Object.assign(bi.buildings, { barracks: 3, harbor: 2 });
+  barb.grudges = { [a.id]: 9 };
+  barb.intel = { [ia.id]: { def: 0, time: t0 } };
+  g.newUnchartedIsland(w);
+  for (let i = 0; i < 300; i++) botTick(w, t0 + i * 15000);
+  check('barbarian never attacks, scouts, colonizes or conquers',
+    !w.movements.some((m) => m.ownerId === barb.id));
+}
+{
+  // Warlords hunt above their weight: far outside the band, soft intel, attack.
+  const { botTick, rollPersona } = await import('./bots.js');
+  const { w, a, ia } = freshWorld();
+  Object.assign(ia.buildings, { lumberyard: 20, quarry: 20, goldmine: 20, hall: 15 }); // giant human
+  const wolf = g.createPlayer(w, 'Undertow Jr', null, true).player;
+  wolf.persona = { ...rollPersona('warlord'), tempo: 1, sleepLen: 0 };
+  const wi = g.playerIsland(w, wolf.id);
+  wi.x = 0; wi.y = 4; wi.units.raider = 30;
+  wolf.intel = { [ia.id]: { def: 10, time: t0 } };
+  check('setup: human is far above the band', g.playerPoints(w, a.id) > 3 * g.playerPoints(w, wolf.id));
+  let hit = false;
+  for (let i = 0; i < 400 && !hit; i++) {
+    botTick(w, t0 + i * 15000);
+    hit = w.movements.some((m) => m.type === 'attack' && m.ownerId === wolf.id && m.toId === ia.id);
+    w.movements = w.movements.filter((m) => m.ownerId !== wolf.id);
+    wi.units.raider = 30;
+    wolf.intel[ia.id] = { def: 10, time: t0 + i * 15000 };
+  }
+  check('warlord raids far above the band on soft intel', hit);
+}
+{
+  // Vengeance is rash: a settler with a grudge raids out-of-band and blind.
+  const { botTick } = await import('./bots.js');
+  const { w, a, ia } = freshWorld();
+  Object.assign(ia.buildings, { lumberyard: 20, quarry: 20, goldmine: 20, hall: 15 });
+  const bot = g.createPlayer(w, 'Wronged Wilma', null, true).player; // neutral settler
+  const bi = g.playerIsland(w, bot.id);
+  bi.x = 0; bi.y = 4; bi.units.raider = 30;
+  bot.grudges = { [a.id]: 3 };
+  let hit = false;
+  for (let i = 0; i < 400 && !hit; i++) {
+    botTick(w, t0 + i * 15000);
+    hit = w.movements.some((m) => m.type === 'attack' && m.ownerId === bot.id && m.toId === ia.id);
+    w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
+    bi.units.raider = 30;
+    bot.grudges = { [a.id]: 3 };
+  }
+  check('grudge pierces the band with no intel at all', hit);
+}
+{
+  // Sleep windows: same bot, same setup — asleep it does nothing, awake it acts.
+  const { botTick, rollPersona, isAsleep } = await import('./bots.js');
+  const mk = () => {
+    const { w, a, ia } = freshWorld();
+    const bot = g.createPlayer(w, 'Dozy Don', null, true).player;
+    bot.persona = { ...rollPersona('settler'), tempo: 1, sleepStart: 8, sleepLen: 8 };
+    const bi = g.playerIsland(w, bot.id);
+    bi.x = 0; bi.y = 3; bi.units.raider = 30;
+    bot.intel = { [ia.id]: { def: 0, time: t0 } };
+    return { w, bot, bi, ia };
+  };
+  // t0 is 08:00 UTC — inside the 08-16 window; +10h is 18:00 — awake.
+  check('isAsleep matches the window',
+    isAsleep({ sleepStart: 8, sleepLen: 8 }, t0) && !isAsleep({ sleepStart: 8, sleepLen: 8 }, t0 + 10 * 3600e3));
+  const asleep = mk();
+  for (let i = 0; i < 200; i++) botTick(asleep.w, t0 + i * 1000);
+  check('a sleeping bot does nothing at all',
+    !asleep.w.movements.some((m) => m.ownerId === asleep.bot.id));
+  const awake = mk();
+  awake.bot.intel = { [awake.ia.id]: { def: 0, time: t0 + 10 * 3600e3 } };
+  let acted = false;
+  for (let i = 0; i < 400 && !acted; i++) {
+    botTick(awake.w, t0 + 10 * 3600e3 + i * 1000);
+    acted = awake.w.movements.some((m) => m.ownerId === awake.bot.id);
+  }
+  check('the same bot acts once awake', acted);
+}
+{
+  // Temperament shapes progression: opposite producer biases diverge.
+  const { botTick } = await import('./bots.js');
+  const w = g.createWorld();
+  const mkBot = (name, bias) => {
+    const p = g.createPlayer(w, name, null, true).player;
+    p.persona = {
+      kind: 'settler', tempo: 1, sleepStart: 0, sleepLen: 0,
+      prodBias: bias, storeThresh: 0.99, wallTarget: 1, hallLag: 99,
+      trainMix: { sentinel: 1, spearman: 0, raider: 0 }, batch: 1,
+    };
+    const isl = g.playerIsland(w, p.id);
+    Object.assign(isl.buildings, { hall: 30, barracks: 3, harbor: 2, wall: 6, storehouse: 20 });
+    return { p, isl };
+  };
+  const gold = mkBot('Goldie', { lumberyard: 0.7, quarry: 1, goldmine: 1.3 });
+  const timber = mkBot('Timber Tim', { lumberyard: 1.3, quarry: 1, goldmine: 0.7 });
+  for (let i = 0; i < 200; i++) {
+    for (const b of [gold, timber]) b.isl.resources = { wood: 900000, stone: 900000, gold: 900000 };
+    botTick(w, t0 + i * 3600e3); // hourly, so queued builds complete
+  }
+  check('gold-biased bot runs its mine ahead of its lumberyard',
+    gold.isl.buildings.goldmine > gold.isl.buildings.lumberyard);
+  check('timber-biased bot does the opposite',
+    timber.isl.buildings.lumberyard > timber.isl.buildings.goldmine);
+}
+
 // ---------------------------------------------------------------- wonder & hall of fame
 
 console.log('wonder & hall of fame');

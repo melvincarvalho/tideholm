@@ -948,6 +948,11 @@ export function createApp(opts = {}) {
             ? { def: intel.def, hours: Math.round((now - intel.time) / 3600000) } : null,
           unowned: i.ownerId == null,
           isBot: owner ? !!owner.isBot : false,
+          // Barbarians are advertised (the safe farm loop needs to be
+          // legible); warlords deliberately are NOT — learn the wolves by
+          // scouting or by scars.
+          barbarian: !!(owner && owner.isBot && owner.persona
+            && owner.persona.kind === 'barbarian'),
           isYou: i.ownerId === player.id,
           points: game.islandPoints(i),
           // Owner's TOTAL points — the battle simulator needs this to apply

@@ -116,6 +116,12 @@ ADMIN_TOKEN=... node server.js
 - Bots wage real war: they scout targets and remember the intel, skip
   fortresses, favor soft targets, and run flagship conquest campaigns
   against empires their own size — never against small humans (<150 pts).
+- Bot personalities (#22): every bot rolls an archetype and temperament at
+  spawn. Most are settlers (varied build biases, own sleep phase and tempo);
+  a few are unmarked warlords who hunt above their weight; some are
+  barbarians — marked on the map, never attack, never retaliate: a safe
+  farm loop. Grudges pierce all safety bands: farm a bot, expect an answer.
+  Mix via `BOT_PERSONAS`, global pace via `BOT_TEMPO`.
 - Rankings tab: every player by total points. Mail tab: write to any human
   player. Alliance tab: found an alliance (name + tag), invite players,
   accept or decline invitations. Allies cannot attack each other, and

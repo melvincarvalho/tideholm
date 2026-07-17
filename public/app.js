@@ -495,11 +495,14 @@ async function loadMap() {
       const isl = byCoord.get(`${x},${y}`);
       if (isl) {
         cell.classList.add('island',
-          isl.isYou ? 'you' : isl.unowned ? 'unowned' : isl.isBot ? 'bot' : 'player');
+          isl.isYou ? 'you' : isl.unowned ? 'unowned'
+            : isl.barbarian ? 'barb' : isl.isBot ? 'bot' : 'player');
         if (isl.relation === 'ally' || isl.relation === 'same') cell.classList.add('rel-ally');
         if (isl.relation === 'war') cell.classList.add('rel-war');
         const ownerLabel = isl.unowned ? T('ui.map.uninhabited')
-          : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner + (isl.isBot ? ' ' + T('ui.map.bot') : '');
+          : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner
+            + (isl.barbarian ? ' ' + T('ui.map.barbarian')
+              : isl.isBot ? ' ' + T('ui.map.bot') : '');
         let title = `${isl.name} (${x}:${y})\n${ownerLabel} — ${isl.points} ${T('ui.map.pts')}`;
         if (isl.relation && isl.relation !== 'same') title += `\n${T('ui.dip.' + isl.relation)}`;
         if (isl.intel) title += `\n${T('ui.map.intel', { def: isl.intel.def, h: isl.intel.hours })}`;
@@ -646,7 +649,7 @@ async function paintMapBackground(data) {
 
 const MINI_COLORS = {
   you: '#3faf46', ally: '#2ab5a5', war: '#ff5544',
-  player: '#3b7dd8', bot: '#e08030', unowned: '#a9b0b8',
+  player: '#3b7dd8', bot: '#e08030', barb: '#8d7b64', unowned: '#a9b0b8',
 };
 
 function drawMinimap(data) {
@@ -661,7 +664,7 @@ function drawMinimap(data) {
     const kind = isl.isYou ? 'you'
       : isl.relation === 'war' ? 'war'
       : isl.relation === 'ally' || isl.relation === 'same' ? 'ally'
-      : isl.unowned ? 'unowned' : isl.isBot ? 'bot' : 'player';
+      : isl.unowned ? 'unowned' : isl.barbarian ? 'barb' : isl.isBot ? 'bot' : 'player';
     ctx.fillStyle = MINI_COLORS[kind];
     ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
   }
