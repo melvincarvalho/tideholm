@@ -31,7 +31,7 @@
       'building.farm.name': 'Farm',
       'building.farm.desc': 'Feeds your people. Raises the population cap for troops.',
       'building.wonder.name': 'Great Beacon',
-      'building.wonder.desc': 'A colossal lighthouse, visible across the world. Complete level 5 and the world is yours.',
+      'building.wonder.desc': 'A colossal lighthouse, visible across the world. Complete level {max} and the world is yours.',
 
       // units
       'unit.spearman.name': 'Spearman',
@@ -378,7 +378,7 @@
       'building.farm.name': 'Hof',
       'building.farm.desc': 'Ernährt dein Volk. Erhöht das Bevölkerungslimit für Truppen.',
       'building.wonder.name': 'Großer Leuchtturm',
-      'building.wonder.desc': 'Ein kolossaler Leuchtturm, in der ganzen Welt sichtbar. Vollende Stufe 5 und die Welt gehört dir.',
+      'building.wonder.desc': 'Ein kolossaler Leuchtturm, in der ganzen Welt sichtbar. Vollende Stufe {max} und die Welt gehört dir.',
 
       // units
       'unit.spearman.name': 'Speerträger',
@@ -725,7 +725,7 @@
       'building.farm.name': 'Statek',
       'building.farm.desc': 'Živí tvůj lid. Zvyšuje populační limit pro jednotky.',
       'building.wonder.name': 'Velký maják',
-      'building.wonder.desc': 'Kolosální maják viditelný přes celý svět. Dokonči úroveň 5 a svět je tvůj.',
+      'building.wonder.desc': 'Kolosální maják viditelný přes celý svět. Dokonči úroveň {max} a svět je tvůj.',
 
       // units
       'unit.spearman.name': 'Kopiník',

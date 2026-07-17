@@ -87,7 +87,10 @@ const BUILDINGS = {
   },
 };
 
-const WONDER_WIN_LEVEL = 5;
+// Beacon level that wins the world. Raising it stretches the endgame:
+// each level costs 1.55x more and takes 1.5x longer, and every completed
+// level is announced world-wide — a longer window to march on the builder.
+const WONDER_WIN_LEVEL = Math.max(1, Number(process.env.WONDER_WIN_LEVEL || 5));
 
 // speed = minutes per map field at game speed 1 (lower is faster).
 // pop = population each unit consumes against the Farm's cap.

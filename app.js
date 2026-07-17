@@ -302,7 +302,7 @@ export function createApp(opts = {}) {
       const cost = game.upgradeCost(key, target);
       out[key] = {
         name: t(lang, `building.${key}.name`),
-        desc: t(lang, `building.${key}.desc`),
+        desc: t(lang, `building.${key}.desc`, { max: game.WONDER_WIN_LEVEL }),
         level: island.buildings[key],
         nextLevel: target,
         cost,
