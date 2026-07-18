@@ -21,10 +21,8 @@ html[data-theme="parchment"] body {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 14px;
   color: var(--ink);
-  background:
-    radial-gradient(ellipse at 70% 0%, rgba(255, 220, 160, .22), transparent 55%),
-    linear-gradient(180deg, #6d8ba1 0%, #4a6b82 30%, #2a4a5e 60%, #16303f 100%);
-  background-attachment: fixed;
+  /* The game's own deep sea — a flat ground so the parchment carries the light. */
+  background: #0e2a3f;
 }
 
 /* ---------------- chrome: carved wood ---------------- */
@@ -58,11 +56,20 @@ html[data-theme="parchment"] .tab.active {
 html[data-theme="parchment"] .help-link { color: var(--gold-bright); }
 
 html[data-theme="parchment"] #resbar {
+  /* The mockup's floating wood plate instead of a full-width strip. */
+  width: fit-content;
+  max-width: calc(100% - 20px);
+  margin: 10px auto 4px;
+  padding: 8px 26px;
+  gap: 26px;
   background: linear-gradient(180deg, #241709, #171008);
-  border-bottom: 2px solid #000;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(200, 160, 90, .22);
+  border: 2px solid #000;
+  border-radius: 9px;
+  outline: 1px solid #6b4e2a;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(200, 160, 90, .25);
   color: var(--gold-bright);
   text-shadow: 0 1px 2px #000;
+  font-size: 14.5px;
 }
 html[data-theme="parchment"] #resbar b { color: #f4e6c4; font-weight: normal; }
 html[data-theme="parchment"] #resbar small { color: #9b8250; }
@@ -79,11 +86,28 @@ html[data-theme="parchment"] section {
   border-radius: 6px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, .5), inset 0 0 55px rgba(120, 90, 40, .25);
 }
+html[data-theme="parchment"] section { position: relative; }
+html[data-theme="parchment"] section::before,
+html[data-theme="parchment"] section::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(107, 78, 42, .45);
+  pointer-events: none;
+}
+html[data-theme="parchment"] section::before { top: 5px; left: 5px; border-right: none; border-bottom: none; }
+html[data-theme="parchment"] section::after { bottom: 5px; right: 5px; border-left: none; border-top: none; }
+
 html[data-theme="parchment"] h2,
 html[data-theme="parchment"] h3 {
   font-weight: normal;
   letter-spacing: .4px;
   text-shadow: 0 1px 0 rgba(255, 246, 220, .7);
+}
+html[data-theme="parchment"] h3 {
+  border-bottom: 1px solid rgba(124, 95, 50, .45);
+  padding-bottom: 4px;
 }
 html[data-theme="parchment"] .hint { color: #6b5535; }
 
@@ -96,6 +120,8 @@ html[data-theme="parchment"] th {
   letter-spacing: .4px;
 }
 html[data-theme="parchment"] td { border-bottom: 1px solid rgba(124, 95, 50, .32); }
+html[data-theme="parchment"] td + td,
+html[data-theme="parchment"] th + th { border-left: 1px solid rgba(124, 95, 50, .22); }
 html[data-theme="parchment"] tbody tr:nth-child(odd) { background: rgba(255, 246, 220, .3); }
 html[data-theme="parchment"] tbody tr:hover { background: rgba(201, 162, 75, .22); }
 html[data-theme="parchment"] #ranking-table tr.me { background: rgba(201, 162, 75, .35); }
