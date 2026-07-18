@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tideholm — parchment UI mockup (design only, not wired)</title>
+<style>
+/* ============================================================
+   Tideholm "parchment & wood" mockup — pure CSS, zero assets.
+   Everything painterly is gradients + an SVG-noise texture.
+   ============================================================ */
+:root {
+  --wood-dark: #1b120a;
+  --wood: #2e1f10;
+  --wood-light: #4a341c;
+  --wood-edge: #6b4e2a;
+  --gold: #c9a24b;
+  --gold-bright: #e8c886;
+  --parch: #e8d9b0;
+  --parch-dark: #d8c493;
+  --parch-edge: #9c7f4e;
+  --ink: #3a2c17;
+  --ink-soft: #6b5535;
+  --red: #8e2b20;
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 70% 10%, rgba(255,220,160,.25), transparent 55%),
+    linear-gradient(180deg, #7f9bb0 0%, #5c7d94 28%, #33566b 55%, #1d3a4c 75%, #12283a 100%);
+  overflow-x: hidden;
+}
+/* distant "landscape" silhouettes, pure CSS */
+body::before, body::after {
+  content: ''; position: fixed; left: 0; right: 0; z-index: -1; pointer-events: none;
+}
+body::before { /* hills + keep silhouette */
+  bottom: 0; height: 46vh;
+  background:
+    radial-gradient(120% 70% at 85% 100%, #23331f 30%, transparent 70%),
+    radial-gradient(140% 80% at 10% 100%, #1c2b1a 35%, transparent 72%),
+    linear-gradient(180deg, transparent 0%, rgba(10,20,12,.85) 90%);
+}
+body::after { /* haze */
+  top: 0; height: 100%;
+  background: radial-gradient(ellipse at 50% 120%, rgba(6,12,8,.55), transparent 60%);
+}
+
+/* --- noise texture used on wood and parchment (self-contained SVG) --- */
+.tex {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='0.16'/></svg>");
+}
+
+/* ============================ chrome ============================ */
+.topbar {
+  display: flex; align-items: stretch; gap: 2px;
+  padding: 8px 14px 0 110px;
+  background: linear-gradient(180deg, #3a2a16, var(--wood) 45%, var(--wood-dark));
+  border-bottom: 3px solid #0c0703;
+  box-shadow: 0 3px 12px rgba(0,0,0,.6);
+  position: relative;
+}
+.crest {
+  position: absolute; left: 18px; top: 6px; width: 72px; height: 84px;
+  background: linear-gradient(160deg, #2c4f8a, #16294d 70%);
+  border: 3px solid var(--gold);
+  border-radius: 8px 8px 50% 50% / 8px 8px 62% 62%;
+  box-shadow: 0 6px 14px rgba(0,0,0,.7), inset 0 0 18px rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 34px; z-index: 5;
+}
+.topnav { display: flex; gap: 2px; flex-wrap: wrap; }
+.topnav a {
+  display: block; padding: 10px 18px 12px;
+  color: var(--parch); text-decoration: none; font-size: 14.5px; letter-spacing: .4px;
+  background: linear-gradient(180deg, #46331b, #2a1c0d 80%);
+  border: 1px solid #120b05; border-bottom: none;
+  border-radius: 7px 7px 0 0;
+  text-shadow: 0 1px 2px #000;
+  position: relative;
+}
+.topnav a.active {
+  background: linear-gradient(180deg, #7a5a26, #4a3413 75%);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: inset 0 1px 0 rgba(255,230,170,.35);
+}
+.topnav a:hover:not(.active) { background: linear-gradient(180deg, #54401f, #32220f); }
+.pip {
+  position: absolute; top: -6px; right: 6px;
+  background: radial-gradient(circle at 35% 30%, #e0574a, var(--red));
+  color: #fff; font-size: 11px; font-family: Verdana, sans-serif;
+  min-width: 18px; height: 18px; line-height: 18px; text-align: center;
+  border-radius: 50%; border: 1px solid #4d0e07;
+  box-shadow: 0 2px 4px rgba(0,0,0,.6);
+}
+
+.resbar {
+  display: flex; justify-content: center; gap: 10px;
+  padding: 7px 0 9px;
+}
+.resbar .plate {
+  display: flex; gap: 26px; align-items: center;
+  padding: 7px 26px;
+  background: linear-gradient(180deg, #241709, #171008);
+  border: 2px solid #000; outline: 1px solid var(--wood-edge);
+  border-radius: 9px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.55), inset 0 1px 0 rgba(200,160,90,.25);
+  color: var(--gold-bright); font-size: 15px;
+  text-shadow: 0 1px 2px #000;
+}
+.res b { color: #f4e6c4; font-weight: normal; margin-left: 6px; letter-spacing: .5px; }
+.res small { color: #9b8250; margin-left: 5px; font-size: 11px; }
+
+/* ============================ layout ============================ */
+.stage {
+  display: grid;
+  grid-template-columns: 205px minmax(0, 1fr) 225px;
+  gap: 16px;
+  max-width: 1280px; margin: 14px auto; padding: 0 14px;
+  align-items: start;
+}
+
+/* --- carved wood side panels --- */
+.panel {
+  background: linear-gradient(180deg, #33220f, #221507 70%, #190f05);
+  border: 2px solid #0b0602;
+  outline: 1px solid var(--wood-edge);
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(214,171,94,.22);
+  padding: 10px;
+  color: var(--parch);
+  margin-bottom: 14px;
+}
+.panel h3 {
+  text-align: center; font-size: 13.5px; letter-spacing: 1.2px; font-weight: normal;
+  color: var(--gold-bright); text-transform: none;
+  padding: 5px 0 8px; margin: -4px -4px 8px;
+  border-bottom: 1px solid rgba(201,162,75,.35);
+  text-shadow: 0 1px 2px #000;
+}
+
+/* hero card */
+.hero { display: flex; gap: 10px; align-items: center; padding: 4px 2px 8px; }
+.hero .face {
+  width: 54px; height: 54px; flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #8fa3b5, #45596b 60%, #22303d);
+  border: 2px solid var(--gold);
+  box-shadow: inset 0 -8px 12px rgba(0,0,0,.5), 0 3px 8px rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+}
+.hero .who b { display: block; color: var(--gold-bright); font-size: 14px; }
+.hero .who span { font-size: 11.5px; color: #a68d5c; }
+
+.stat {
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(180deg, #1c1207, #140c04);
+  border: 1px solid #000; outline: 1px solid rgba(107,78,42,.6);
+  border-radius: 6px; padding: 5px 9px; margin: 6px 0;
+  font-size: 13.5px; color: #ead9ae; text-shadow: 0 1px 1px #000;
+}
+.stat .plus {
+  margin-left: auto; width: 18px; height: 18px; line-height: 16px; text-align: center;
+  background: linear-gradient(180deg, var(--gold), #8a6a24);
+  color: #241703; border-radius: 4px; border: 1px solid #55400f; font-size: 13px;
+  cursor: pointer;
+}
+
+.navlist { list-style: none; padding: 2px; }
+.navlist li {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px; margin: 3px 0;
+  border: 1px solid transparent; border-radius: 6px;
+  font-size: 13.5px; letter-spacing: .3px; cursor: pointer;
+  text-shadow: 0 1px 2px #000;
+}
+.navlist li:hover { background: rgba(201,162,75,.12); border-color: rgba(201,162,75,.35); }
+.navlist .pipline {
+  margin-left: auto; background: radial-gradient(circle at 35% 30%, #e0574a, var(--red));
+  min-width: 17px; height: 17px; line-height: 17px; border-radius: 50%;
+  text-align: center; font-size: 10.5px; font-family: Verdana, sans-serif; color: #fff;
+  border: 1px solid #4d0e07;
+}
+.navlist .pipline.green { background: radial-gradient(circle at 35% 30%, #7fbf58, #38701f); border-color: #1d3d0d; }
+
+/* banner tail under left column */
+.banner {
+  width: 64px; height: 120px; margin: 2px auto 0;
+  background: linear-gradient(180deg, #2c4f8a, #16294d 80%);
+  border: 2px solid var(--gold); border-top-width: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+  display: flex; align-items: flex-start; justify-content: center;
+  font-size: 26px; padding-top: 16px;
+  box-shadow: 0 8px 16px rgba(0,0,0,.5);
+}
+
+/* --- the parchment sheet --- */
+.sheet {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,248,225,.55), transparent 60%),
+    radial-gradient(ellipse at 8% 100%, rgba(122,90,40,.35), transparent 40%),
+    radial-gradient(ellipse at 95% 90%, rgba(122,90,40,.3), transparent 45%),
+    linear-gradient(180deg, var(--parch), var(--parch-dark));
+  border: 2px solid #55401d;
+  outline: 6px solid #241708;
+  border-radius: 6px;
+  box-shadow: 0 14px 34px rgba(0,0,0,.6), inset 0 0 60px rgba(120,90,40,.28);
+  padding: 20px 26px 16px;
+}
+/* corner nicks */
+.sheet::before, .sheet::after {
+  content: ''; position: absolute; width: 26px; height: 26px;
+  border: 2px solid rgba(107,78,42,.5); pointer-events: none;
+}
+.sheet::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+.sheet::after { bottom: 6px; right: 6px; border-left: none; border-top: none; }
+
+.sheet h1 {
+  font-size: 26px; letter-spacing: .5px; font-weight: normal;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  text-shadow: 0 1px 0 rgba(255,246,220,.7);
+}
+
+table.ledger { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ledger th {
+  text-align: left; font-weight: normal; letter-spacing: .4px;
+  padding: 8px 10px; color: var(--ink);
+  background: linear-gradient(180deg, rgba(160,128,70,.28), rgba(160,128,70,.16));
+  border: 1px solid rgba(124,95,50,.45);
+}
+.ledger td { padding: 8px 10px; border: 1px solid rgba(124,95,50,.32); }
+.ledger tbody tr:nth-child(odd) { background: rgba(255,246,220,.28); }
+.ledger tbody tr:hover { background: rgba(201,162,75,.22); }
+.ledger .name { font-size: 14px; }
+.ledger .name span { margin-right: 7px; }
+.coords { color: var(--ink-soft); font-family: Georgia, serif; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lvls { display: flex; gap: 9px; }
+.lvl { text-align: center; font-size: 10.5px; color: var(--ink-soft); line-height: 1.1; }
+.lvl em { display: block; font-style: normal; font-size: 14px; }
+.gear {
+  width: 24px; height: 24px; border-radius: 5px; border: 1px solid #6b4e2a;
+  background: linear-gradient(180deg, #efe3c0, #cdb684);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.3);
+}
+.sheetfoot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 12px; color: var(--ink-soft); font-size: 12.5px;
+}
+.pager { display: flex; gap: 8px; align-items: center; }
+.pager button {
+  width: 26px; height: 24px; border-radius: 5px; border: 1px solid #6b4e2a;
+  background: linear-gradient(180deg, #efe3c0, #cdb684); cursor: pointer;
+  font-family: inherit; color: var(--ink);
+}
+
+/* --- right column widgets --- */
+.mini {
+  height: 150px; border-radius: 6px; border: 2px solid #0b0602;
+  outline: 1px solid var(--wood-edge);
+  background:
+    radial-gradient(circle at 30% 35%, #2f6b4f 0 7%, transparent 8%),
+    radial-gradient(circle at 62% 55%, #7a5a3a 0 9%, transparent 10%),
+    radial-gradient(circle at 75% 25%, #c9a24b 0 4%, transparent 5%),
+    radial-gradient(circle at 45% 75%, #8e2b20 0 4%, transparent 5%),
+    radial-gradient(circle at 20% 70%, #3b7dd8 0 4%, transparent 5%),
+    linear-gradient(180deg, #274d63, #16374b);
+  position: relative;
+}
+.mini::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px) 0 0/25% 25%,
+    linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px) 0 0/25% 25%;
+}
+.toolrow { display: flex; gap: 6px; margin-top: 8px; }
+.toolrow .tool {
+  flex: 1; height: 26px; border-radius: 5px;
+  background: linear-gradient(180deg, #46331b, #2a1c0d);
+  border: 1px solid #000; outline: 1px solid rgba(107,78,42,.6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; cursor: pointer;
+}
+.kv { font-size: 12.5px; line-height: 1.75; color: #e2d2a6; }
+.kv b { color: var(--gold-bright); font-weight: normal; }
+.prodline { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 1px; color: #ead9ae; }
+.queue-item { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: 12.5px; color: #ead9ae; }
+.bar {
+  flex: 1; height: 9px; border-radius: 5px; border: 1px solid #000;
+  background: #140c04; overflow: hidden;
+}
+.bar i { display: block; height: 100%; width: 62%;
+  background: linear-gradient(90deg, #6f8f2f, #a9c33e); }
+.cancel {
+  width: 20px; height: 20px; border-radius: 4px; text-align: center; line-height: 18px;
+  background: radial-gradient(circle at 35% 30%, #e0574a, var(--red));
+  color: #fff; border: 1px solid #4d0e07; font-size: 11px; cursor: pointer;
+}
+.disclaimer {
+  text-align: center; color: #b7a06b; font-size: 11.5px; padding: 10px 0 18px;
+  text-shadow: 0 1px 2px #000;
+}
+</style>
+</head>
+<body class="tex">
+
+<header class="topbar">
+  <div class="crest">🏝️</div>
+  <nav class="topnav">
+    <a href="#">Overview</a>
+    <a href="#" class="active">Islands</a>
+    <a href="#">Map</a>
+    <a href="#">Reports<span class="pip">2</span></a>
+    <a href="#">Mail</a>
+    <a href="#">Market</a>
+    <a href="#">Alliance</a>
+    <a href="#">Rankings (2)</a>
+    <a href="#">Help</a>
+    <a href="#">Logout</a>
+  </nav>
+</header>
+
+<div class="resbar">
+  <div class="plate tex">
+    <span class="res">🪵<b>12,540</b><small>+2,450/h</small></span>
+    <span class="res">🪨<b>9,875</b><small>+1,820/h</small></span>
+    <span class="res">🪙<b>7,320</b><small>+1,240/h</small></span>
+    <span class="res">👥<b>821 / 1,125</b></span>
+  </div>
+  <div class="plate tex"><span class="res">⚜️<b>96 / 100</b></span></div>
+</div>
+
+<div class="stage">
+
+  <!-- ==================== left column ==================== -->
+  <aside>
+    <div class="panel tex">
+      <div class="hero">
+        <div class="face">⚔️</div>
+        <div class="who"><b>melvin</b><span>Beaconlord · Rank 1</span></div>
+      </div>
+      <div class="stat">🏆 1,125 pts</div>
+      <div class="stat">🪙 320 <span class="plus">+</span></div>
+      <div class="stat">🏝️ 11 islands</div>
+      <div class="stat">🗼 Beacon 2 / 6</div>
+    </div>
+
+    <div class="panel tex">
+      <ul class="navlist">
+        <li>🏰 Island</li>
+        <li>🛡️ Troops</li>
+        <li>🗺️ Map</li>
+        <li>⚖️ Market</li>
+        <li>📜 Quests <span class="pipline green">3</span></li>
+        <li>✉️ Mail <span class="pipline">2</span></li>
+        <li>🤝 Alliance</li>
+        <li>🏛️ Board</li>
+      </ul>
+    </div>
+    <div class="banner">🏝️</div>
+  </aside>
+
+  <!-- ==================== the parchment ledger ==================== -->
+  <main class="sheet tex">
+    <h1>🏝️ Islands</h1>
+    <table class="ledger">
+      <thead>
+        <tr>
+          <th>Island</th><th>Coords</th>
+          <th class="num">🪵 Wood</th><th class="num">🪨 Stone</th><th class="num">🪙 Gold</th>
+          <th class="num">👥 Pop</th><th>Buildings</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="name"><span>🏝️</span>Tideholm Keep</td><td class="coords">(12|24)</td>
+          <td class="num">2,450</td><td class="num">1,820</td><td class="num">1,240</td><td class="num">821</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>20</div><div class="lvl"><em>⛏️</em>18</div><div class="lvl"><em>🏛️</em>16</div><div class="lvl"><em>🧱</em>10</div><div class="lvl"><em>⚓</em>5</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Ravenmere</td><td class="coords">(13|23)</td>
+          <td class="num">1,850</td><td class="num">2,310</td><td class="num">980</td><td class="num">712</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>19</div><div class="lvl"><em>⛏️</em>17</div><div class="lvl"><em>🏛️</em>15</div><div class="lvl"><em>🧱</em>9</div><div class="lvl"><em>⚓</em>4</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Greenshoal</td><td class="coords">(11|26)</td>
+          <td class="num">3,210</td><td class="num">2,010</td><td class="num">1,560</td><td class="num">913</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>20</div><div class="lvl"><em>⛏️</em>19</div><div class="lvl"><em>🏛️</em>17</div><div class="lvl"><em>🧱</em>11</div><div class="lvl"><em>⚓</em>6</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Stonehaven</td><td class="coords">(8|21)</td>
+          <td class="num">2,120</td><td class="num">1,540</td><td class="num">2,230</td><td class="num">654</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>18</div><div class="lvl"><em>⛏️</em>16</div><div class="lvl"><em>🏛️</em>14</div><div class="lvl"><em>🧱</em>8</div><div class="lvl"><em>⚓</em>4</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Goldcrest</td><td class="coords">(15|25)</td>
+          <td class="num">4,010</td><td class="num">2,780</td><td class="num">2,010</td><td class="num">1,125</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>20</div><div class="lvl"><em>⛏️</em>20</div><div class="lvl"><em>🏛️</em>18</div><div class="lvl"><em>🧱</em>12</div><div class="lvl"><em>⚓</em>6</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Wolfs Skerry</td><td class="coords">(6|22)</td>
+          <td class="num">1,560</td><td class="num">1,210</td><td class="num">1,020</td><td class="num">538</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>17</div><div class="lvl"><em>⛏️</em>15</div><div class="lvl"><em>🏛️</em>13</div><div class="lvl"><em>🧱</em>8</div><div class="lvl"><em>⚓</em>4</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Sunmeadow</td><td class="coords">(14|28)</td>
+          <td class="num">2,780</td><td class="num">2,140</td><td class="num">1,540</td><td class="num">887</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>19</div><div class="lvl"><em>⛏️</em>18</div><div class="lvl"><em>🏛️</em>16</div><div class="lvl"><em>🧱</em>10</div><div class="lvl"><em>⚓</em>5</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+        <tr><td class="name"><span>🏝️</span>Ironford</td><td class="coords">(7|27)</td>
+          <td class="num">3,140</td><td class="num">1,950</td><td class="num">2,420</td><td class="num">965</td>
+          <td><div class="lvls"><div class="lvl"><em>🪓</em>20</div><div class="lvl"><em>⛏️</em>19</div><div class="lvl"><em>🏛️</em>17</div><div class="lvl"><em>🧱</em>11</div><div class="lvl"><em>⚓</em>6</div></div></td>
+          <td><span class="gear">⚙️</span></td></tr>
+      </tbody>
+    </table>
+    <div class="sheetfoot">
+      <span>8 islands</span>
+      <span class="pager"><button>‹</button> Page 1 of 1 <button>›</button></span>
+    </div>
+  </main>
+
+  <!-- ==================== right column ==================== -->
+  <aside>
+    <div class="panel tex">
+      <h3>World Map</h3>
+      <div class="mini"></div>
+      <div class="toolrow">
+        <span class="tool">🎯</span><span class="tool">🏰</span><span class="tool">👤</span><span class="tool">🔍</span>
+      </div>
+    </div>
+
+    <div class="panel tex">
+      <h3>Island Info</h3>
+      <div class="kv">
+        <b>Tideholm Keep</b> (12|24)<br>
+        Points: <b>1,125</b><br>
+        Loyalty: <b>96 / 100</b><br>
+        Sea: <b>Northern Shoals</b>
+      </div>
+    </div>
+
+    <div class="panel tex">
+      <h3>Production</h3>
+      <div class="prodline">🪵 <b>2,450</b>&nbsp;per hour</div>
+      <div class="prodline">🪨 <b>1,820</b>&nbsp;per hour</div>
+      <div class="prodline">🪙 <b>1,240</b>&nbsp;per hour</div>
+      <div class="prodline">👥 <b>821</b>&nbsp;population</div>
+    </div>
+
+    <div class="panel tex">
+      <h3>Queue</h3>
+      <div class="queue-item">🏛️ Farm (Level 10)</div>
+      <div class="queue-item"><span class="bar"><i></i></span><span class="cancel">✕</span></div>
+      <div class="queue-item" style="color:#9b8250">0:12:45</div>
+    </div>
+  </aside>
+
+</div>
+
+<p class="disclaimer">design/mockup.html — static styling exploration only; not served, not wired to the game</p>
+
+</body>
+</html>
