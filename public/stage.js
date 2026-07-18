@@ -30,12 +30,24 @@
     return token ? { Authorization: 'Bearer ' + token } : {};
   }
 
+  // Player total points + rank come from the rankings, not the island.
+  let standing = null; // { rank, points }
+
+  function left(finish) {
+    const s = Math.max(0, Math.round((finish - Date.now()) / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  }
+
   function fillState(s) {
     const isl = s.island;
     $('stage-name').textContent = s.player.name;
-    $('stage-rank').textContent = s.islands.length > 1
-      ? isl.name : '';
-    $('stage-points').textContent = '🏆 ' + isl.points + ' ' + T('ui.points');
+    $('stage-rank').textContent = standing ? 'Rank ' + standing.rank : '';
+    // Player TOTAL from rankings; the active island's own points as fallback,
+    // marked as such so the number never masquerades as the total.
+    $('stage-points').textContent = standing
+      ? '🏆 ' + standing.points + ' ' + T('ui.points')
+      : '🏝️ ' + isl.points + ' ' + T('ui.points');
     $('stage-islands').textContent = '🏝️ ' + s.islands.length;
     $('stage-loyalty').textContent = '⚜️ ' + isl.loyalty + ' / ' + isl.loyaltyMax;
     $('stage-pop').textContent = '👥 ' + isl.popUsed + ' / ' + isl.popCap;
@@ -45,22 +57,31 @@
       : '—';
     $('stage-quest-panel').style.display = s.quest ? '' : 'none';
 
-    $('stage-info-title').textContent = T('ui.tab.island');
     $('stage-info').innerHTML =
       '<b>' + esc(isl.name) + '</b> (' + isl.x + ':' + isl.y + ')<br>' +
       T('ui.points') + ': <b>' + isl.points + '</b><br>' +
       T('ui.loyalty') + ': <b>' + isl.loyalty + ' / ' + isl.loyaltyMax + '</b>';
 
-    $('stage-prod-title').textContent = T('ui.capacity');
     $('stage-prod').innerHTML = ['wood', 'stone', 'gold'].map((r) =>
       RES[r] + ' <b>' + Math.round(isl.rates[r]) + '</b>/h').join('<br>') +
-      '<br>📦 <b>' + isl.capacity + '</b>';
+      '<br>📦 <b>' + isl.capacity + '</b> ' + T('ui.capacity');
 
-    $('stage-queue-title').textContent = T('ui.queue');
     const items = [];
-    for (const q of isl.queue) items.push('🏛️ ' + esc(q.building) + ' → ' + q.level);
-    for (const tq of isl.trainQueue) items.push('🛡️ ' + tq.count + ' × ' + esc(tq.unit));
+    for (const q of isl.queue) {
+      items.push('🏛️ ' + esc(q.building) + ' → ' + q.level + ' <small>' + left(q.finish) + '</small>');
+    }
+    for (const tq of isl.trainQueue) {
+      items.push('🛡️ ' + tq.count + ' × ' + esc(tq.unit) + ' <small>' + left(tq.finish) + '</small>');
+    }
     $('stage-queue').innerHTML = items.length ? items.join('<br>') : T('ui.queue.empty');
+  }
+
+  async function tickStanding() {
+    try {
+      const data = await get('api/rankings');
+      const i = data.rankings.findIndex((r) => r.isYou);
+      if (i >= 0) standing = { rank: i + 1, points: data.rankings[i].points };
+    } catch (e) { /* ignore */ }
   }
 
   function esc(s) {
@@ -102,8 +123,9 @@
     } catch (e) { /* ignore */ }
   }
 
-  tickState();
+  tickStanding().then(tickState);
   tickMap();
   setInterval(tickState, 5000);
   setInterval(tickMap, 30000);
+  setInterval(tickStanding, 60000);
 })();
