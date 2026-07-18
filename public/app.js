@@ -72,20 +72,21 @@ applyStatic();
 // URL forces it on (handy for trying/sharing).
 
 function applyTheme(name) {
-  if (name === 'parchment') {
+  // Parchment is the default; 'retro' is the explicit opt-out.
+  if (name === 'retro') {
+    delete document.documentElement.dataset.theme;
+    localStorage.setItem('ui-theme', 'retro');
+  } else {
     document.documentElement.dataset.theme = 'parchment';
     localStorage.setItem('ui-theme', 'parchment');
-  } else {
-    delete document.documentElement.dataset.theme;
-    localStorage.removeItem('ui-theme');
   }
 }
 {
   const fromUrl = new URLSearchParams(location.search).get('theme');
-  applyTheme(fromUrl !== null ? fromUrl : localStorage.getItem('ui-theme'));
+  applyTheme(fromUrl !== null ? fromUrl : localStorage.getItem('ui-theme') || 'parchment');
 }
 $('theme-toggle').addEventListener('click', () => {
-  applyTheme(document.documentElement.dataset.theme === 'parchment' ? '' : 'parchment');
+  applyTheme(document.documentElement.dataset.theme === 'parchment' ? 'retro' : 'parchment');
 });
 
 // ---------------------------------------------------------------- api

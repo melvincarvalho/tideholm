@@ -17,6 +17,17 @@
   <meta name="twitter:description" content="Claim an island. Raise it stone by stone. The tide brings rivals.">
   <meta name="twitter:image" content="https://nostr.social/tideholm/og-image.png">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script>
+    // Parchment is the default; apply before first paint so there is no
+    // flash of the old look. 'retro' in localStorage opts back out.
+    (function () {
+      try {
+        if (localStorage.getItem('ui-theme') !== 'retro') {
+          document.documentElement.dataset.theme = 'parchment';
+        }
+      } catch (e) { /* storage blocked: default still applies via app.js */ }
+    })();
+  </script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="theme-parchment.css">
 </head>
