@@ -65,6 +65,29 @@ $('auth-lang').addEventListener('change', () => switchLang($('auth-lang').value)
 $('game-lang').addEventListener('change', () => switchLang($('game-lang').value));
 applyStatic();
 
+// ---------------------------------------------------------------- theme
+// Opt-in parchment theme: purely presentational, per-player, remembered in
+// localStorage. All theme CSS is scoped under html[data-theme=parchment],
+// so clearing the attribute is a complete revert. ?theme=parchment in the
+// URL forces it on (handy for trying/sharing).
+
+function applyTheme(name) {
+  if (name === 'parchment') {
+    document.documentElement.dataset.theme = 'parchment';
+    localStorage.setItem('ui-theme', 'parchment');
+  } else {
+    delete document.documentElement.dataset.theme;
+    localStorage.removeItem('ui-theme');
+  }
+}
+{
+  const fromUrl = new URLSearchParams(location.search).get('theme');
+  applyTheme(fromUrl !== null ? fromUrl : localStorage.getItem('ui-theme'));
+}
+$('theme-toggle').addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme === 'parchment' ? '' : 'parchment');
+});
+
 // ---------------------------------------------------------------- api
 
 async function api(path, body) {

@@ -1,0 +1,227 @@
+/* Tideholm — "parchment & wood" theme (Tier 1 reskin).
+   Every rule is scoped under html[data-theme="parchment"], so this file is
+   completely inert until the toggle sets that attribute. Same DOM, same
+   layout, palette and texture only — revert is removing one attribute. */
+
+html[data-theme="parchment"] {
+  --sea: #142c3c;
+  --sea-light: #3a2a16;
+  --sand: #e8d9b0;
+  --paper: #e8d9b0;
+  --ink: #3a2c17;
+  --accent: #8a6a24;
+  --error: #8e2b20;
+  --wood: #2e1f10;
+  --wood-dark: #1b120a;
+  --gold: #c9a24b;
+  --gold-bright: #e8c886;
+}
+
+html[data-theme="parchment"] body {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at 70% 0%, rgba(255, 220, 160, .22), transparent 55%),
+    linear-gradient(180deg, #6d8ba1 0%, #4a6b82 30%, #2a4a5e 60%, #16303f 100%);
+  background-attachment: fixed;
+}
+
+/* ---------------- chrome: carved wood ---------------- */
+
+html[data-theme="parchment"] header {
+  background: linear-gradient(180deg, #3a2a16, var(--wood) 45%, var(--wood-dark));
+  border-bottom: 3px solid #0c0703;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .55);
+  color: var(--parch, #e8d9b0);
+}
+html[data-theme="parchment"] .brand {
+  color: var(--gold-bright);
+  text-shadow: 0 1px 2px #000;
+}
+html[data-theme="parchment"] .tab {
+  background: linear-gradient(180deg, #46331b, #2a1c0d 80%);
+  border: 1px solid #120b05;
+  color: #e8d9b0;
+  text-shadow: 0 1px 2px #000;
+  border-radius: 7px 7px 3px 3px;
+}
+html[data-theme="parchment"] .tab:hover:not(.active) {
+  background: linear-gradient(180deg, #54401f, #32220f);
+}
+html[data-theme="parchment"] .tab.active {
+  background: linear-gradient(180deg, #7a5a26, #4a3413 75%);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 170, .35);
+}
+html[data-theme="parchment"] .help-link { color: var(--gold-bright); }
+
+html[data-theme="parchment"] #resbar {
+  background: linear-gradient(180deg, #241709, #171008);
+  border-bottom: 2px solid #000;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(200, 160, 90, .22);
+  color: var(--gold-bright);
+  text-shadow: 0 1px 2px #000;
+}
+html[data-theme="parchment"] #resbar b { color: #f4e6c4; font-weight: normal; }
+html[data-theme="parchment"] #resbar small { color: #9b8250; }
+
+/* ---------------- the parchment sheets ---------------- */
+
+html[data-theme="parchment"] section {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 248, 225, .5), transparent 60%),
+    radial-gradient(ellipse at 8% 100%, rgba(122, 90, 40, .28), transparent 40%),
+    linear-gradient(180deg, #e8d9b0, #d8c493);
+  border: 2px solid #55401d;
+  outline: 5px solid #241708;
+  border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .5), inset 0 0 55px rgba(120, 90, 40, .25);
+}
+html[data-theme="parchment"] h2,
+html[data-theme="parchment"] h3 {
+  font-weight: normal;
+  letter-spacing: .4px;
+  text-shadow: 0 1px 0 rgba(255, 246, 220, .7);
+}
+html[data-theme="parchment"] .hint { color: #6b5535; }
+
+/* ---------------- ledgers (tables) ---------------- */
+
+html[data-theme="parchment"] th {
+  background: linear-gradient(180deg, rgba(160, 128, 70, .3), rgba(160, 128, 70, .16));
+  border: 1px solid rgba(124, 95, 50, .45);
+  font-weight: normal;
+  letter-spacing: .4px;
+}
+html[data-theme="parchment"] td { border-bottom: 1px solid rgba(124, 95, 50, .32); }
+html[data-theme="parchment"] tbody tr:nth-child(odd) { background: rgba(255, 246, 220, .3); }
+html[data-theme="parchment"] tbody tr:hover { background: rgba(201, 162, 75, .22); }
+html[data-theme="parchment"] #ranking-table tr.me { background: rgba(201, 162, 75, .35); }
+
+/* ---------------- controls ---------------- */
+
+html[data-theme="parchment"] button {
+  font-family: inherit;
+  background: linear-gradient(180deg, #efe3c0, #cdb684);
+  border: 1px solid #6b4e2a;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+}
+html[data-theme="parchment"] button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f7ecd0, #d8c493);
+}
+html[data-theme="parchment"] .tab,
+html[data-theme="parchment"] #logout,
+html[data-theme="parchment"] header button {
+  color: #e8d9b0;
+  background: linear-gradient(180deg, #46331b, #2a1c0d 80%);
+  border-color: #120b05;
+}
+html[data-theme="parchment"] input,
+html[data-theme="parchment"] select,
+html[data-theme="parchment"] textarea {
+  font-family: inherit;
+  background: #f4ead0;
+  border: 1px solid #8a6f42;
+  color: var(--ink);
+}
+html[data-theme="parchment"] .lang-select,
+html[data-theme="parchment"] #island-select {
+  background: linear-gradient(180deg, #46331b, #2a1c0d);
+  color: var(--gold-bright);
+  border-color: #120b05;
+}
+html[data-theme="parchment"] .badge {
+  background: radial-gradient(circle at 35% 30%, #e0574a, #8e2b20);
+  border: 1px solid #4d0e07;
+  font-family: Verdana, sans-serif;
+}
+
+/* ---------------- cards & boxes ---------------- */
+
+html[data-theme="parchment"] .movement,
+html[data-theme="parchment"] .report {
+  background: rgba(255, 246, 220, .45);
+  border: 1px solid rgba(124, 95, 50, .5);
+}
+html[data-theme="parchment"] .movement.incoming {
+  background: rgba(142, 43, 32, .14);
+  border-color: #8e2b20;
+}
+html[data-theme="parchment"] .report.unread {
+  border-color: var(--gold);
+  background: rgba(232, 200, 134, .35);
+}
+html[data-theme="parchment"] #quest-box {
+  border: 1px solid #8a6f42;
+  border-left: 5px solid var(--gold);
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(255, 248, 225, .6), transparent 60%),
+    #ead9ae;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .18);
+}
+html[data-theme="parchment"] #attack-panel {
+  background: rgba(142, 43, 32, .1);
+  border: 1px solid #8e2b20;
+}
+html[data-theme="parchment"] #sim-box,
+html[data-theme="parchment"] #trade-form {
+  background: rgba(255, 246, 220, .5);
+  border: 1px dashed #8a6f42;
+}
+
+/* ---------------- map framing ---------------- */
+
+html[data-theme="parchment"] #map-grid,
+html[data-theme="parchment"] #minimap {
+  border-color: #241708;
+  outline: 1px solid #6b4e2a;
+}
+
+/* ---------------- islands dock (injects its own styles; outrank them) --- */
+
+html[data-theme="parchment"] #islands-dock {
+  background: linear-gradient(180deg, #241709, #171008) !important;
+  border-color: #000 !important;
+  color: var(--gold-bright) !important;
+}
+html[data-theme="parchment"] #islands-dock .isl {
+  background: linear-gradient(180deg, #46331b, #2a1c0d) !important;
+  border: 1px solid #120b05 !important;
+  color: #e8d9b0 !important;
+}
+html[data-theme="parchment"] #islands-dock .isl.active {
+  background: linear-gradient(180deg, #7a5a26, #4a3413) !important;
+  border-color: var(--gold) !important;
+  color: var(--gold-bright) !important;
+}
+
+/* ---------------- auth screen ---------------- */
+
+html[data-theme="parchment"] .auth-box {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 248, 225, .55), transparent 60%),
+    linear-gradient(180deg, #e8d9b0, #d8c493);
+  border: 2px solid #55401d;
+  outline: 5px solid #241708;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .6);
+}
+html[data-theme="parchment"] .auth-box h1 {
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 246, 220, .8);
+}
+html[data-theme="parchment"] .auth-buttons button {
+  background: linear-gradient(180deg, #7a5a26, #4a3413);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  text-shadow: 0 1px 2px #000;
+}
+
+/* ---------------- banners keep their drama ---------------- */
+
+html[data-theme="parchment"] #winner-banner {
+  border-top: 1px solid #55400f;
+  border-bottom: 1px solid #55400f;
+}
