@@ -42,7 +42,7 @@
   function fillState(s) {
     const isl = s.island;
     $('stage-name').textContent = s.player.name;
-    $('stage-rank').textContent = standing ? 'Rank ' + standing.rank : '';
+    $('stage-rank').textContent = standing ? T('ui.stage.rank', { n: standing.rank }) : '';
     // Player TOTAL from rankings; the active island's own points as fallback,
     // marked as such so the number never masquerades as the total.
     $('stage-points').textContent = standing

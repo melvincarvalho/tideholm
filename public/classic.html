@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tideholm — classic layout</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Claim an island, raise it stone by stone, and hold it against the tide. A slow-burn multiplayer strategy game in the classic browser style — sign in with your Solid pod.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Tideholm — island empire strategy">
+  <meta property="og:description" content="Claim an island. Raise it stone by stone. The tide brings rivals. Free browser strategy in the classic early-2000s style — your pod identity is your captain.">
+  <meta property="og:url" content="https://nostr.social/tideholm/">
+  <meta property="og:image" content="https://nostr.social/tideholm/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tideholm — island empire strategy">
+  <meta name="twitter:description" content="Claim an island. Raise it stone by stone. The tide brings rivals.">
+  <meta name="twitter:image" content="https://nostr.social/tideholm/og-image.png">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script>
+    // Parchment is the default; apply before first paint so there is no
+    // flash of the old look. 'retro' in localStorage opts back out.
+    (function () {
+      try {
+        if (localStorage.getItem('ui-theme') !== 'retro') {
+          document.documentElement.dataset.theme = 'parchment';
+        }
+      } catch (e) { /* storage blocked: default still applies via app.js */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="theme-parchment.css">
+</head>
+<body>
+
+  <!-- Login / register -->
+  <div id="auth" class="hidden">
+    <div class="auth-box">
+      <h1>Tideholm</h1>
+      <p class="tagline" data-i18n="ui.auth.tagline"></p>
+      <div id="auth-pregame" class="hidden"></div>
+      <form id="auth-form">
+        <input id="auth-name" data-i18n-ph="ui.auth.name.ph" autocomplete="username" maxlength="24" required>
+        <input id="auth-pass" type="password" data-i18n-ph="ui.auth.pass.ph" autocomplete="current-password" required>
+        <div class="auth-buttons">
+          <button type="submit" data-mode="login" data-i18n="ui.auth.login"></button>
+          <button type="submit" data-mode="register" data-i18n="ui.auth.register"></button>
+        </div>
+      </form>
+      <p id="auth-error" class="error"></p>
+      <p>
+        <a href="help.html" id="auth-help" data-i18n="ui.auth.howto"></a>
+        &nbsp;·&nbsp;
+        <select id="auth-lang" class="lang-select"></select>
+      </p>
+    </div>
+  </div>
+
+  <!-- Game -->
+  <div id="game" class="hidden">
+    <header>
+      <span class="brand">Tideholm</span>
+      <nav>
+        <button id="tab-island" class="tab active" data-i18n="ui.tab.island"></button>
+        <button id="tab-map" class="tab" data-i18n="ui.tab.map"></button>
+        <button id="tab-reports" class="tab"><span data-i18n="ui.tab.reports"></span> <span id="report-badge" class="badge hidden"></span></button>
+        <button id="tab-rankings" class="tab" data-i18n="ui.tab.rankings"></button>
+        <button id="tab-market" class="tab" data-i18n="ui.tab.market"></button>
+        <button id="tab-alliance" class="tab" data-i18n="ui.tab.alliance"></button>
+        <button id="tab-messages" class="tab"><span data-i18n="ui.tab.mail"></span> <span id="mail-badge" class="badge hidden"></span></button>
+      </nav>
+      <span class="spacer"></span>
+      <select id="island-select" class="hidden"></select>
+      <select id="game-lang" class="lang-select"></select>
+      <button id="theme-toggle" class="small-btn" title="Theme">🎨</button>
+      <span id="who"></span>
+      <a href="help.html" target="_blank" class="help-link" id="game-help" data-i18n="ui.help"></a>
+      <button id="logout" data-i18n="ui.logout"></button>
+    </header>
+
+    <div id="winner-banner" class="hidden"></div>
+    <div id="pregame-banner" class="hidden"></div>
+
+    <div id="resbar">
+      <span class="res">🪵 <b id="res-wood">0</b> <small id="rate-wood"></small></span>
+      <span class="res">🪨 <b id="res-stone">0</b> <small id="rate-stone"></small></span>
+      <span class="res">🪙 <b id="res-gold">0</b> <small id="rate-gold"></small></span>
+      <span class="res">📦 <b id="res-cap">0</b> <small data-i18n="ui.capacity"></small></span>
+    </div>
+
+    <main>
+      <section id="view-island">
+        <h2 id="island-title"></h2>
+        <p><button id="rename-btn" class="small-btn" data-i18n="ui.rename"></button></p>
+        <div id="quest-box" class="hidden"></div>
+
+        <div id="movements"></div>
+
+        <h3 data-i18n="ui.queue"></h3>
+        <table id="queue"><tbody></tbody></table>
+
+        <h3 data-i18n="ui.buildings"></h3>
+        <table id="buildings">
+          <thead>
+            <tr>
+              <th data-i18n="ui.th.building"></th><th data-i18n="ui.th.level"></th>
+              <th data-i18n="ui.th.cost"></th><th data-i18n="ui.th.time"></th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p id="build-error" class="error"></p>
+
+        <h3 data-i18n="ui.troops"></h3>
+        <table id="units">
+          <thead>
+            <tr>
+              <th data-i18n="ui.th.unit"></th><th data-i18n="ui.th.have"></th>
+              <th data-i18n="ui.th.atk"></th><th data-i18n="ui.th.def"></th>
+              <th data-i18n="ui.th.carry"></th><th data-i18n="ui.th.costEach"></th>
+              <th data-i18n="ui.th.train"></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <table id="train-queue"><tbody></tbody></table>
+        <p id="train-error" class="error"></p>
+
+        <div id="support-here-box" class="hidden">
+          <h3 data-i18n="ui.support.here"></h3>
+          <div id="support-here"></div>
+        </div>
+        <div id="abroad-box" class="hidden">
+          <h3 data-i18n="ui.support.abroad"></h3>
+          <div id="abroad-list"></div>
+        </div>
+      </section>
+
+      <section id="view-map" class="hidden">
+        <h2 data-i18n="ui.map.title"></h2>
+        <p class="hint" data-i18n="ui.map.hint"></p>
+        <div class="map-tools">
+          <canvas id="minimap" width="160" height="160"></canvas>
+          <span class="zoom-btns">
+            <button id="zoom-out" class="small-btn">−</button>
+            <button id="zoom-in" class="small-btn">+</button>
+          </span>
+        </div>
+        <div id="map-grid"></div>
+        <div id="attack-panel" class="hidden">
+          <h3 id="attack-title"></h3>
+          <div id="attack-form">
+            <div id="attack-units"></div>
+            <p class="hint"><span data-i18n="ui.attack.travel"></span> <b id="attack-eta">—</b> <span data-i18n="ui.attack.travelNote"></span></p>
+            <p class="hint" id="flagship-hint" data-i18n="ui.attack.flagshipHint"></p>
+            <button id="attack-send" data-i18n="ui.attack.send"></button>
+            <button id="support-send" data-i18n="ui.support.send"></button>
+            <span id="scout-box" class="scout-box">
+              <input type="number" id="scout-n" min="1" max="500" value="1">
+              <button id="scout-send" data-i18n="ui.scout.send"></button>
+            </span>
+
+            <div id="sim-box">
+              <h4 data-i18n="ui.sim.title"></h4>
+              <div id="sim-units" class="sim-row"></div>
+              <label class="sim-row"><span data-i18n="ui.sim.wall"></span>
+                <input type="number" id="sim-wall" min="0" max="30" value="0"></label>
+              <p id="sim-result" class="hint"></p>
+            </div>
+          </div>
+
+          <div id="trade-form" class="hidden">
+            <h4 data-i18n="ui.trade.title"></h4>
+            <div class="sim-row">
+              🪵 <input type="number" id="trade-wood" min="0" value="0">
+              🪨 <input type="number" id="trade-stone" min="0" value="0">
+              🪙 <input type="number" id="trade-gold" min="0" value="0">
+            </div>
+            <p class="hint" id="trade-cap"></p>
+            <button id="trade-send" data-i18n="ui.trade.send"></button>
+          </div>
+          <div id="colonize-form" class="hidden">
+            <p class="hint" id="colonize-hint"></p>
+            <button id="colonize-send" data-i18n="ui.colonize.send"></button>
+          </div>
+          <p id="attack-error" class="error"></p>
+        </div>
+      </section>
+
+      <section id="view-reports" class="hidden">
+        <h2 data-i18n="ui.reports.title"></h2>
+        <div id="report-list"></div>
+      </section>
+
+      <section id="view-rankings" class="hidden">
+        <h2 data-i18n="ui.rankings.title"></h2>
+        <div id="wonders-box" class="hidden">
+          <h3 data-i18n="ui.wonder.title"></h3>
+          <div id="wonders-list"></div>
+        </div>
+        <div id="hof-box" class="hidden">
+          <h3 data-i18n="ui.hof.title"></h3>
+          <div id="hof-list"></div>
+        </div>
+        <table id="ranking-table">
+          <thead>
+            <tr>
+              <th>#</th><th data-i18n="ui.th.player"></th><th data-i18n="ui.th.alliance"></th>
+              <th data-i18n="ui.th.islands"></th><th data-i18n="ui.th.points"></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="view-market" class="hidden">
+        <h2 data-i18n="ui.tab.market"></h2>
+        <h3 data-i18n="ui.market.create"></h3>
+        <div class="sim-row">
+          <span data-i18n="ui.market.give"></span>
+          <select id="offer-give-res"></select>
+          <input type="number" id="offer-give-n" min="1" max="1000" value="100">
+          <span data-i18n="ui.market.want"></span>
+          <select id="offer-want-res"></select>
+          <input type="number" id="offer-want-n" min="1" max="1000" value="100">
+          <button id="offer-post" data-i18n="ui.market.post"></button>
+        </div>
+        <p id="market-error" class="error"></p>
+        <div id="offers-mine-box" class="hidden">
+          <h3 data-i18n="ui.market.mine"></h3>
+          <div id="offers-mine"></div>
+        </div>
+        <h3 data-i18n="ui.market.open"></h3>
+        <div id="offers-open"></div>
+      </section>
+
+      <section id="view-alliance" class="hidden">
+        <h2 data-i18n="ui.alliance.title"></h2>
+        <div id="alliance-none" class="hidden">
+          <h3 data-i18n="ui.alliance.found"></h3>
+          <form id="alliance-create">
+            <input id="alliance-name" data-i18n-ph="ui.alliance.name.ph" maxlength="30" required>
+            <input id="alliance-tag" placeholder="TAG" maxlength="5" required>
+            <button type="submit" data-i18n="ui.alliance.foundBtn"></button>
+          </form>
+          <h3 data-i18n="ui.alliance.invites"></h3>
+          <div id="alliance-invites"></div>
+        </div>
+        <div id="alliance-mine" class="hidden">
+          <h3 id="alliance-title"></h3>
+          <table id="alliance-members">
+            <thead>
+              <tr>
+                <th data-i18n="ui.th.member"></th><th data-i18n="ui.th.islands"></th>
+                <th data-i18n="ui.th.points"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <h3 data-i18n="ui.alliance.invite"></h3>
+          <form id="alliance-invite">
+            <input id="alliance-invite-name" data-i18n-ph="ui.alliance.player.ph" maxlength="24" required>
+            <button type="submit" data-i18n="ui.alliance.inviteBtn"></button>
+          </form>
+
+          <h3 data-i18n="ui.board.title"></h3>
+          <form id="board-form">
+            <input id="board-body" data-i18n-ph="ui.board.ph" maxlength="500" required>
+            <button type="submit" data-i18n="ui.board.post"></button>
+          </form>
+          <div id="board-list"></div>
+
+          <h3 data-i18n="ui.dip.title"></h3>
+          <p class="hint" id="dip-note"></p>
+          <div id="dip-list"></div>
+
+          <p><button id="alliance-leave" data-i18n="ui.alliance.leave"></button></p>
+        </div>
+        <p id="alliance-error" class="error"></p>
+      </section>
+
+      <section id="view-messages" class="hidden">
+        <h2 data-i18n="ui.mail.title"></h2>
+        <form id="mail-compose">
+          <input id="mail-to" data-i18n-ph="ui.mail.to.ph" maxlength="24" required>
+          <input id="mail-body" data-i18n-ph="ui.mail.body.ph" maxlength="500" required>
+          <button type="submit" data-i18n="ui.mail.send"></button>
+        </form>
+        <p id="mail-error" class="error"></p>
+        <div id="mail-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="i18n.js"></script>
+  <script type="module" src="app.js"></script>
+  <!-- QoL: own-islands dock with alert dots. Frontend-only, read-only, fails
+       silent. Remove this one line to roll back. -->
+  <script defer src="islands-dock.js"></script>
+</body>
+</html>

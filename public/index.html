@@ -30,10 +30,11 @@
   </script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="theme-parchment.css">
+  <link rel="stylesheet" href="stage.css">
 </head>
 <body>
 
-  <!-- Login / register -->
+  <!-- Login / register (same ids the client binds) -->
   <div id="auth" class="hidden">
     <div class="auth-box">
       <h1>Tideholm</h1>
@@ -56,7 +57,7 @@
     </div>
   </div>
 
-  <!-- Game -->
+  <!-- Game: identical ids to index.html, rearranged into the stage -->
   <div id="game" class="hidden">
     <header>
       <span class="brand">Tideholm</span>
@@ -88,214 +89,257 @@
       <span class="res">📦 <b id="res-cap">0</b> <small data-i18n="ui.capacity"></small></span>
     </div>
 
-    <main>
-      <section id="view-island">
-        <h2 id="island-title"></h2>
-        <p><button id="rename-btn" class="small-btn" data-i18n="ui.rename"></button></p>
-        <div id="quest-box" class="hidden"></div>
+    <div class="stage-grid">
 
-        <div id="movements"></div>
-
-        <h3 data-i18n="ui.queue"></h3>
-        <table id="queue"><tbody></tbody></table>
-
-        <h3 data-i18n="ui.buildings"></h3>
-        <table id="buildings">
-          <thead>
-            <tr>
-              <th data-i18n="ui.th.building"></th><th data-i18n="ui.th.level"></th>
-              <th data-i18n="ui.th.cost"></th><th data-i18n="ui.th.time"></th><th></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <p id="build-error" class="error"></p>
-
-        <h3 data-i18n="ui.troops"></h3>
-        <table id="units">
-          <thead>
-            <tr>
-              <th data-i18n="ui.th.unit"></th><th data-i18n="ui.th.have"></th>
-              <th data-i18n="ui.th.atk"></th><th data-i18n="ui.th.def"></th>
-              <th data-i18n="ui.th.carry"></th><th data-i18n="ui.th.costEach"></th>
-              <th data-i18n="ui.th.train"></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <table id="train-queue"><tbody></tbody></table>
-        <p id="train-error" class="error"></p>
-
-        <div id="support-here-box" class="hidden">
-          <h3 data-i18n="ui.support.here"></h3>
-          <div id="support-here"></div>
-        </div>
-        <div id="abroad-box" class="hidden">
-          <h3 data-i18n="ui.support.abroad"></h3>
-          <div id="abroad-list"></div>
-        </div>
-      </section>
-
-      <section id="view-map" class="hidden">
-        <h2 data-i18n="ui.map.title"></h2>
-        <p class="hint" data-i18n="ui.map.hint"></p>
-        <div class="map-tools">
-          <canvas id="minimap" width="160" height="160"></canvas>
-          <span class="zoom-btns">
-            <button id="zoom-out" class="small-btn">−</button>
-            <button id="zoom-in" class="small-btn">+</button>
-          </span>
-        </div>
-        <div id="map-grid"></div>
-        <div id="attack-panel" class="hidden">
-          <h3 id="attack-title"></h3>
-          <div id="attack-form">
-            <div id="attack-units"></div>
-            <p class="hint"><span data-i18n="ui.attack.travel"></span> <b id="attack-eta">—</b> <span data-i18n="ui.attack.travelNote"></span></p>
-            <p class="hint" id="flagship-hint" data-i18n="ui.attack.flagshipHint"></p>
-            <button id="attack-send" data-i18n="ui.attack.send"></button>
-            <button id="support-send" data-i18n="ui.support.send"></button>
-            <span id="scout-box" class="scout-box">
-              <input type="number" id="scout-n" min="1" max="500" value="1">
-              <button id="scout-send" data-i18n="ui.scout.send"></button>
-            </span>
-
-            <div id="sim-box">
-              <h4 data-i18n="ui.sim.title"></h4>
-              <div id="sim-units" class="sim-row"></div>
-              <label class="sim-row"><span data-i18n="ui.sim.wall"></span>
-                <input type="number" id="sim-wall" min="0" max="30" value="0"></label>
-              <p id="sim-result" class="hint"></p>
-            </div>
+      <!-- =================== left rail (stage-only, decorative) ============ -->
+      <aside class="stage-rail" id="stage-left">
+        <div class="stage-panel">
+          <div class="stage-hero">
+            <div class="stage-face">⚔️</div>
+            <div class="stage-who"><b id="stage-name">—</b><span id="stage-rank"></span></div>
           </div>
+          <div class="stage-stat" id="stage-points">🏆 —</div>
+          <div class="stage-stat" id="stage-islands">🏝️ —</div>
+          <div class="stage-stat" id="stage-loyalty">⚜️ —</div>
+          <div class="stage-stat" id="stage-pop">👥 —</div>
+        </div>
+        <div class="stage-panel" id="stage-quest-panel">
+          <h3>📜</h3>
+          <div class="stage-kv" id="stage-quest">—</div>
+        </div>
+        <div class="stage-banner">🏝️</div>
+      </aside>
 
-          <div id="trade-form" class="hidden">
-            <h4 data-i18n="ui.trade.title"></h4>
-            <div class="sim-row">
-              🪵 <input type="number" id="trade-wood" min="0" value="0">
-              🪨 <input type="number" id="trade-stone" min="0" value="0">
-              🪙 <input type="number" id="trade-gold" min="0" value="0">
-            </div>
-            <p class="hint" id="trade-cap"></p>
-            <button id="trade-send" data-i18n="ui.trade.send"></button>
-          </div>
-          <div id="colonize-form" class="hidden">
-            <p class="hint" id="colonize-hint"></p>
-            <button id="colonize-send" data-i18n="ui.colonize.send"></button>
-          </div>
-          <p id="attack-error" class="error"></p>
-        </div>
-      </section>
+      <!-- =================== center: the real client ====================== -->
+      <main>
+        <section id="view-island">
+          <h2 id="island-title"></h2>
+          <p><button id="rename-btn" class="small-btn" data-i18n="ui.rename"></button></p>
+          <div id="quest-box" class="hidden"></div>
 
-      <section id="view-reports" class="hidden">
-        <h2 data-i18n="ui.reports.title"></h2>
-        <div id="report-list"></div>
-      </section>
+          <div id="movements"></div>
 
-      <section id="view-rankings" class="hidden">
-        <h2 data-i18n="ui.rankings.title"></h2>
-        <div id="wonders-box" class="hidden">
-          <h3 data-i18n="ui.wonder.title"></h3>
-          <div id="wonders-list"></div>
-        </div>
-        <div id="hof-box" class="hidden">
-          <h3 data-i18n="ui.hof.title"></h3>
-          <div id="hof-list"></div>
-        </div>
-        <table id="ranking-table">
-          <thead>
-            <tr>
-              <th>#</th><th data-i18n="ui.th.player"></th><th data-i18n="ui.th.alliance"></th>
-              <th data-i18n="ui.th.islands"></th><th data-i18n="ui.th.points"></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </section>
+          <h3 data-i18n="ui.queue"></h3>
+          <table id="queue"><tbody></tbody></table>
 
-      <section id="view-market" class="hidden">
-        <h2 data-i18n="ui.tab.market"></h2>
-        <h3 data-i18n="ui.market.create"></h3>
-        <div class="sim-row">
-          <span data-i18n="ui.market.give"></span>
-          <select id="offer-give-res"></select>
-          <input type="number" id="offer-give-n" min="1" max="1000" value="100">
-          <span data-i18n="ui.market.want"></span>
-          <select id="offer-want-res"></select>
-          <input type="number" id="offer-want-n" min="1" max="1000" value="100">
-          <button id="offer-post" data-i18n="ui.market.post"></button>
-        </div>
-        <p id="market-error" class="error"></p>
-        <div id="offers-mine-box" class="hidden">
-          <h3 data-i18n="ui.market.mine"></h3>
-          <div id="offers-mine"></div>
-        </div>
-        <h3 data-i18n="ui.market.open"></h3>
-        <div id="offers-open"></div>
-      </section>
-
-      <section id="view-alliance" class="hidden">
-        <h2 data-i18n="ui.alliance.title"></h2>
-        <div id="alliance-none" class="hidden">
-          <h3 data-i18n="ui.alliance.found"></h3>
-          <form id="alliance-create">
-            <input id="alliance-name" data-i18n-ph="ui.alliance.name.ph" maxlength="30" required>
-            <input id="alliance-tag" placeholder="TAG" maxlength="5" required>
-            <button type="submit" data-i18n="ui.alliance.foundBtn"></button>
-          </form>
-          <h3 data-i18n="ui.alliance.invites"></h3>
-          <div id="alliance-invites"></div>
-        </div>
-        <div id="alliance-mine" class="hidden">
-          <h3 id="alliance-title"></h3>
-          <table id="alliance-members">
+          <h3 data-i18n="ui.buildings"></h3>
+          <table id="buildings">
             <thead>
               <tr>
-                <th data-i18n="ui.th.member"></th><th data-i18n="ui.th.islands"></th>
-                <th data-i18n="ui.th.points"></th>
+                <th data-i18n="ui.th.building"></th><th data-i18n="ui.th.level"></th>
+                <th data-i18n="ui.th.cost"></th><th data-i18n="ui.th.time"></th><th></th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
-          <h3 data-i18n="ui.alliance.invite"></h3>
-          <form id="alliance-invite">
-            <input id="alliance-invite-name" data-i18n-ph="ui.alliance.player.ph" maxlength="24" required>
-            <button type="submit" data-i18n="ui.alliance.inviteBtn"></button>
+          <p id="build-error" class="error"></p>
+
+          <h3 data-i18n="ui.troops"></h3>
+          <table id="units">
+            <thead>
+              <tr>
+                <th data-i18n="ui.th.unit"></th><th data-i18n="ui.th.have"></th>
+                <th data-i18n="ui.th.atk"></th><th data-i18n="ui.th.def"></th>
+                <th data-i18n="ui.th.carry"></th><th data-i18n="ui.th.costEach"></th>
+                <th data-i18n="ui.th.train"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <table id="train-queue"><tbody></tbody></table>
+          <p id="train-error" class="error"></p>
+
+          <div id="support-here-box" class="hidden">
+            <h3 data-i18n="ui.support.here"></h3>
+            <div id="support-here"></div>
+          </div>
+          <div id="abroad-box" class="hidden">
+            <h3 data-i18n="ui.support.abroad"></h3>
+            <div id="abroad-list"></div>
+          </div>
+        </section>
+
+        <section id="view-map" class="hidden">
+          <h2 data-i18n="ui.map.title"></h2>
+          <p class="hint" data-i18n="ui.map.hint"></p>
+          <div class="map-tools">
+            <canvas id="minimap" width="160" height="160"></canvas>
+            <span class="zoom-btns">
+              <button id="zoom-out" class="small-btn">−</button>
+              <button id="zoom-in" class="small-btn">+</button>
+            </span>
+          </div>
+          <div id="map-grid"></div>
+          <div id="attack-panel" class="hidden">
+            <h3 id="attack-title"></h3>
+            <div id="attack-form">
+              <div id="attack-units"></div>
+              <p class="hint"><span data-i18n="ui.attack.travel"></span> <b id="attack-eta">—</b> <span data-i18n="ui.attack.travelNote"></span></p>
+              <p class="hint" id="flagship-hint" data-i18n="ui.attack.flagshipHint"></p>
+              <button id="attack-send" data-i18n="ui.attack.send"></button>
+              <button id="support-send" data-i18n="ui.support.send"></button>
+              <span id="scout-box" class="scout-box">
+                <input type="number" id="scout-n" min="1" max="500" value="1">
+                <button id="scout-send" data-i18n="ui.scout.send"></button>
+              </span>
+
+              <div id="sim-box">
+                <h4 data-i18n="ui.sim.title"></h4>
+                <div id="sim-units" class="sim-row"></div>
+                <label class="sim-row"><span data-i18n="ui.sim.wall"></span>
+                  <input type="number" id="sim-wall" min="0" max="30" value="0"></label>
+                <p id="sim-result" class="hint"></p>
+              </div>
+            </div>
+
+            <div id="trade-form" class="hidden">
+              <h4 data-i18n="ui.trade.title"></h4>
+              <div class="sim-row">
+                🪵 <input type="number" id="trade-wood" min="0" value="0">
+                🪨 <input type="number" id="trade-stone" min="0" value="0">
+                🪙 <input type="number" id="trade-gold" min="0" value="0">
+              </div>
+              <p class="hint" id="trade-cap"></p>
+              <button id="trade-send" data-i18n="ui.trade.send"></button>
+            </div>
+            <div id="colonize-form" class="hidden">
+              <p class="hint" id="colonize-hint"></p>
+              <button id="colonize-send" data-i18n="ui.colonize.send"></button>
+            </div>
+            <p id="attack-error" class="error"></p>
+          </div>
+        </section>
+
+        <section id="view-reports" class="hidden">
+          <h2 data-i18n="ui.reports.title"></h2>
+          <div id="report-list"></div>
+        </section>
+
+        <section id="view-rankings" class="hidden">
+          <h2 data-i18n="ui.rankings.title"></h2>
+          <div id="wonders-box" class="hidden">
+            <h3 data-i18n="ui.wonder.title"></h3>
+            <div id="wonders-list"></div>
+          </div>
+          <div id="hof-box" class="hidden">
+            <h3 data-i18n="ui.hof.title"></h3>
+            <div id="hof-list"></div>
+          </div>
+          <table id="ranking-table">
+            <thead>
+              <tr>
+                <th>#</th><th data-i18n="ui.th.player"></th><th data-i18n="ui.th.alliance"></th>
+                <th data-i18n="ui.th.islands"></th><th data-i18n="ui.th.points"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="view-market" class="hidden">
+          <h2 data-i18n="ui.tab.market"></h2>
+          <h3 data-i18n="ui.market.create"></h3>
+          <div class="sim-row">
+            <span data-i18n="ui.market.give"></span>
+            <select id="offer-give-res"></select>
+            <input type="number" id="offer-give-n" min="1" max="1000" value="100">
+            <span data-i18n="ui.market.want"></span>
+            <select id="offer-want-res"></select>
+            <input type="number" id="offer-want-n" min="1" max="1000" value="100">
+            <button id="offer-post" data-i18n="ui.market.post"></button>
+          </div>
+          <p id="market-error" class="error"></p>
+          <div id="offers-mine-box" class="hidden">
+            <h3 data-i18n="ui.market.mine"></h3>
+            <div id="offers-mine"></div>
+          </div>
+          <h3 data-i18n="ui.market.open"></h3>
+          <div id="offers-open"></div>
+        </section>
+
+        <section id="view-alliance" class="hidden">
+          <h2 data-i18n="ui.alliance.title"></h2>
+          <div id="alliance-none" class="hidden">
+            <h3 data-i18n="ui.alliance.found"></h3>
+            <form id="alliance-create">
+              <input id="alliance-name" data-i18n-ph="ui.alliance.name.ph" maxlength="30" required>
+              <input id="alliance-tag" placeholder="TAG" maxlength="5" required>
+              <button type="submit" data-i18n="ui.alliance.foundBtn"></button>
+            </form>
+            <h3 data-i18n="ui.alliance.invites"></h3>
+            <div id="alliance-invites"></div>
+          </div>
+          <div id="alliance-mine" class="hidden">
+            <h3 id="alliance-title"></h3>
+            <table id="alliance-members">
+              <thead>
+                <tr>
+                  <th data-i18n="ui.th.member"></th><th data-i18n="ui.th.islands"></th>
+                  <th data-i18n="ui.th.points"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <h3 data-i18n="ui.alliance.invite"></h3>
+            <form id="alliance-invite">
+              <input id="alliance-invite-name" data-i18n-ph="ui.alliance.player.ph" maxlength="24" required>
+              <button type="submit" data-i18n="ui.alliance.inviteBtn"></button>
+            </form>
+
+            <h3 data-i18n="ui.board.title"></h3>
+            <form id="board-form">
+              <input id="board-body" data-i18n-ph="ui.board.ph" maxlength="500" required>
+              <button type="submit" data-i18n="ui.board.post"></button>
+            </form>
+            <div id="board-list"></div>
+
+            <h3 data-i18n="ui.dip.title"></h3>
+            <p class="hint" id="dip-note"></p>
+            <div id="dip-list"></div>
+
+            <p><button id="alliance-leave" data-i18n="ui.alliance.leave"></button></p>
+          </div>
+          <p id="alliance-error" class="error"></p>
+        </section>
+
+        <section id="view-messages" class="hidden">
+          <h2 data-i18n="ui.mail.title"></h2>
+          <form id="mail-compose">
+            <input id="mail-to" data-i18n-ph="ui.mail.to.ph" maxlength="24" required>
+            <input id="mail-body" data-i18n-ph="ui.mail.body.ph" maxlength="500" required>
+            <button type="submit" data-i18n="ui.mail.send"></button>
           </form>
+          <p id="mail-error" class="error"></p>
+          <div id="mail-list"></div>
+        </section>
+      </main>
 
-          <h3 data-i18n="ui.board.title"></h3>
-          <form id="board-form">
-            <input id="board-body" data-i18n-ph="ui.board.ph" maxlength="500" required>
-            <button type="submit" data-i18n="ui.board.post"></button>
-          </form>
-          <div id="board-list"></div>
-
-          <h3 data-i18n="ui.dip.title"></h3>
-          <p class="hint" id="dip-note"></p>
-          <div id="dip-list"></div>
-
-          <p><button id="alliance-leave" data-i18n="ui.alliance.leave"></button></p>
+      <!-- =================== right rail (stage-only, read-only) =========== -->
+      <aside class="stage-rail" id="stage-right">
+        <div class="stage-panel">
+          <h3 id="stage-map-title" data-i18n="ui.stage.map"></h3>
+          <canvas id="stage-map" width="180" height="180"></canvas>
         </div>
-        <p id="alliance-error" class="error"></p>
-      </section>
+        <div class="stage-panel">
+          <h3 id="stage-info-title" data-i18n="ui.stage.info"></h3>
+          <div class="stage-kv" id="stage-info">—</div>
+        </div>
+        <div class="stage-panel">
+          <h3 id="stage-prod-title" data-i18n="ui.stage.prod"></h3>
+          <div class="stage-kv" id="stage-prod">—</div>
+        </div>
+        <div class="stage-panel">
+          <h3 id="stage-queue-title" data-i18n="ui.stage.queue"></h3>
+          <div class="stage-kv" id="stage-queue">—</div>
+        </div>
+      </aside>
 
-      <section id="view-messages" class="hidden">
-        <h2 data-i18n="ui.mail.title"></h2>
-        <form id="mail-compose">
-          <input id="mail-to" data-i18n-ph="ui.mail.to.ph" maxlength="24" required>
-          <input id="mail-body" data-i18n-ph="ui.mail.body.ph" maxlength="500" required>
-          <button type="submit" data-i18n="ui.mail.send"></button>
-        </form>
-        <p id="mail-error" class="error"></p>
-        <div id="mail-list"></div>
-      </section>
-    </main>
+    </div>
   </div>
 
   <script type="module" src="i18n.js"></script>
   <script type="module" src="app.js"></script>
-  <!-- QoL: own-islands dock with alert dots. Frontend-only, read-only, fails
-       silent. Remove this one line to roll back. -->
   <script defer src="islands-dock.js"></script>
+  <script defer src="stage.js"></script>
 </body>
 </html>
