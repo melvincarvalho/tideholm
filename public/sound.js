@@ -21,37 +21,41 @@
     return ctx;
   }
 
-  // A wooden "tock": a fast pitch-dropping blip plus a whisper of noise.
+  // A wooden "tock": no tone sweep (that reads as an electronic zap) —
+  // just a noise burst ringing through a wood-like resonance, with a
+  // whisper of low-end body. Knuckle on a table, not a laser.
   function tock() {
     const c = ensureCtx();
     if (!c || c.state !== 'running') return;
     const t = c.currentTime;
-    const out = c.createGain();
-    out.gain.setValueAtTime(0.12, t);
-    out.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-    out.connect(c.destination);
 
-    const osc = c.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(950, t);
-    osc.frequency.exponentialRampToValueAtTime(480, t + 0.045);
-    osc.connect(out);
-    osc.start(t);
-    osc.stop(t + 0.07);
-
-    const len = Math.floor(c.sampleRate * 0.015);
+    const len = Math.floor(c.sampleRate * 0.02);
     const buf = c.createBuffer(1, len, c.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
     const noise = c.createBufferSource();
     noise.buffer = buf;
-    const hp = c.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 2500;
+
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1600;
+    bp.Q.value = 5;
+
     const ng = c.createGain();
-    ng.gain.value = 0.05;
-    noise.connect(hp).connect(ng).connect(out);
+    ng.gain.setValueAtTime(0.5, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    noise.connect(bp).connect(ng).connect(c.destination);
     noise.start(t);
+
+    const thump = c.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.value = 170;
+    const tg = c.createGain();
+    tg.gain.setValueAtTime(0.06, t);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    thump.connect(tg).connect(c.destination);
+    thump.start(t);
+    thump.stop(t + 0.06);
   }
 
   // Any button press ticks (pointerdown feels snappier than click).
