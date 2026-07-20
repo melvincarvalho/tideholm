@@ -55,6 +55,11 @@ prints admin stats. The hall of fame survives by design.
 
   Commit both, push, pull on prod. The Hall of Fame links to
   `seasons/season-N.html` automatically.
+
+  Archive-in-git policy (decided 2026-07-20): commit sanitized archives
+  for the first few seasons while the game is small, then turn it off —
+  from then on archives stay server-side in `backups/` and only the
+  generated `season-N.html` (which is self-contained) enters git.
 - Open the site: the pregame countdown banner should show the start time.
 - Register/log in works; world is frozen (no production, no bot moves).
 - Announce via `/admin.html` if the previous season's players should hear
