@@ -1060,10 +1060,16 @@ async function loadRankings() {
   for (const entry of [...data.hallOfFame].reverse()) {
     const div = document.createElement('div');
     div.className = 'movement';
-    div.textContent = '🏆 ' + T('ui.hof.line', {
+    // Each hall line links to that season's chronicle page (static,
+    // generated at the boundary by tools/chronicle.js).
+    const a = document.createElement('a');
+    a.href = `seasons/season-${entry.season}.html`;
+    a.target = '_blank';
+    a.textContent = '🏆 ' + T('ui.hof.line', {
       n: entry.season, name: entry.name, islands: entry.islands,
       total: entry.total, share: entry.share,
     }) + (entry.via === 'wonder' ? ' 🗼' : '');
+    div.appendChild(a);
     hbox.appendChild(div);
   }
 

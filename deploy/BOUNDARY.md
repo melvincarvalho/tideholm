@@ -39,6 +39,22 @@ prints admin stats. The hall of fame survives by design.
 
 ## Just after
 
+- **Write the chronicle** (dev box). Fetch the season-end archive the flip
+  just made, sanitize it ON THE SERVER before it travels (drop sessions,
+  messages, boards, offers, and every player's salt/hash — mail and boards
+  are private and must never enter git), then generate the page:
+
+      ssh ubuntu@nostr.social "python3 - <<'EOF'
+      import json
+      w = json.load(open(sorted(__import__('glob').glob('/home/ubuntu/tideholm/jss-plugin/data/game/backups/world-season-end-*.json'))[-1]))
+      for k in ('sessions','messages','boards','offers'): w.pop(k, None)
+      for p in w['players']: p.pop('salt', None); p.pop('hash', None)
+      print(json.dumps(w))
+      EOF" > seasons/archive/season-N.json
+      node tools/chronicle.js seasons/archive/season-N.json N > public/seasons/season-N.html
+
+  Commit both, push, pull on prod. The Hall of Fame links to
+  `seasons/season-N.html` automatically.
 - Open the site: the pregame countdown banner should show the start time.
 - Register/log in works; world is frozen (no production, no bot moves).
 - Announce via `/admin.html` if the previous season's players should hear
