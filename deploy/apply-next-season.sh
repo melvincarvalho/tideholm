@@ -3,7 +3,7 @@
 #
 # What it does (only with --confirm):
 #   1. Reads ADMIN_TOKEN from the running process (secret never touches a file).
-#   2. Computes WORLD_START = next 17:00 Europe/Berlin, or uses $1 (ISO or epoch ms).
+#   2. Computes WORLD_START = next 18:00 Europe/Berlin, or uses $1 (ISO or epoch ms).
 #   3. Archives the LIVE world (jss-plugin/data/game/world.json) into backups/.
 #   4. Removes it so the app boots a FRESH world, frozen until WORLD_START.
 #   5. pm2 restart tideholm-jss --update-env  (loads HEAD code + the new env).
