@@ -74,6 +74,10 @@ if [ -z "$ADMIN_TOKEN" ]; then
 fi
 
 # --- archive + fresh world ----------------------------------------------------
+# Stop first — shutdown save would resurrect the cleared world.
+pm2 stop "$APP" >/dev/null
+sleep 1
+
 mkdir -p "$BACKUPS"
 if [ -f "$WORLD" ]; then
   stamp=$(date -u +%Y-%m-%dT%H-%M-%S-%3NZ)

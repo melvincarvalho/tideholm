@@ -76,6 +76,11 @@ fi
 cd "$ROOT"
 git pull --ff-only
 
+# Stop FIRST: the app saves its world on shutdown, so clearing the file
+# while it runs gets resurrected by the dying process (learned 2026-07-20).
+pm2 stop "$APP" >/dev/null
+sleep 1
+
 mkdir -p "$BACKUPS"
 if [ -f "$WORLD" ]; then
   cp "$WORLD" "$BACKUPS/world-season-end-$STAMP.json"
