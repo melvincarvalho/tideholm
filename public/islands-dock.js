@@ -87,7 +87,10 @@
     dock.style.display = 'flex';
     var cur = activeId();
     listEl.textContent = '';
-    islands.forEach(function (i) {
+    // Descending creation order: the API lists islands in world-array
+    // (map-generation) order, so acquired islands would come BEFORE the
+    // founding island. Reversed, the founding island anchors the left.
+    islands.slice().reverse().forEach(function (i) {
       var d = detail[i.id] || {};
       var atk = Object.prototype.hasOwnProperty.call(attackCoords, coordKey(i.x, i.y));
       var pill = document.createElement('span');
