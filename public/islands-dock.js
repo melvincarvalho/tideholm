@@ -116,6 +116,51 @@
 
   function mkDot(cls) { var s = document.createElement('span'); s.className = 'dot ' + cls; return s; }
 
+  // --- island navigation: arrow keys + swipe -------------------------------
+  // Moves through islands in DOCK order (see render's reverse). dir +1 = the
+  // next chip to the right. Wraps at the ends.
+  function step(dir) {
+    if (islands.length < 2 || !token()) return;
+    var order = islands.slice().reverse();
+    var cur = activeId();
+    var idx = order.findIndex(function (i) { return i.id === cur; });
+    var next = order[(idx + dir + order.length) % order.length];
+    switchTo(next.id);
+    setTimeout(function () {
+      render();
+      var active = listEl && listEl.querySelector('.isl.active');
+      if (active) active.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    }, 120);
+  }
+
+  // Plain ←/→ only, and never while typing (inputs, textareas, selects,
+  // contenteditable) — those own their own arrow-key behavior.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    var t = e.target;
+    if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+    e.preventDefault();
+    step(e.key === 'ArrowRight' ? 1 : -1);
+  });
+
+  // Swipe on the island header only — a page-wide listener would fight the
+  // map drag, wide tables, and the dock's own horizontal scroll. Swipe left
+  // (content moves left) = next island rightward in the dock.
+  var swipe = null;
+  document.addEventListener('touchstart', function (e) {
+    var hd = e.target && e.target.closest && e.target.closest('#island-title');
+    swipe = (hd && e.touches.length === 1)
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (!swipe || !e.changedTouches.length) return;
+    var dx = e.changedTouches[0].clientX - swipe.x;
+    var dy = e.changedTouches[0].clientY - swipe.y;
+    swipe = null;
+    if (Math.abs(dx) >= 50 && Math.abs(dy) < Math.abs(dx)) step(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
   // --- polls ---------------------------------------------------------------
   function pollBase() {
     apiGet('/api/state').then(function (s) {
