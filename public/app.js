@@ -322,6 +322,11 @@ function renderState() {
   }
 
   renderTroops();
+
+  // Fill the countdown cells this render just created. Deliberately ignores
+  // the "finished" result: refresh() is what called us, and re-entering it
+  // from here would loop on any item whose finish time has already passed.
+  paintCountdowns(Date.now() + clockSkew);
 }
 
 function renderMovements() {
@@ -426,6 +431,21 @@ function renderSupport() {
   }
 }
 
+// Write the time remaining into every .countdown element. Returns true if any
+// of them has run out. renderState() calls this too: it builds countdown cells
+// empty, and without an immediate paint they would stay blank until the next
+// localTick — up to a second in which the cell has no text, so the table
+// reflows around it and visibly jumps (#24).
+function paintCountdowns(now) {
+  let finished = false;
+  for (const el of document.querySelectorAll('.countdown')) {
+    const left = (Number(el.dataset.finish) - now) / 1000;
+    el.textContent = fmtTime(left);
+    if (left <= 0) finished = true;
+  }
+  return finished;
+}
+
 // Smooth local tick: advance resource counters and countdowns between polls.
 function localTick() {
   if (!state) return;
@@ -436,13 +456,7 @@ function localTick() {
     const val = Math.min(isl.capacity, isl.resources[r] + isl.rates[r] * dt);
     $(`res-${r}`).textContent = fmtNum(val);
   }
-  let finished = false;
-  for (const el of document.querySelectorAll('.countdown')) {
-    const left = (Number(el.dataset.finish) - now) / 1000;
-    el.textContent = fmtTime(left);
-    if (left <= 0) finished = true;
-  }
-  if (finished) refresh();
+  if (paintCountdowns(now)) refresh();
 }
 
 // ---------------------------------------------------------------- actions
