@@ -104,6 +104,9 @@ section {
 
 h2 { margin-top: 2px; }
 .hint { color: #6b5d40; }
+/* Host-verified pod identity. Long, so it wraps rather than stretching a table
+   cell; shown as an identifier, not a link (see identityLine in app.js). */
+.webid { word-break: break-all; opacity: .85; }
 
 /* ---------- tables ---------- */
 

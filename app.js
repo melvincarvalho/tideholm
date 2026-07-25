@@ -728,6 +728,7 @@ export function createApp(opts = {}) {
             name: p.name,
             isBot: !!p.isBot,
             isYou: p.id === player.id,
+            webId: p.extId || null,
             alliance: alliance ? alliance.tag : null,
             islands: game.playerIslands(world, p.id).length,
             points: game.playerPoints(world, p.id),
@@ -756,7 +757,13 @@ export function createApp(opts = {}) {
         .slice(0, 50);
       const payload = inbox.map((msg) => {
         const from = world.players.find((p) => p.id === msg.fromId);
-        return { id: msg.id, from: from ? from.name : '?', time: msg.time, body: msg.body, read: msg.read };
+        return {
+          id: msg.id, from: from ? from.name : '?', time: msg.time,
+          body: msg.body, read: msg.read,
+          // Host-verified identity (pod WebID). Null in password mode, where
+          // the game owns identity and there is nothing external to show.
+          webId: (from && from.extId) || null,
+        };
       });
       for (const msg of inbox) msg.read = true;
       return sendJson(res, 200, { messages: payload });

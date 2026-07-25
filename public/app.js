@@ -1094,6 +1094,13 @@ async function loadRankings() {
       <td>${row.name}${row.isBot ? ` <small class="hint">${T('ui.map.bot')}</small>` : ''}</td>
       <td>${row.alliance ? '[' + row.alliance + ']' : '—'}</td>
       <td>${row.islands}</td><td>${row.points}</td>`;
+    // Pod players carry a host-verified WebID; bots and password-mode players
+    // don't, so this also reads as "who is a real signed-in human".
+    if (row.webId) {
+      const cell = tr.cells[1];
+      cell.appendChild(document.createElement('br'));
+      cell.appendChild(identityLine(row.webId));
+    }
     tbody.appendChild(tr);
   });
 }
@@ -1295,6 +1302,25 @@ $('alliance-leave').addEventListener('click', () => {
 
 // ---------------------------------------------------------------- mail
 
+// A player's host-verified pod identity, shown as an identifier rather than a
+// link: the WebID is issued by the pod server's IdP and is not necessarily
+// dereferenceable from outside it, so a link would often 404.
+function shortWebId(id) {
+  try {
+    const u = new URL(id);
+    const seg = u.pathname.split('/').filter(Boolean)[0];
+    return u.hostname + (seg ? '/' + seg : '');
+  } catch (e) { return String(id); }
+}
+
+function identityLine(webId) {
+  const el = document.createElement('small');
+  el.className = 'hint webid';
+  el.textContent = '🪪 ' + shortWebId(webId);
+  el.title = webId; // full value on hover; never rendered as markup
+  return el;
+}
+
 async function loadMessages() {
   const data = await api('/api/messages');
   const box = $('mail-list');
@@ -1303,9 +1329,19 @@ async function loadMessages() {
     const div = document.createElement('div');
     div.className = 'report' + (msg.read ? '' : ' unread');
     const when = new Date(msg.time).toLocaleString();
-    div.innerHTML = `<b>${msg.from}</b> <small>${when}</small>
-      <button class="mail-reply" data-reply="${msg.from}">${T('ui.mail.reply')}</button><br><span></span>`;
+    div.innerHTML = `<b></b> <small></small>
+      <button class="mail-reply">${T('ui.mail.reply')}</button><br><span></span>`;
+    // Names and WebIDs are player-controlled, so they go in as text, never
+    // interpolated into the markup.
+    div.querySelector('b').textContent = msg.from;
+    div.querySelector('small').textContent = when;
+    div.querySelector('button').dataset.reply = msg.from;
     div.querySelector('span').textContent = msg.body;
+    if (msg.webId) {
+      const body = div.querySelector('span');
+      div.insertBefore(identityLine(msg.webId), body);
+      div.insertBefore(document.createElement('br'), body);
+    }
     box.appendChild(div);
   }
   for (const btn of box.querySelectorAll('button[data-reply]')) {
