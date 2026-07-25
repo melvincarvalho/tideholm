@@ -3,3 +3,8 @@ node_modules/
 *.log
 agent.did.json
 jss-plugin/data/
+# Production admin token, read by deploy/apply-next-season-prod.sh. Lives in the
+# deploy worktree, so it must never be committable by a stray `git add -A`.
+.admin-token
+# Pre-deploy backups taken by hand on the server.
+*.bak

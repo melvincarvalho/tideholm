@@ -1,8 +1,14 @@
-// Tideholm — stage rails (Tier-2 experiment, stage.html only).
+// Tideholm — stage rails. Loaded by index.html (the default layout) and by
+// the leftover stage.html; classic.html omits it.
 // Read-only decoration: fills the left/right rails from its own polls of the
-// same API the client uses. Deliberately throwaway scaffolding — if the
-// stage layout wins, this logic folds into the real client; if not, the
-// three stage files are deleted. Fails silent; never mutates anything.
+// same API the client uses. Fails silent; never mutates anything.
+//
+// The stage layout won (it is index.html now), so the fold this file was
+// waiting for is still owed: these rails should become a renderRails(state)
+// called from renderState() in app.js, reusing that file's api(), fmtTime()
+// and MINI_COLORS instead of the copies below. Until then the page runs three
+// independent /api/state pollers (app.js, this, islands-dock.js) and the
+// rails can show a different snapshot than the column beside them.
 
 (function () {
   'use strict';

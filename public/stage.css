@@ -1,5 +1,6 @@
-/* Tideholm — stage layout (Tier-2 experiment, stage.html only).
-   Loaded exclusively by stage.html; index.html never sees this file. */
+/* Tideholm — stage layout: the two side rails and the grid that frames them.
+   Loaded by index.html (the default layout) and by the leftover stage.html.
+   classic.html omits it, which is exactly what makes it the classic layout. */
 
 .stage-grid {
   display: grid;
