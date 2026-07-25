@@ -108,6 +108,21 @@ h2 { margin-top: 2px; }
    cell; shown as an identifier, not a link (see identityLine in app.js). */
 .webid { word-break: break-all; opacity: .85; }
 
+/* Mail-tab profile: identity + standing. Stages 2-4 of the identity work
+   (npub, taproot address, orders) extend this block. */
+.profile {
+  border: 1px solid var(--accent);
+  border-left: 5px solid var(--accent);
+  border-radius: 4px;
+  background: #fdf6df;
+  padding: 8px 12px;
+  margin: 0 0 10px;
+}
+.profile h4 { margin: 0 0 4px; }
+.profile-actions { margin-top: 6px; display: flex; gap: 6px; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover { background: #f3ecd9; }
+
 /* ---------- tables ---------- */
 
 table { border-collapse: collapse; width: 100%; }

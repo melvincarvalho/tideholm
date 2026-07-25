@@ -1087,6 +1087,7 @@ async function loadRankings() {
 
   const tbody = $('ranking-table').querySelector('tbody');
   tbody.innerHTML = '';
+  rankingRows = data.rankings; // the Mail profile reads these, no second fetch
   data.rankings.forEach((row, idx) => {
     const tr = document.createElement('tr');
     if (row.isYou) tr.className = 'me';
@@ -1100,6 +1101,11 @@ async function loadRankings() {
       const cell = tr.cells[1];
       cell.appendChild(document.createElement('br'));
       cell.appendChild(identityLine(row.webId));
+    }
+    // Click a human to open their profile in the Mail tab (bots have none).
+    if (!row.isBot) {
+      tr.classList.add('clickable');
+      tr.addEventListener('click', () => showProfile(row.name));
     }
     tbody.appendChild(tr);
   });
@@ -1321,7 +1327,93 @@ function identityLine(webId) {
   return el;
 }
 
+// ---------------------------------------------------------------- profile
+// Identity + standing, built entirely from /api/rankings — it already carries
+// isYou and webId per row, so no server call of its own and nothing new to
+// plumb. Stages 2-4 of #34 (npub, taproot address, order intents) hang here.
+
+let profileName = null; // whose profile the Mail tab shows; null = your own
+
+function renderProfile(rows) {
+  const box = $('profile-box');
+  if (!box || !rows) return;
+  const me = rows.findIndex((r) => r.isYou);
+  const idx = profileName
+    ? rows.findIndex((r) => r.name === profileName)
+    : me;
+  if (idx < 0) { box.innerHTML = ''; profileName = null; return; }
+  const row = rows[idx];
+  const isMe = idx === me;
+
+  box.innerHTML = '';
+  box.className = 'profile';
+  const h = document.createElement('h4');
+  h.textContent = isMe ? T('ui.profile.title') : T('ui.profile.viewing');
+  box.appendChild(h);
+
+  const line = document.createElement('div');
+  const nm = document.createElement('b');
+  nm.textContent = row.name;
+  line.appendChild(nm);
+  const meta = document.createElement('span');
+  meta.className = 'hint';
+  meta.textContent = ` — ${T('ui.profile.rank')} ${idx + 1} · `
+    + `🏆 ${row.points} ${T('ui.points')} · 🏝️ ${row.islands}`
+    + (row.alliance ? ` · [${row.alliance}]` : '')
+    + (isMe ? ` · ${T('ui.profile.you')}` : '');
+  line.appendChild(meta);
+  box.appendChild(line);
+
+  if (row.webId) {
+    box.appendChild(identityLine(row.webId));
+  } else {
+    const none = document.createElement('small');
+    none.className = 'hint';
+    none.textContent = T('ui.profile.noIdentity');
+    box.appendChild(none);
+  }
+
+  // Actions: message this player, or step back to your own profile.
+  const actions = document.createElement('div');
+  actions.className = 'profile-actions';
+  if (!isMe) {
+    const msg = document.createElement('button');
+    msg.className = 'small-btn';
+    msg.textContent = T('ui.profile.message');
+    msg.addEventListener('click', () => {
+      $('mail-to').value = row.name;
+      $('mail-body').focus();
+    });
+    actions.appendChild(msg);
+    const back = document.createElement('button');
+    back.className = 'small-btn';
+    back.textContent = T('ui.profile.back');
+    back.addEventListener('click', () => { profileName = null; renderProfile(rows); });
+    actions.appendChild(back);
+  }
+  if (actions.children.length) box.appendChild(actions);
+}
+
+// Rankings caches its rows so the Mail tab can render a profile without
+// refetching; loadMessages() falls back to fetching if you go there first.
+let rankingRows = null;
+
+async function showProfile(name) {
+  profileName = name;
+  if (!rankingRows) {
+    try { rankingRows = (await api('/api/rankings')).rankings; } catch (e) { return; }
+  }
+  showTab('messages');
+  renderProfile(rankingRows);
+  loadMessages();
+}
+
 async function loadMessages() {
+  // Profile needs the rankings rows; fetch once if Mail was opened first.
+  if (!rankingRows) {
+    try { rankingRows = (await api('/api/rankings')).rankings; } catch (e) { /* profile just stays empty */ }
+  }
+  renderProfile(rankingRows);
   const data = await api('/api/messages');
   const box = $('mail-list');
   box.innerHTML = data.messages.length ? '' : `<p class="hint">${T('ui.mail.empty')}</p>`;

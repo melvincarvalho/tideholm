@@ -304,6 +304,9 @@
 
         <section id="view-messages" class="hidden">
           <h2 data-i18n="ui.mail.title"></h2>
+          <!-- Identity + standing. Filled by renderProfile() from /api/rankings,
+               which already carries isYou and webId — no server change needed. -->
+          <div id="profile-box"></div>
           <form id="mail-compose">
             <input id="mail-to" data-i18n-ph="ui.mail.to.ph" maxlength="24" required>
             <input id="mail-body" data-i18n-ph="ui.mail.body.ph" maxlength="500" required>
