@@ -12,7 +12,7 @@ import { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tr
         tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
         popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
         createPlayer, playerIsland, playerIslands, playerPoints, islandPoints,
-        isProtected, PROTECTED_POINTS } from './game.js';
+        isProtected, PROTECTED_POINTS, MORALE_FLOOR, BOT_MORALE_FLOOR } from './game.js';
 
 // Tuning knobs for bot aggression.
 const RAID_CHANCE = 0.12;        // per bot per tick, once armed (warlords: 2x)
@@ -41,10 +41,16 @@ const BOT_TEMPO = Number(process.env.BOT_TEMPO ?? 1);
 const BOT_PERSONAS = String(process.env.BOT_PERSONAS || 'settler:15,warlord:2,barbarian:3');
 
 // Expected morale factor if this bot attacks that owner (mirrors the engine).
+// The floor depends on whether the DEFENDER is a bot, exactly as in combat —
+// a world running BOT_MORALE_FLOOR=1 must not have its bots plan against 0.3.
 function moraleEst(world, bot, ownerId) {
   const mine = playerPoints(world, bot.id);
   const theirs = playerPoints(world, ownerId);
-  if (mine > theirs && theirs > 0) return Math.max(0.3, Math.sqrt(theirs / mine));
+  if (mine > theirs && theirs > 0) {
+    const owner = world.players.find((p) => p.id === ownerId);
+    const floor = owner && owner.isBot ? BOT_MORALE_FLOOR : MORALE_FLOOR;
+    return Math.max(floor, Math.sqrt(theirs / mine));
+  }
   return 1;
 }
 

@@ -41,6 +41,7 @@ shutdown. Delete that file to start a fresh world.
 | `FREE_ISLES` | 30 | Uncharted (colonizable) islands on a new world |
 | `WORLD_THEME` | generated | Map backdrop: `generated` (seeded fictional chart) or `aegean` (real coastlines; build other regions with `tools/build-region.js`) |
 | `WIN_SHARE` | 0.6 | Island share a player/alliance must hold for a dominance victory |
+| `WONDER_WIN_LEVEL` | 5 | Great Beacon level that wins the world. Raising it stretches the endgame: each level costs 1.55× more and takes 1.5× longer, and every completed level is announced world-wide. |
 | `NIGHT_BONUS` | — | Night window `HH-HH` (e.g. `22-6`) where defenders get a bonus |
 | `ADMIN_TOKEN` | — | Enables the admin panel at `/admin.html` (stats, announce, reset) |
 
@@ -108,11 +109,15 @@ ADMIN_TOKEN=... node server.js
   the Harbor — capacity 250 × 1.5^(level-1) per shipment.
 - Quality of life: rename your islands, a battle simulator in the attack
   panel, the map centers on your island, and unicode player names.
-- Morale: attacking a much smaller player blunts your attack (down to 30%).
-  Optional night defense bonus via `NIGHT_BONUS=22-6`.
+- Morale: attacking a much smaller player blunts your attack (down to
+  `MORALE_FLOOR`, 30% by default). Optional night defense bonus via
+  `NIGHT_BONUS=22-6`.
 - Victory: a player or alliance holding `WIN_SHARE` (default 60%) of all
-  islands wins the world — announced to everyone, banner in the UI. Start
-  a new season by deleting `data/world.json`.
+  islands wins the world — or raises the Great Beacon to
+  `WONDER_WIN_LEVEL`. Either way it's announced to everyone, with a banner
+  in the UI. Start the next season from the admin panel's reset (which
+  archives the old world and can open a signup countdown), or let
+  `SEASON_AUTO=1` recycle a won world on its own.
 - Bots wage real war: they scout targets and remember the intel, skip
   fortresses, favor soft targets, and run flagship conquest campaigns
   against empires their own size — never against small humans (<150 pts).

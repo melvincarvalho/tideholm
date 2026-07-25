@@ -374,6 +374,13 @@ export function createApp(opts = {}) {
     return mine.find((i) => i.id === Number(islandId)) || mine[0];
   }
 
+  // The island a request points at by coordinates, for every send-* action.
+  function targetAt(body) {
+    return world.islands.find(
+      (i) => i.x === Number(body.x) && i.y === Number(body.y)
+    );
+  }
+
   function stateFor(player, islandId) {
     const now = Date.now();
     const lang = player.lang || 'en';
@@ -394,6 +401,10 @@ export function createApp(opts = {}) {
       // including a separate floor when the defender is a bot (#config).
       moraleFloor: game.MORALE_FLOOR,
       botMoraleFloor: game.BOT_MORALE_FLOOR,
+      // Wall constants, for the same reason: the simulator must not hardcode
+      // its own copy of the engine's defense formula.
+      wallFlatDef: game.WALL_FLAT_DEF,
+      wallDefBonus: game.WALL_DEF_BONUS,
       // Season phase + launch time for the pregame countdown (#8).
       phase: game.worldPhase(world, Date.now()),
       startAt: world.startAt,
@@ -426,7 +437,6 @@ export function createApp(opts = {}) {
           const owner = world.players.find((p) => p.id === c.ownerId);
           return { owner: owner ? owner.name : '?', units: c.units };
         }),
-        units: island.units,
         trainQueue: island.trainQueue.map((q) => ({
           unit: t(lang, `unit.${q.unit}.name`),
           count: q.count,
@@ -558,15 +568,12 @@ export function createApp(opts = {}) {
         const text = String((body && body.body) || '').trim().slice(0, 500);
         if (!text) return sendErr(res, 400, 'en', 'err.badRequest');
         const now = Date.now();
+        game.resolveWorld(world, now);
         for (const p of world.players) {
-          if (p.isBot) continue;
-          game.resolveWorld(world, now);
+          // addReport skips bots itself and keeps each player under the
+          // 100-report cap, which a hand-rolled push would not.
           const L = p.lang || 'en';
-          // addReport is engine-internal; go through the world's report list shape
-          world.reports.push({
-            id: world.nextId++, ownerId: p.id, time: now,
-            title: t(L, 'report.admin.title'), lines: [text], read: false,
-          });
+          game.addReport(world, p.id, now, t(L, 'report.admin.title'), [text]);
         }
         return sendJson(res, 200, { ok: true });
       }
@@ -638,9 +645,7 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
-      const target = world.islands.find(
-        (i) => i.x === Number(body.x) && i.y === Number(body.y)
-      );
+      const target = targetAt(body);
       if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
       const result = game.sendAttack(world, player, island, target, body.units, Date.now());
       if (result.error) return gameErr(res, lang, result);
@@ -651,9 +656,7 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
-      const target = world.islands.find(
-        (i) => i.x === Number(body.x) && i.y === Number(body.y)
-      );
+      const target = targetAt(body);
       if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
       const result = game.sendSupport(world, player, island, target, body.units, Date.now());
       if (result.error) return gameErr(res, lang, result);
@@ -663,9 +666,7 @@ export function createApp(opts = {}) {
     if (req.method === 'POST' && pathname === '/api/withdraw') {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
-      const target = world.islands.find(
-        (i) => i.x === Number(body.x) && i.y === Number(body.y)
-      );
+      const target = targetAt(body);
       if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
       const result = game.withdrawSupport(world, player, target, Date.now());
       if (result.error) return gameErr(res, lang, result);
@@ -676,9 +677,7 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
-      const target = world.islands.find(
-        (i) => i.x === Number(body.x) && i.y === Number(body.y)
-      );
+      const target = targetAt(body);
       if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
       const result = game.sendScout(world, player, island, target, body.count, Date.now());
       if (result.error) return gameErr(res, lang, result);
@@ -689,9 +688,7 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
-      const target = world.islands.find(
-        (i) => i.x === Number(body.x) && i.y === Number(body.y)
-      );
+      const target = targetAt(body);
       if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
       const result = game.sendTrade(world, player, island, target, body.resources, Date.now());
       if (result.error) return gameErr(res, lang, result);
@@ -711,9 +708,7 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
-      const target = world.islands.find(
-        (i) => i.x === Number(body.x) && i.y === Number(body.y)
-      );
+      const target = targetAt(body);
       if (!target) return sendErr(res, 400, lang, 'err.noIslandThere');
       const result = game.sendColonize(world, player, island, target, Date.now());
       if (result.error) return gameErr(res, lang, result);

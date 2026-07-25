@@ -80,7 +80,9 @@ const BUILDINGS = {
   },
   wonder: {
     name: 'Great Beacon',
-    desc: 'Complete level 5 and the world is yours.',
+    // Shown text comes from i18n ('building.wonder.desc' interpolates the
+    // configured level); these table fields are documentation for readers.
+    desc: 'Raise it to WONDER_WIN_LEVEL and the world is yours.',
     base: { wood: 5000, stone: 5000, gold: 3000 },
     time: 3600,
     requires: { hall: 10 },
@@ -166,7 +168,6 @@ const LOYALTY_AFTER_CAPTURE = 25;
 const WALL_FLAT_DEF = 15;
 const WALL_DEF_BONUS = 0.08;
 
-// Morale: attacking a much smaller player weakens the attack, down to 30%.
 // Morale: attacking a much smaller defender blunts your force. Configurable
 // so a world can be gentler or harsher. BOT_MORALE_FLOOR is a separate floor
 // used when the DEFENDER is a bot — set it to 1 to remove the penalty against
@@ -931,7 +932,7 @@ function applyMovement(world, m) {
   }
 
   const attacker = world.players.find((p) => p.id === m.ownerId);
-  const where = `${dest.name} (${dest.x}:${dest.y})`;
+  const where = at(dest);
   const atkLang = langOf(world, m.ownerId);
   const defLang = langOf(world, dest.ownerId);
   const attackerNameFor = (lang) => (attacker ? attacker.name : t(lang, 'player.unknown'));
@@ -1670,7 +1671,7 @@ export {
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
-  popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
+  popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS, addReport,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
