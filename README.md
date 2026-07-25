@@ -39,6 +39,7 @@ shutdown. Delete that file to start a fresh world.
 | `GAME_SPEED` | 5 | Multiplies production, divides build times. `1` ≈ classic pace (hours), `5` = minutes. Lower it (`2`–`3`) for a slower, more deliberate world. |
 | `BOTS` | 20 | Bots spawned when a new world is created |
 | `FREE_ISLES` | 30 | Uncharted (colonizable) islands on a new world |
+| `LAND_RESPAWN` | 0 (off) | Uncharted islands added when the map runs out of them. Fires on **world load**, i.e. a server restart — so with it on, a deploy can reshape a live map and move the dominance threshold (all islands count toward `WIN_SHARE`). Off by default; see #36. |
 | `WORLD_THEME` | generated | Map backdrop: `generated` (seeded fictional chart) or `aegean` (real coastlines; build other regions with `tools/build-region.js`) |
 | `WIN_SHARE` | 0.6 | Island share a player/alliance must hold for a dominance victory |
 | `WONDER_WIN_LEVEL` | 5 | Great Beacon level that wins the world. Raising it stretches the endgame: each level costs 1.55× more and takes 1.5× longer, and every completed level is announced world-wide. |

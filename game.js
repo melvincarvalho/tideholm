@@ -190,6 +190,10 @@ function nightFactor(time) {
 // Dominance victory: one player or alliance holding this share of all islands.
 const WIN_SHARE = Number(process.env.WIN_SHARE || 0.6);
 
+// Uncharted islands added when the map runs out of them. 0 = off (default).
+// See the note in migrateWorld and #36 before turning this on.
+const LAND_RESPAWN = Math.max(0, Number(process.env.LAND_RESPAWN ?? 0) || 0);
+
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
 const PROD_GROWTH = 1.12;
@@ -1637,8 +1641,15 @@ function migrateWorld(world) {
       island.buildings.farm = lvl;
     }
   }
-  if (!world.islands.some((i) => i.ownerId == null)) {
-    for (let i = 0; i < 30; i++) newUnchartedIsland(world);
+  // Land respawn: top the map up when no uncharted island is left. OFF by
+  // default (#36) — this sits in a load-time migration, so it fires on a
+  // process restart rather than on any game clock. That made deploys able to
+  // reshape a live map: a client-only UI release restarted the server and
+  // added 30 islands mid-season, moving the dominance threshold from 32 to 50.
+  // Set LAND_RESPAWN=30 to restore the old behavior. The proper fix is to move
+  // this onto the world tick as a slow drip; tracked in #36.
+  if (LAND_RESPAWN > 0 && !world.islands.some((i) => i.ownerId == null)) {
+    for (let i = 0; i < LAND_RESPAWN; i++) newUnchartedIsland(world);
   }
   return world;
 }
