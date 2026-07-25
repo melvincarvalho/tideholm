@@ -343,12 +343,10 @@ function renderMovements() {
   for (const out of state.movements.outgoing) {
     const div = document.createElement('div');
     div.className = 'movement outgoing';
-    const what = out.type === 'attack' ? T('ui.move.attack', { target: out.target })
-      : out.type === 'colonize' ? T('ui.move.colonize', { target: out.target })
-      : out.type === 'support' ? T('ui.move.support', { target: out.target })
-      : out.type === 'scout' ? T('ui.move.scout', { target: out.target })
-      : T('ui.move.return', { target: out.target }) +
-        (out.loot ? ` ${T('ui.move.withLoot')} 🪵${out.loot.wood} 🪨${out.loot.stone} 🪙${out.loot.gold}` : '');
+    // One key per movement type — including 'trade', which the old ternary
+    // chain had no branch for, so every shipment rendered as "Returning to".
+    const what = T('ui.move.' + out.type, { target: out.target })
+      + (out.loot ? ` ${T('ui.move.withLoot')} 🪵${out.loot.wood} 🪨${out.loot.stone} 🪙${out.loot.gold}` : '');
     div.innerHTML = `${what} — <span class="countdown" data-finish="${out.arrive}"></span>`;
     box.appendChild(div);
   }
