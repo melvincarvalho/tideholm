@@ -176,7 +176,10 @@ console.log('combat');
     out === 5 * 6 * 60000);
   g.resolveWorld(w, r.arrive + 1);
   const ret = w.movements.find((m) => m.type === 'return');
-  check('return trip takes as long as the way out', ret.arrive - ret.depart === out);
+  // Guarded for the same reason as the characterisation block below: an
+  // unguarded deref here aborts the whole run before those tests execute.
+  check('return trip takes as long as the way out',
+    !!ret && ret.arrive - ret.depart === out);
 }
 
 {
@@ -248,14 +251,18 @@ console.log('loyalty');
 
   // Break the rest of the loyalty: nearly gone, and even the regeneration
   // during the flagship's slow voyage can't outrun a 25+ drop.
-  g.resolveWorld(w, ret.arrive + 1); // flagship home
-  ib.loyalty = 0;
-  ib.units.sentinel = 1;
-  const r2 = g.sendAttack(w, a, ia, ib, { raider: 40, flagship: 1 }, ret.arrive + 10);
-  g.resolveWorld(w, r2.arrive + 1);
-  check('capture at 0 loyalty', ib.ownerId === a.id);
-  check('captured island starts restive at 25 loyalty', ib.loyalty === 25);
-  check('flagship consumed on capture', ib.units.flagship === 0);
+  // Only reachable if the flagship actually came home — guarded so a change
+  // that stops creating return movements reports failures instead of throwing.
+  if (ret) {
+    g.resolveWorld(w, ret.arrive + 1); // flagship home
+    ib.loyalty = 0;
+    ib.units.sentinel = 1;
+    const r2 = g.sendAttack(w, a, ia, ib, { raider: 40, flagship: 1 }, ret.arrive + 10);
+    g.resolveWorld(w, r2.arrive + 1);
+    check('capture at 0 loyalty', ib.ownerId === a.id);
+    check('captured island starts restive at 25 loyalty', ib.loyalty === 25);
+    check('flagship consumed on capture', ib.units.flagship === 0);
+  }
 }
 {
   const { ia } = freshWorld();
@@ -1102,9 +1109,14 @@ console.log('combat characterisation');
   g.resolveWorld(w, r.arrive + 1);
 
   const ret = w.movements.find((m) => m.type === 'return');
-  const hauled = ret.loot.wood + ret.loot.stone + ret.loot.gold;
-  check('char: attacker survivors = round(n * (1 - (D/A)^1.5))', ret.units.raider === 88,
-    `got ${ret && ret.units.raider}`);
+  // Assert the return exists BEFORE touching it: if a future change stops
+  // creating one, these must report a focused failure rather than throw a
+  // TypeError and abort the whole run — which is the entire point of a
+  // characterisation suite.
+  check('char: a won attack sends the survivors home', !!ret);
+  const hauled = ret ? ret.loot.wood + ret.loot.stone + ret.loot.gold : -1;
+  check('char: attacker survivors = round(n * (1 - (D/A)^1.5))',
+    !!ret && ret.units.raider === 88, `got ${ret && ret.units.raider}`);
   check('char: defender garrison wiped on a loss', g.totalUnits(ib.units) === 0);
   // 88 survivors carry 88*60 = 5280. Loot is drawn PROPORTIONALLY from all
   // three stocks, so no single resource equals the carry — the total does
@@ -1130,8 +1142,9 @@ console.log('combat characterisation');
   const r = g.sendAttack(w, a, ia, ib, { raider: 100 }, t0);
   g.resolveWorld(w, r.arrive + 1);
   const ret = w.movements.find((m) => m.type === 'return');
-  check('char: wall raises D, costing the attacker more', ret.units.raider === 83,
-    `got ${ret && ret.units.raider}`);
+  check('char: walled win still sends the survivors home', !!ret);
+  check('char: wall raises D, costing the attacker more',
+    !!ret && ret.units.raider === 83, `got ${ret && ret.units.raider}`);
   check('char: a sack drops the wall exactly one level', ib.buildings.wall === 1);
   // Stock is far below carry (83*60 = 4980), so the raid takes essentially
   // everything: the fraction clamps at 1 and each stock is floored to 0.
