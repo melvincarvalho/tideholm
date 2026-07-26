@@ -101,6 +101,7 @@
 
       // server errors
       'err.badRequest': 'Bad request.',
+      'err.badNostrDid': 'Expected did:nostr: followed by a 64-character hex pubkey.',
       'err.nameFormat': 'Name must be 2-24 letters, digits or spaces.',
       'err.passwordShort': 'Password too short (min 3).',
       'err.wrongLogin': 'Wrong name or password.',
@@ -344,6 +345,10 @@
       'ui.alliance.leaveConfirm': 'Leave the alliance?',
       'ui.alliance.accept': 'Accept',
       'ui.alliance.decline': 'Decline',
+      'ui.identity.unverified': 'unverified, self-declared',
+      'ui.identity.placeholder': 'did:nostr:… or 64-hex pubkey',
+      'ui.identity.save': 'Save Nostr id',
+      'ui.identity.fromExtension': 'From extension',
       'ui.profile.title': 'Your captain',
       'ui.profile.rank': 'Rank',
       'ui.profile.viewing': 'Viewing',
@@ -464,6 +469,7 @@
 
       // server errors
       'err.badRequest': 'Ungültige Anfrage.',
+      'err.badNostrDid': 'Erwartet did:nostr: mit 64 Hex-Zeichen als Pubkey.',
       'err.nameFormat': 'Der Name muss 2-24 Buchstaben, Ziffern oder Leerzeichen haben.',
       'err.passwordShort': 'Passwort zu kurz (mind. 3 Zeichen).',
       'err.wrongLogin': 'Falscher Name oder falsches Passwort.',
@@ -707,6 +713,10 @@
       'ui.alliance.leaveConfirm': 'Die Allianz verlassen?',
       'ui.alliance.accept': 'Annehmen',
       'ui.alliance.decline': 'Ablehnen',
+      'ui.identity.unverified': 'unbestätigt, selbst angegeben',
+      'ui.identity.placeholder': 'did:nostr:… oder 64-Hex-Pubkey',
+      'ui.identity.save': 'Nostr-ID speichern',
+      'ui.identity.fromExtension': 'Aus Erweiterung',
       'ui.profile.title': 'Dein Kapitän',
       'ui.profile.rank': 'Rang',
       'ui.profile.viewing': 'Angesehen',
@@ -827,6 +837,7 @@
 
       // server errors
       'err.badRequest': 'Neplatný požadavek.',
+      'err.badNostrDid': 'Očekává se did:nostr: a 64 hex znaků pubkey.',
       'err.nameFormat': 'Jméno musí mít 2-24 písmen, číslic nebo mezer.',
       'err.passwordShort': 'Heslo je příliš krátké (min. 3 znaky).',
       'err.wrongLogin': 'Špatné jméno nebo heslo.',
@@ -1070,6 +1081,10 @@
       'ui.alliance.leaveConfirm': 'Opustit alianci?',
       'ui.alliance.accept': 'Přijmout',
       'ui.alliance.decline': 'Odmítnout',
+      'ui.identity.unverified': 'nepotvrzeno, vlastní údaj',
+      'ui.identity.placeholder': 'did:nostr:… nebo 64-hex pubkey',
+      'ui.identity.save': 'Uložit Nostr ID',
+      'ui.identity.fromExtension': 'Z rozšíření',
       'ui.profile.title': 'Tvůj kapitán',
       'ui.profile.rank': 'Pořadí',
       'ui.profile.viewing': 'Prohlížíš',
