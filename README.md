@@ -65,6 +65,7 @@ shutdown. Delete that file to start a fresh world.
 | `MORALE_FLOOR` | 0.3 | Min attack-power multiplier when outweighing the defender |
 | `BOT_MORALE_FLOOR` | = `MORALE_FLOOR` | Same, but vs **bot** defenders. Set `1` so the leader can fight bots at full power while human newcomers stay protected. |
 | `BOT_GARRISON_RATIO` | ∞ | Cap a bot's standing defence to `islandPoints × ratio` (raiders exempt). Set e.g. `12` to stop bots turtling into unbeatable fortresses. |
+| `COLONY_COST_GROWTH` | 1 (flat) | Colony Ship price multiplier **per island already owned** — `cost × growth^(owned-1)`, stepped per ship in a batch. `1.3` is the tuned brake on going wide: the 10th island costs ~29k instead of 2.7k, the 15th ~106k. Steeper bites much harder than it looks (`1.6` puts the 15th at 1.9M). Only meaningful from a fresh world. |
 
 **Example — a fair, self-running "casual" world:**
 

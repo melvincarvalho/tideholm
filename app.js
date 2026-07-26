@@ -324,7 +324,10 @@ export function createApp(opts = {}) {
       out[key] = {
         name: t(lang, `unit.${key}.name`),
         desc: t(lang, `unit.${key}.desc`),
-        cost: u.cost,
+        // Ask the engine rather than reading the table: the Colony Ship's
+        // price climbs with islands owned (#27), so the flat table value
+        // would show a number we then refuse to charge.
+        cost: game.trainCost(world, island, key, 1),
         atk: u.atk,
         def: u.def,
         carry: u.carry,

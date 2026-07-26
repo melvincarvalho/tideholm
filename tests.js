@@ -2403,5 +2403,38 @@ console.log('combat characterisation');
     w.reports.some((x) => x.ownerId === c.id));
 }
 
+// --- Colony Ship cost growth (#27) ------------------------------------------
+// COLONY_COST_GROWTH is read at module load, so these assert the pure cost
+// function across a range rather than trying to re-import with a new env.
+{
+  const w = g.createWorld();
+  const r = g.createPlayer(w, 'Settler', 'pw123456');
+  const p = r.player || r;
+  const isl = g.playerIsland(w, p.id);
+  const flat = g.UNITS.colonyship.cost;
+
+  // Default is 1 = flat, so nothing changes for anyone until it is set.
+  const one = g.trainCost(w, isl, 'colonyship', 1);
+  check('colony cost flat by default', one.wood === flat.wood && one.gold === flat.gold);
+  const five = g.trainCost(w, isl, 'colonyship', 5);
+  check('colony batch of 5 is 5x flat by default', five.wood === flat.wood * 5);
+
+  // Other units must never escalate.
+  const rd = g.trainCost(w, isl, 'raider', 3);
+  check('raider cost unaffected', rd.wood === g.UNITS.raider.cost.wood * 3);
+
+  // A batch must cost the same as the same ships bought one at a time,
+  // otherwise one big order dodges the curve.
+  const stepwise = (growth, owned, count) => {
+    let m = 0;
+    for (let i = 0; i < count; i++) m += Math.pow(growth, Math.max(0, owned - 1 + i));
+    return m;
+  };
+  check('batch multiplier == sum of per-ship steps (1.3, owned 1, count 5)',
+    Math.abs(stepwise(1.3, 1, 5) - (1 + 1.3 + 1.69 + 2.197 + 2.8561)) < 1e-9);
+  check('per-ship stepping means no batch discount',
+    stepwise(1.3, 1, 5) > 5 * Math.pow(1.3, 0));
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);

@@ -226,6 +226,16 @@ const WIN_SHARE = Number(process.env.WIN_SHARE || 0.6);
 // See the note in migrateWorld and #36 before turning this on.
 const LAND_RESPAWN = Math.max(0, Number(process.env.LAND_RESPAWN ?? 0) || 0);
 
+// Colony Ship price growth per island already owned (#27). 1 = flat, the
+// original behavior and the default. 1.3 is the tuned value: the 10th island
+// costs ~29k (about 9 hours of a developed island's output) and the 15th ~106k
+// — felt, but never a wall. Steeper values bite far harder than they look:
+// 1.6 puts the 10th island at 186k and the 15th at 1.9M, which bans expansion
+// rather than pricing it. Only meaningful from a fresh world; applying it
+// mid-season would retroactively price an established empire out of its next
+// island.
+const COLONY_COST_GROWTH = Math.max(1, Number(process.env.COLONY_COST_GROWTH ?? 1) || 1);
+
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
 const PROD_GROWTH = 1.12;
@@ -456,6 +466,31 @@ function trainTime(key, buildingLevel) {
   return Math.max(2, Math.round(t));
 }
 
+// What a batch of `count` units costs. Flat for every unit except the Colony
+// Ship, whose price climbs with the breadth of the empire buying it (#27):
+// expansion stays open but stops being free, and past a handful of islands
+// taking a developed island becomes the cheaper way to grow. The step is
+// PER SHIP inside a batch, so training 5 at once costs the same as training
+// them one at a time — otherwise a single big order would dodge the curve.
+// Counted on islands OWNED, so conquest raises the price too: the brake is on
+// breadth, not on method.
+function trainCost(world, island, key, count) {
+  const unit = UNITS[key];
+  const cost = {};
+  const settling = key === 'colonyship' && COLONY_COST_GROWTH !== 1 && world;
+  if (!settling) {
+    for (const r of RESOURCES) cost[r] = unit.cost[r] * count;
+    return cost;
+  }
+  const owned = playerIslands(world, island.ownerId).length;
+  let mult = 0;
+  for (let i = 0; i < count; i++) {
+    mult += Math.pow(COLONY_COST_GROWTH, Math.max(0, owned - 1 + i));
+  }
+  for (const r of RESOURCES) cost[r] = Math.round(unit.cost[r] * mult);
+  return cost;
+}
+
 function tryTrain(world, island, key, count, now) {
   if (!UNITS[key]) return { error: 'err.unknownUnit' };
   count = Math.floor(Number(count));
@@ -469,8 +504,7 @@ function tryTrain(world, island, key, count, now) {
   if (popUsed(island) + UNITS[key].pop * count > popCap(island.buildings.farm)) {
     return { error: 'err.noPop' };
   }
-  const cost = {};
-  for (const r of RESOURCES) cost[r] = UNITS[key].cost[r] * count;
+  const cost = trainCost(world, island, key, count);
   if (!canAfford(island, cost)) return { error: 'err.noResources' };
   for (const r of RESOURCES) island.resources[r] -= cost[r];
   const start = island.trainQueue.length
@@ -2321,7 +2355,7 @@ export {
   maxBuildingLevel, setMaxBuildingLevel,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
-  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
+  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
