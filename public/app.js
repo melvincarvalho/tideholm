@@ -1354,6 +1354,12 @@ function identityLine(id, unverified) {
 
 let profileName = null; // whose profile the Mail tab shows; null = your own
 
+// External key tool. Takes a bare 64-hex pubkey or an npub via ?pubkey= and
+// shows the coin addresses derived from it; with no parameter it generates a
+// fresh keypair. Both halves of the identity flow ride on that, which is why
+// Tideholm needs no secp256k1 of its own.
+const NOSKEY = 'https://melvincarvalho.github.io/noskey/web/';
+
 // Set or clear your own Nostr identifier. Accepts a bare 64-hex pubkey or a
 // full did:nostr URI — the server canonicalises. If a NIP-07 extension is
 // present, offer to read the pubkey from it instead of typing.
@@ -1395,6 +1401,27 @@ function nostrDidForm(current) {
     });
     wrap.appendChild(use);
   }
+
+  // One outbound action, depending on whether an identity is set yet.
+  // noskey takes a bare 64-hex pubkey or an npub — exactly the form stored in
+  // a did:nostr — and with no parameter at all it generates a fresh key.
+  // So neither case needs any crypto here.
+  const hex = /^did:nostr:([0-9a-f]{64})$/.exec(String(current || ''));
+  const link = document.createElement('a');
+  link.className = 'small-btn did-link';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  if (hex) {
+    link.href = NOSKEY + '?pubkey=' + hex[1];
+    link.textContent = T('ui.identity.addresses');
+  } else {
+    link.href = NOSKEY;
+    link.textContent = T('ui.identity.generate');
+    // The generator hands back a secret key too; only the public half belongs
+    // here, and a hex secret is indistinguishable from a hex pubkey on sight.
+    link.title = T('ui.identity.generateHint');
+  }
+  wrap.appendChild(link);
   return wrap;
 }
 

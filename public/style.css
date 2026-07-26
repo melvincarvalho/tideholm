@@ -122,6 +122,8 @@ h2 { margin-top: 2px; }
 .profile-actions { margin-top: 6px; display: flex; gap: 6px; }
 .did-form { margin-top: 6px; display: flex; gap: 6px; align-items: center; }
 .did-form input { flex: 1 1 auto; min-width: 0; padding: 4px; border: 1px solid #b0a488; font: inherit; font-size: 11px; }
+/* an <a> styled as a small-btn: keep it on the baseline with the buttons */
+.did-link { text-decoration: none; white-space: nowrap; line-height: 1.6; }
 tr.clickable { cursor: pointer; }
 tr.clickable:hover { background: #f3ecd9; }
 
