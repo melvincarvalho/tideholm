@@ -1067,5 +1067,162 @@ console.log('i18n');
     w.reports.some((x) => x.ownerId === def.id && x.title.includes('padl')));
 }
 
+// ---------------------------------------------------------------- combat characterisation
+// CHARACTERISATION TESTS. These pin what applyMovement's attack branch does
+// TODAY, at exact values, so that adding to it cannot silently change loot,
+// survivor counts, wall damage, loyalty or report generation.
+//
+// applyMovement is ~420 lines and its win branch computes all of the above in
+// one place, so a new branch there (e.g. catapult building damage, #1) is the
+// realistic way to break combat without noticing. If one of these fails, the
+// question is not "fix the test" but "did I mean to change the game?".
+//
+// Numbers are derived by hand from the documented formulas, not copied from a
+// run, so they assert intent rather than current output:
+//   A = sum(atk*n) * morale      D = (def + 15*wall) * (1 + 0.08*wall)
+//   winner loses (D/A)^1.5 of the army, loser is wiped
+//   loot = min(carry, stock), drawn proportionally
+console.log('combat characterisation');
+
+{
+  // 100 raiders (A = 2400) vs 20 sentinels behind no wall (D = 600).
+  // Same-size players, so no morale penalty: A/D = 4, lossFrac = 0.125^... :
+  //   (600/2400)^1.5 = 0.25^1.5 = 0.125  -> survivors = round(100*0.875) = 88
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 100;
+  ib.units.sentinel = 20;
+  // resolveIsland accrues production and then CLAMPS to storehouse capacity
+  // (level 1 = 600), so stock must be set after syncing the clock, and the
+  // storehouse must be big enough to hold what we are testing against.
+  ib.buildings.storehouse = 8; // capacity 10,252
+  g.resolveIsland(ib, t0);
+  ib.resources.wood = 10_000; ib.resources.stone = 0; ib.resources.gold = 0;
+  const before = { ...ib.resources };
+  const r = g.sendAttack(w, a, ia, ib, { raider: 100 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+
+  const ret = w.movements.find((m) => m.type === 'return');
+  const hauled = ret.loot.wood + ret.loot.stone + ret.loot.gold;
+  check('char: attacker survivors = round(n * (1 - (D/A)^1.5))', ret.units.raider === 88,
+    `got ${ret && ret.units.raider}`);
+  check('char: defender garrison wiped on a loss', g.totalUnits(ib.units) === 0);
+  // 88 survivors carry 88*60 = 5280. Loot is drawn PROPORTIONALLY from all
+  // three stocks, so no single resource equals the carry — the total does
+  // (within a couple of units lost to per-resource flooring).
+  check('char: total loot == surviving carry capacity', Math.abs(hauled - 5280) <= 3,
+    `hauled ${hauled}`);
+  check('char: looted resources leave the defender', ib.resources.wood < before.wood);
+  check('char: no wall means no wall damage line', (ib.buildings.wall || 0) === 0);
+  check('char: both sides get a report',
+    w.reports.some((x) => x.ownerId === a.id) && w.reports.some((x) => x.ownerId === ib.ownerId));
+}
+
+{
+  // The wall's contribution, pinned: 20 sentinels (600) behind wall 2 ->
+  //   D = (600 + 15*2) * (1 + 0.08*2) = 630 * 1.16 = 730.8 -> 731
+  // A = 2400, so (731/2400)^1.5 = 0.3046^1.5 = 0.16812 -> round(100*0.83188) = 83
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 100;
+  ib.units.sentinel = 20;
+  ib.buildings.wall = 2;
+  g.resolveIsland(ib, t0);   // sync first: resolveIsland accrues then clamps
+  ib.resources.wood = 200; ib.resources.stone = 0; ib.resources.gold = 0;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 100 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  const ret = w.movements.find((m) => m.type === 'return');
+  check('char: wall raises D, costing the attacker more', ret.units.raider === 83,
+    `got ${ret && ret.units.raider}`);
+  check('char: a sack drops the wall exactly one level', ib.buildings.wall === 1);
+  // Stock is far below carry (83*60 = 4980), so the raid takes essentially
+  // everything: the fraction clamps at 1 and each stock is floored to 0.
+  check('char: a raid that outweighs the stock empties the island',
+    ib.resources.wood + ib.resources.stone + ib.resources.gold < 5,
+    `left ${ib.resources.wood + ib.resources.stone + ib.resources.gold}`);
+}
+
+{
+  // A losing attack: 10 raiders (A = 240) vs 20 sentinels (D = 600).
+  //   defLossFrac = (240/600)^1.5 = 0.4^1.5 = 0.25298
+  //   survivors = round(20 * 0.74702) = 15  -> 5 sentinels lost
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 10;
+  ib.units.sentinel = 20;
+  ib.buildings.wall = 0;
+  g.resolveIsland(ib, t0);
+  ib.resources.wood = 500;
+  const woodBefore = ib.resources.wood;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('char: defender loses round(S * (A/D)^1.5) on a repelled attack',
+    ib.units.sentinel === 15, `got ${ib.units.sentinel}`);
+  check('char: a losing attacker is wiped and nothing returns',
+    !w.movements.some((m) => m.type === 'return'));
+  // Production keeps accruing during the voyage, so the defender's stock can
+  // only be >= what it was; a loss must never subtract.
+  check('char: a losing attack loots nothing', ib.resources.wood >= woodBefore);
+  check('char: wall is NOT damaged when the defender holds', (ib.buildings.wall || 0) === 0);
+}
+
+{
+  // Loyalty: a surviving Flagship takes 25-40 off, and only with a Flagship.
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 100; ia.units.flagship = 1;
+  ib.units.sentinel = 2;
+  g.resolveIsland(ib, t0);
+  ib.loyalty = 100;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 100, flagship: 1 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  const drop = 100 - ib.loyalty;
+  check('char: surviving Flagship drops loyalty by 25-40', drop >= 25 && drop <= 40, `drop ${drop}`);
+  check('char: island does NOT change hands while loyalty > 0', ib.ownerId !== a.id);
+}
+
+{
+  // No Flagship -> no loyalty movement at all, however crushing the win.
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 200;
+  ib.units.sentinel = 1;
+  g.resolveIsland(ib, t0);
+  ib.loyalty = 100;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 200 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('char: no Flagship means loyalty is untouched', ib.loyalty === 100, `loyalty ${ib.loyalty}`);
+}
+
+{
+  // The victor always brings someone home, even when the maths says zero.
+  // 26 raiders (A=624) vs 20 sentinels (D=600): (600/624)^1.5 = 0.9427,
+  // round(26*0.0573) = 1 ... push it tighter with a bare win.
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 26;
+  ib.units.sentinel = 20;
+  g.resolveIsland(ib, t0);
+  const r = g.sendAttack(w, a, ia, ib, { raider: 26 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  const ret = w.movements.find((m) => m.type === 'return');
+  check('char: a bare win still returns at least one survivor',
+    !!ret && g.totalUnits(ret.units) >= 1, `returned ${ret && g.totalUnits(ret.units)}`);
+}
+
+{
+  // Support stationed on the target defends and dies with the garrison.
+  const { w, a, b, ia, ib } = freshWorld();
+  const c = g.createPlayer(w, 'C', 'pw', false).player;
+  c.protectionBroken = true;
+  const ic = g.playerIsland(w, c.id);
+  ic.x = 0; ic.y = 6;
+  ic.units.sentinel = 10;
+  const s = g.sendSupport(w, c, ic, ib, { sentinel: 10 }, t0);
+  g.resolveWorld(w, s.arrive + 1);
+  check('char: support arrives as a contingent, not merged into the garrison',
+    ib.support.length === 1 && ib.units.sentinel === 0);
+  ia.units.raider = 100;                    // A = 2400 vs D = 10*30 = 300
+  const r = g.sendAttack(w, a, ia, ib, { raider: 100 }, s.arrive + 10);
+  g.resolveWorld(w, r.arrive + 1);
+  check('char: a won attack clears every support contingent', ib.support.length === 0);
+  check('char: the support owner is told they lost troops',
+    w.reports.some((x) => x.ownerId === c.id));
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
