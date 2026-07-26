@@ -1308,22 +1308,42 @@ $('alliance-leave').addEventListener('click', () => {
 
 // ---------------------------------------------------------------- mail
 
-// A player's host-verified pod identity, shown as an identifier rather than a
-// link: the WebID is issued by the pod server's IdP and is not necessarily
-// dereferenceable from outside it, so a link would often 404.
-function shortWebId(id) {
+// Identifiers are shown as identifiers, not links: a pod WebID is issued by
+// the IdP and is not necessarily dereferenceable from outside it, so a link
+// would often 404. Handles both shapes an identity can take — the host's
+// getAgent returns a WebID for mapped keys and a did:nostr for unmapped ones.
+function shortId(id) {
+  const s = String(id);
+  const did = /^did:nostr:([0-9a-f]{6})[0-9a-f]{54}([0-9a-f]{4})$/.exec(s);
+  if (did) return `did:nostr:${did[1]}…${did[2]}`;
   try {
-    const u = new URL(id);
+    const u = new URL(s);
     const seg = u.pathname.split('/').filter(Boolean)[0];
     return u.hostname + (seg ? '/' + seg : '');
-  } catch (e) { return String(id); }
+  } catch (e) { return s; }
 }
 
-function identityLine(webId) {
+// icon: 🪪 host-verified login identity, 🔑 self-declared and unverified.
+// A did:nostr resolves to a DID document at the host root, so that one gets a
+// link; a pod WebID is issued by the IdP and often isn't dereferenceable from
+// outside it, so it stays plain text. Relative to the origin, never a
+// hardcoded host — the game is meant to be mountable anywhere.
+function identityLine(id, unverified) {
   const el = document.createElement('small');
   el.className = 'hint webid';
-  el.textContent = '🪪 ' + shortWebId(webId);
-  el.title = webId; // full value on hover; never rendered as markup
+  el.title = unverified ? id + ' (' + T('ui.identity.unverified') + ')' : id;
+  const hex = /^did:nostr:([0-9a-f]{64})$/.exec(String(id));
+  if (hex) {
+    el.append('🔑 ');
+    const a = document.createElement('a');
+    a.href = `/.well-known/did/nostr/${hex[1]}.json`; // .json is required
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = shortId(id);
+    el.appendChild(a);
+    return el;
+  }
+  el.textContent = (unverified ? '🔑 ' : '🪪 ') + shortId(id);
   return el;
 }
 
@@ -1333,6 +1353,50 @@ function identityLine(webId) {
 // plumb. Stages 2-4 of #34 (npub, taproot address, order intents) hang here.
 
 let profileName = null; // whose profile the Mail tab shows; null = your own
+
+// Set or clear your own Nostr identifier. Accepts a bare 64-hex pubkey or a
+// full did:nostr URI — the server canonicalises. If a NIP-07 extension is
+// present, offer to read the pubkey from it instead of typing.
+function nostrDidForm(current) {
+  const wrap = document.createElement('div');
+  wrap.className = 'did-form';
+  const input = document.createElement('input');
+  input.id = 'nostr-did-input';
+  input.maxLength = 74; // did:nostr: + 64 hex
+  input.placeholder = T('ui.identity.placeholder');
+  input.value = current || '';
+  wrap.appendChild(input);
+
+  const save = document.createElement('button');
+  save.className = 'small-btn';
+  save.textContent = T('ui.identity.save');
+  save.addEventListener('click', async () => {
+    const err = $('mail-error');
+    err.textContent = '';
+    try {
+      await api('/api/identity/nostr', { did: input.value });
+      rankingRows = (await api('/api/rankings')).rankings;
+      renderProfile(rankingRows);
+    } catch (e) { err.textContent = e.message; }
+  });
+  wrap.appendChild(save);
+
+  // NIP-07 extensions expose window.nostr; xlogin shims the same shape.
+  if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+    const use = document.createElement('button');
+    use.className = 'small-btn';
+    use.textContent = T('ui.identity.fromExtension');
+    use.addEventListener('click', async () => {
+      const err = $('mail-error');
+      err.textContent = '';
+      try {
+        input.value = await window.nostr.getPublicKey();
+      } catch (e) { err.textContent = String(e && e.message || e); }
+    });
+    wrap.appendChild(use);
+  }
+  return wrap;
+}
 
 function renderProfile(rows) {
   const box = $('profile-box');
@@ -1372,6 +1436,12 @@ function renderProfile(rows) {
     none.textContent = T('ui.profile.noIdentity');
     box.appendChild(none);
   }
+  if (row.nostrDid) {
+    box.appendChild(document.createElement('br'));
+    box.appendChild(identityLine(row.nostrDid, true));
+  }
+  // Only you can set your own; others' are read-only.
+  if (isMe) box.appendChild(nostrDidForm(row.nostrDid));
 
   // Actions: message this player, or step back to your own profile.
   const actions = document.createElement('div');

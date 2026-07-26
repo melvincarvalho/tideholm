@@ -602,6 +602,31 @@ export function createApp(opts = {}) {
       return sendJson(res, 200, { ok: true });
     }
 
+    // A self-declared Nostr identifier, stored ALONGSIDE the login identity
+    // (player.extId) and never used to authenticate. Deliberately does not
+    // touch `identify`: a request carrying an `Authorization: Nostr` header
+    // would be resolved by the host's getAgent, and requestPlayer would then
+    // auto-create a player for that agent — so key proof must never arrive
+    // that way. Unverified by design for now; a proof field can be added
+    // later without changing this shape.
+    if (req.method === 'POST' && pathname === '/api/identity/nostr') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const raw = String(body.did || '').trim().toLowerCase();
+      if (!raw) { // empty clears the link
+        player.nostrDid = null;
+        game.saveWorld(world);
+        return sendJson(res, 200, { nostrDid: null });
+      }
+      // Accept a bare 64-hex pubkey (what window.nostr.getPublicKey returns)
+      // or a full did:nostr URI; store the canonical form either way.
+      const m = /^(?:did:nostr:)?([0-9a-f]{64})$/.exec(raw);
+      if (!m) return sendErr(res, 400, lang, 'err.badNostrDid');
+      player.nostrDid = `did:nostr:${m[1]}`;
+      game.saveWorld(world);
+      return sendJson(res, 200, { nostrDid: player.nostrDid });
+    }
+
     // Land any battles/returns due before this request reads or mutates state.
     game.resolveWorld(world, Date.now());
 
@@ -729,6 +754,7 @@ export function createApp(opts = {}) {
             isBot: !!p.isBot,
             isYou: p.id === player.id,
             webId: p.extId || null,
+            nostrDid: p.nostrDid || null,
             alliance: alliance ? alliance.tag : null,
             islands: game.playerIslands(world, p.id).length,
             points: game.playerPoints(world, p.id),
@@ -763,6 +789,8 @@ export function createApp(opts = {}) {
           // Host-verified identity (pod WebID). Null in password mode, where
           // the game owns identity and there is nothing external to show.
           webId: (from && from.extId) || null,
+          // Self-declared, unverified. Shown as a claim, never as proof.
+          nostrDid: (from && from.nostrDid) || null,
         };
       });
       for (const msg of inbox) msg.read = true;
