@@ -1163,16 +1163,24 @@ console.log('combat characterisation');
   ib.buildings.wall = 0;
   g.resolveIsland(ib, t0);
   ib.resources.wood = 500;
-  const woodBefore = ib.resources.wood;
   const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  // Snapshot at BATTLE TIME, not at launch. Production accrues during the
+  // voyage, so comparing against the launch value would let a wrongful
+  // subtraction hide behind the income earned in transit. Resolving to
+  // exactly m.arrive makes applyMovement's own resolveIsland a no-op, so
+  // any difference afterwards is the battle's doing and nothing else.
+  g.resolveIsland(ib, r.arrive);
+  const atBattle = { ...ib.resources };
   g.resolveWorld(w, r.arrive + 1);
   check('char: defender loses round(S * (A/D)^1.5) on a repelled attack',
     ib.units.sentinel === 15, `got ${ib.units.sentinel}`);
   check('char: a losing attacker is wiped and nothing returns',
     !w.movements.some((m) => m.type === 'return'));
-  // Production keeps accruing during the voyage, so the defender's stock can
-  // only be >= what it was; a loss must never subtract.
-  check('char: a losing attack loots nothing', ib.resources.wood >= woodBefore);
+  check('char: a losing attack loots nothing — exact, at battle time',
+    ib.resources.wood === atBattle.wood
+    && ib.resources.stone === atBattle.stone
+    && ib.resources.gold === atBattle.gold,
+    `wood ${ib.resources.wood} vs ${atBattle.wood}`);
   check('char: wall is NOT damaged when the defender holds', (ib.buildings.wall || 0) === 0);
 }
 
