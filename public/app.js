@@ -1198,6 +1198,83 @@ async function loadPool() {
 
   fillPoolSelects();
   quotePool();
+  previewLiquidity();
+}
+
+// ---- liquidity. The preview comes from the same server function the POST
+// handler calls, so it cannot describe a different deposit from the one that
+// executes — the failure that hit the quote and the swap in 7a.
+async function previewLiquidity() {
+  const el = $('lp-preview');
+  if (!el) return;
+  const wood = Math.floor(Number($('lp-wood').value));
+  if (!(wood > 0)) { el.textContent = ''; return; }
+  try {
+    const d = await api(`/api/pool?islandId=${activeIslandId}&deposit=${wood}`);
+    const p = d.depositPlan;
+    if (!p || p.error) { el.textContent = p ? T(p.error) : ''; return; }
+    el.textContent = T('ui.pool.depositPlan', {
+      cost: ['wood', 'stone', 'gold']
+        .map((r) => `${RES_EMOJI[r]}${fmtNum(Math.ceil(p.required[r]))}`).join(' '),
+      pct: (p.share * 100).toFixed(2),
+    });
+  } catch (err) {
+    el.textContent = err.message;
+  }
+}
+
+if ($('lp-wood')) {
+  $('lp-wood').addEventListener('input', () => {
+    const sent = $('pool-sent');
+    if (sent) sent.textContent = '';
+    previewLiquidity();
+  });
+}
+
+if ($('lp-deposit')) {
+  $('lp-deposit').addEventListener('click', async () => {
+    $('market-error').textContent = '';
+    $('pool-sent').textContent = '';
+    try {
+      const d = await api('/api/pool/deposit', {
+        islandId: activeIslandId,
+        wood: Math.floor(Number($('lp-wood').value)),
+      });
+      $('pool-sent').textContent = T('ui.pool.deposited', {
+        pct: ((d.share || 0) * 100).toFixed(2),
+        cost: ['wood', 'stone', 'gold']
+          .map((r) => `${RES_EMOJI[r]}${fmtNum(Math.ceil(d.required[r]))}`).join(' '),
+      });
+      loadMarket();
+      refresh();
+    } catch (err) {
+      $('market-error').textContent = err.message;
+    }
+  });
+}
+
+if ($('lp-withdraw')) {
+  $('lp-withdraw').addEventListener('click', async () => {
+    $('market-error').textContent = '';
+    $('pool-sent').textContent = '';
+    try {
+      const d = await api('/api/pool');
+      if (!(d.mine.shares > 0)) { $('market-error').textContent = T('err.poolNoShares'); return; }
+      const r = await api('/api/pool/withdraw',
+        { islandId: activeIslandId, shares: d.mine.shares });
+      // #pool-sent, not #lp-preview. The preview line is rewritten by the
+      // refresh that follows, which is how the swap confirmation vanished
+      // three times before this. One confirmation line for every pool action.
+      $('pool-sent').textContent = T('ui.pool.withdrawn', {
+        out: ['wood', 'stone', 'gold']
+          .map((x) => `${RES_EMOJI[x]}${fmtNum(Math.floor(r.out[x]))}`).join(' '),
+      });
+      loadMarket();
+      refresh();
+    } catch (err) {
+      $('market-error').textContent = err.message;
+    }
+  });
 }
 
 // Slippage tolerance. A quote is fetched, then the player acts; the pool can

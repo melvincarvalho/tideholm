@@ -1063,6 +1063,181 @@ console.log('pool opening');
     `${ia.resources.gold} vs ${goldBefore + r2.out}`);
 }
 
+// ---------------------------------------------------------------- liquidity
+// Depositing is how the pool gets deep without minting, so the property that
+// matters most is that it moves resources without moving the PRICE — and that
+// a deposit-then-withdraw round trip never comes back with more than it took.
+console.log('pool liquidity');
+
+function lpWorld(reserves = { wood: 10000, stone: 9200, gold: 16000 }) {
+  const { w, a, b, ia } = freshWorld();
+  // Harbour 10 = 9,611 per shipment. A deposit ships ALL THREE legs, so the
+  // total is roughly 3.52x the wood leg — harbour 8 (4,271) could not carry a
+  // 2,000-wood deposit at all, which is how the first run failed.
+  ia.buildings.harbor = 10;
+  ia.buildings.storehouse = 14;
+  ia.buildings.lumberyard = 0; ia.buildings.quarry = 0; ia.buildings.goldmine = 0;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 20000, stone: 20000, gold: 20000 };
+  g.openPool(w, reserves, t0);
+  return { w, a, b, ia };
+}
+
+{
+  // The preview and the action must agree, because they are the same code.
+  const { w, a, ia } = lpWorld();
+  const plan = g.planPoolDeposit(w, ia, 1000);
+  check('a plan is returned', !plan.error, JSON.stringify(plan));
+  const r = g.sendPoolDeposit(w, a, ia, 1000, t0);
+  check('the deposit mints exactly what the plan said', close(r.minted, plan.minted));
+  check('and takes exactly what the plan said',
+    !r.error && g.RESOURCES.every((x) => close(r.required?.[x], plan.required?.[x])));
+  check('planning changed nothing on its own', w.pool.totalShares > 0);
+}
+
+{
+  // Price is untouched: a deposit adds size at the same rate, it does not
+  // trade. This is the whole reason player liquidity beats minting.
+  const { w, a, ia } = lpWorld();
+  const before = g.RESOURCES.map((r) => g.poolSpot(w.pool.reserves, 'wood', r));
+  const r = g.sendPoolDeposit(w, a, ia, 2000, t0);
+  check('a deposit is accepted', !r.error, JSON.stringify(r));
+  const after = g.RESOURCES.map((x) => g.poolSpot(w.pool.reserves, 'wood', x));
+  check('a deposit does not move any price',
+    before.every((p, i) => close(p, after[i], 1e-9)), `${before} -> ${after}`);
+  check('the legs follow the pool ratio',
+    !r.error && close(r.required.gold / r.required.wood, 16000 / 10000),
+    JSON.stringify(r));
+  // The ratio alone is not enough: poolAddLiquidity scales to the tightest
+  // leg, so a `desired` computed wrongly still comes out proportional, merely
+  // smaller. Asking for 2000 wood must cost exactly 2000 wood.
+  check('the wood leg is exactly what was asked for',
+    !r.error && close(r.required.wood, 2000), `took ${r.required?.wood}`);
+  check('the island paid exactly the required legs',
+    !r.error && g.RESOURCES.every((x) => close(ia.resources[x], 20000 - r.required[x])));
+  check('the depositor holds the minted shares', !r.error && close(a.lpShares, r.minted));
+  // The reported share is of the POOL, not of your own deposit — minted/shares
+  // is 1 for a first-time depositor and would read as owning all of it.
+  check('and the reported share is of the whole pool',
+    !r.error && close(r.share, a.lpShares / w.pool.totalShares) && r.share < 0.2,
+    `share ${r.share}`);
+  check('the pool grew by what was paid in',
+    !r.error && close(w.pool.reserves.wood, 10000 + r.required.wood));
+}
+
+{
+  // No free money. Deposit then immediately withdraw the same shares must not
+  // return more than went in.
+  const { w, a, ia } = lpWorld();
+  const dep = g.sendPoolDeposit(w, a, ia, 1000, t0);
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('withdrawing accepted', !wd.error, JSON.stringify(wd));
+  check('a same-instant round trip returns no more than it deposited',
+    !wd.error && !dep.error && g.RESOURCES.every((x) => wd.out[x] <= dep.required[x] + 1e-9),
+    JSON.stringify({ out: wd.out, paid: dep.required }));
+  check('the shares are burned', close(a.lpShares, 0));
+  check('the pool is back where it started', close(w.pool.reserves.wood, 10000));
+  check('and the seed stake is untouched', close(w.pool.totalShares, Math.sqrt(10000 * 9200)));
+}
+
+{
+  // Fees earned while you were in the pool are the return.
+  const { w, a, b, ia } = lpWorld();
+  const dep = g.sendPoolDeposit(w, a, ia, 2000, t0);
+  // Someone else trades against it.
+  const ib = g.playerIsland(w, b.id);
+  ib.buildings.harbor = 10; ib.buildings.storehouse = 14;
+  ib.buildings.lumberyard = 0; ib.buildings.quarry = 0; ib.buildings.goldmine = 0;
+  g.resolveIsland(ib, t0);
+  ib.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  for (let i = 0; i < 4; i++) g.sendPoolSwap(w, b, ib, 'wood', 'gold', 1000, t0);
+  for (let i = 0; i < 4; i++) g.sendPoolSwap(w, b, ib, 'gold', 'wood', 1000, t0);
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  const inK = dep.error ? NaN : Math.sqrt(dep.required.wood * dep.required.gold);
+  const outK = wd.error ? NaN : Math.sqrt(wd.out.wood * wd.out.gold);
+  check('trading while you are in the pool leaves you better off',
+    outK > inK, `sqrt(k) in ${inK.toFixed(1)} -> out ${outK.toFixed(1)}`);
+}
+
+{
+  // Withdrawal ships home, so it is a movement and lands later.
+  const { w, a, ia } = lpWorld();
+  const dep = g.sendPoolDeposit(w, a, ia, 1000, t0);
+  const woodAfterDeposit = ia.resources.wood;
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('nothing is credited at the moment of withdrawal',
+    !wd.error && close(ia.resources.wood, woodAfterDeposit), JSON.stringify(wd));
+  check('a shipment is created', w.movements.filter((m) => m.type === 'trade').length === 1);
+  g.resolveWorld(w, wd.arrive + 1);
+  check('the slice arrives', !wd.error && close(ia.resources.wood, woodAfterDeposit + wd.out.wood, 1e-9),
+    JSON.stringify(wd));
+}
+
+{
+  // Refusals.
+  const { w, a, ia } = lpWorld();
+  const shut = lpWorld(); g.closePool(shut.w);
+  check('a closed pool takes no deposits',
+    g.sendPoolDeposit(shut.w, shut.a, shut.ia, 100, t0).error === 'err.poolClosed');
+
+  const noHarbor = lpWorld(); noHarbor.ia.buildings.harbor = 0;
+  check('depositing needs a harbour',
+    g.sendPoolDeposit(noHarbor.w, noHarbor.a, noHarbor.ia, 100, t0).error === 'err.buildFirst');
+
+  for (const bad of [0, -100, NaN, 'abc', null, undefined]) {
+    const r = g.sendPoolDeposit(w, a, ia, bad, t0);
+    check(`deposit of ${String(bad)} is refused`, r.error === 'err.tradeAmount', JSON.stringify(r));
+  }
+  check('a deposit beyond the island is refused',
+    g.sendPoolDeposit(w, a, ia, 999999, t0).error === 'err.noResources');
+  check('a deposit beyond the harbour is refused',
+    g.sendPoolDeposit(w, a, ia, 5000, t0).error === 'err.tradeCapacity',
+    `cap ${g.tradeCapacity(8)}`);
+  check('none of that moved anything', ia.resources.wood === 20000 && a.lpShares === 0);
+
+  check('withdrawing with no stake is refused',
+    g.sendPoolWithdraw(w, a, ia, 100, t0).error === 'err.poolNoShares');
+  for (const bad of [0, -5, NaN, 'abc']) {
+    check(`withdrawing ${String(bad)} shares is refused`,
+      g.sendPoolWithdraw(w, a, ia, bad, t0).error === 'err.poolNoShares');
+  }
+}
+
+{
+  // Withdrawal ships home, so it must refuse a slice that would not fit on
+  // arrival — same rule as a swap, and nothing was exercising it.
+  const { w, a, ia } = lpWorld();
+  const dep = g.sendPoolDeposit(w, a, ia, 1000, t0);
+  check('deposited for the storehouse test', !dep.error, JSON.stringify(dep));
+  ia.buildings.storehouse = 1;            // capacity 600
+  ia.resources = { wood: 590, stone: 590, gold: 590 };
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('a withdrawal that would overflow the storehouse is refused',
+    wd.error === 'err.poolStorage', JSON.stringify(wd));
+  check('and the shares are not burned', close(a.lpShares, dep.minted));
+  check('and nothing is shipped', !w.movements.some((m) => m.type === 'trade'));
+}
+
+{
+  // Over-withdrawal is clamped to what you hold, never more.
+  const { w, a, ia } = lpWorld();
+  const dep = g.sendPoolDeposit(w, a, ia, 1000, t0);
+  const wd = g.sendPoolWithdraw(w, a, ia, 1e9, t0);
+  check('asking for more shares than you hold burns only what you hold',
+    !wd.error && close(wd.burned, dep.minted) && close(a.lpShares, 0), JSON.stringify(wd));
+  check('and never returns more than your slice',
+    !wd.error && wd.out.wood <= dep.required.wood + 1e-9);
+
+  // Slippage guard on deposits too.
+  const s = lpWorld();
+  const plan = g.planPoolDeposit(s.w, s.ia, 1000);
+  check('a deposit below minShares is refused',
+    g.sendPoolDeposit(s.w, s.a, s.ia, 1000, t0, (plan.minted || 1) * 2).error === 'err.poolSlippage');
+  check('an unusable minShares is a bad request',
+    g.sendPoolDeposit(s.w, s.a, s.ia, 1000, t0, 'abc').error === 'err.badRequest');
+  check('and neither attempt minted anything', s.a.lpShares === 0);
+}
+
 // ---------------------------------------------------------------- pool swaps
 // The first code that can move a player's resources (#46 step 5). Everything
 // before this was inert, so these carry the weight.

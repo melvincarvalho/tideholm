@@ -569,6 +569,71 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 100 }, cookie: ocookie });
   check('a closed pool refuses swaps over HTTP', r.status === 400, `got ${r.status}`);
 
+  // ---------------------------------------------------------------- liquidity
+  // The preview and the action are the SAME function, so the property to pin
+  // is that they cannot disagree — the failure mode that bit the quote and
+  // the swap over fractional amounts in 7a.
+  console.log('\npool liquidity (POST)');
+  openApp.world.pool.open = true;
+  isl.buildings.harbor = 10;
+  isl.buildings.storehouse = 14;
+  gameMod.resolveIsland(isl, Date.now());
+  isl.resources = { wood: 20000, stone: 20000, gold: 20000 };
+  swapper.lpShares = 0;
+
+  r = await req(oa.port, 'POST', '/api/pool/deposit', { body: { islandId: isl.id, wood: 500 } });
+  check('depositing without a session is refused', r.status === 401);
+
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=500`, { cookie: ocookie });
+  const dPlan = r.data.depositPlan;
+  check('the deposit preview is returned', !!dPlan && !dPlan.error, JSON.stringify(dPlan));
+  check('the preview does not mint', swapper.lpShares === 0);
+
+  r = await req(oa.port, 'POST', '/api/pool/deposit',
+    { body: { islandId: isl.id, wood: 500 }, cookie: ocookie });
+  check('the deposit succeeds', r.status === 200, JSON.stringify(r.data));
+  check('and mints exactly what the preview promised',
+    Math.abs(r.data.minted - dPlan.minted) < 1e-9, `${r.data.minted} vs ${dPlan.minted}`);
+  check('and costs exactly what the preview promised',
+    r.status === 200 && ['wood','stone','gold'].every((x) => Math.abs(r.data.required?.[x] - dPlan.required[x]) < 1e-9),
+    JSON.stringify({ got: r.data.required, promised: dPlan.required }));
+  const minted = r.data.minted;
+  check('the player holds the shares', Math.abs(swapper.lpShares - minted) < 1e-9);
+
+  // A fractional deposit must be floored identically by preview and action —
+  // the exact shape of the 7a bug.
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=300.9`, { cookie: ocookie });
+  const fracPlan = r.data.depositPlan;
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=300`, { cookie: ocookie });
+  check('a fractional deposit preview matches the whole-number one',
+    Math.abs(fracPlan.minted - r.data.depositPlan.minted) < 1e-12);
+  r = await req(oa.port, 'POST', '/api/pool/deposit',
+    { body: { islandId: isl.id, wood: 300.9, minShares: fracPlan.minted }, cookie: ocookie });
+  check('and a fractional deposit is not a spurious slippage failure',
+    r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+
+  // Withdraw.
+  const held = swapper.lpShares;
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&withdraw=${held}`, { cookie: ocookie });
+  const wPlan = r.data.withdrawPlan;
+  check('the withdraw preview is returned', !!wPlan && !wPlan.error, JSON.stringify(wPlan));
+  const woodBeforeW = isl.resources.wood;
+
+  r = await req(oa.port, 'POST', '/api/pool/withdraw',
+    { body: { islandId: isl.id, shares: held }, cookie: ocookie });
+  check('the withdrawal succeeds', r.status === 200, JSON.stringify(r.data));
+  check('and returns exactly what the preview promised',
+    r.status === 200 && !wPlan.error
+      && ['wood','stone','gold'].every((x) => Math.abs(r.data.out?.[x] - wPlan.out?.[x]) < 1e-9),
+    JSON.stringify({ got: r.data.out, promised: wPlan.out }));
+  check('the shares are gone', swapper.lpShares === 0);
+  check('nothing is credited before the ship lands', isl.resources.wood === woodBeforeW);
+  check('a shipment is in flight', r.data.arrive > Date.now());
+
+  r = await req(oa.port, 'POST', '/api/pool/withdraw',
+    { body: { islandId: isl.id, shares: 100 }, cookie: ocookie });
+  check('withdrawing with no stake is a 400', r.status === 400);
+
   oa.srv.close();
   openApp.stop();
 
