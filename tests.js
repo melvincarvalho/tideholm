@@ -866,7 +866,10 @@ console.log('pool state');
   // Asserting byte-identity would forbid the one thing migration IS for:
   // adding a field that a later version introduced. The precise property is
   // that it only ever ADDS keys and never rewrites one that is already there.
-  const snapshot = { ...live.pool };
+  // Deep clone, not a spread. A shallow snapshot shares the nested objects,
+  // so an in-place `pool.reserves.wood = ...` would compare equal to itself
+  // and the assertion would pass — vacuous for exactly the case that matters.
+  const snapshot = JSON.parse(JSON.stringify(live.pool));
   g.migrateWorld(live);
   const rewritten = Object.keys(snapshot)
     .filter((k) => JSON.stringify(live.pool[k]) !== JSON.stringify(snapshot[k]));
