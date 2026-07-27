@@ -212,4 +212,6 @@ devDependency; the game itself stays zero-dependency).
 - `tests.js` — engine math and invariant tests
 - `AMM.md` — the Tidepool: how the constant-product pool works, how its
   parameters were derived, and what to lift if you want one elsewhere
+- `NEWS.md` — announcements sent to players in-game, with the exact text and
+  what each one shipped
 - `deploy/` — systemd unit, Caddyfile, Dockerfile, fly.toml, deploy guide
