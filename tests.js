@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
 process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
@@ -2423,17 +2424,55 @@ console.log('combat characterisation');
   const rd = g.trainCost(w, isl, 'raider', 3);
   check('raider cost unaffected', rd.wood === g.UNITS.raider.cost.wood * 3);
 
-  // A batch must cost the same as the same ships bought one at a time,
-  // otherwise one big order dodges the curve.
-  const stepwise = (growth, owned, count) => {
-    let m = 0;
-    for (let i = 0; i < count; i++) m += Math.pow(growth, Math.max(0, owned - 1 + i));
-    return m;
-  };
-  check('batch multiplier == sum of per-ship steps (1.3, owned 1, count 5)',
-    Math.abs(stepwise(1.3, 1, 5) - (1 + 1.3 + 1.69 + 2.197 + 2.8561)) < 1e-9);
-  check('per-ship stepping means no batch discount',
-    stepwise(1.3, 1, 5) > 5 * Math.pow(1.3, 0));
+  // The escalation itself has to run in a CHILD process: COLONY_COST_GROWTH is
+  // read once at module load, so it cannot be varied in-process.
+  //
+  // This replaces a block that reimplemented the formula in the test and
+  // asserted it against itself. That version could not fail: making escalated
+  // colony ships cost ZERO passed the entire suite.
+  //
+  // Expected values are worked by hand from cost x growth^(owned-1), summed
+  // per ship across a batch, so they assert the intended formula rather than
+  // whatever the code currently returns.
+  const probe = `
+    const g = await import('${process.cwd().replace(/\\/g, '/')}/game.js');
+    // A fresh world per island-count: trimming one world in place got stuck at
+    // the smallest count and every later reading came back flat.
+    const costsAt = (owned) => {
+      const w = g.createWorld();
+      const p = g.createPlayer(w, 'S', 'pw123456').player;
+      for (let i = 1; i < owned; i++) g.newIsland(w, p.id, 'X' + i);
+      const isl = g.playerIsland(w, p.id);
+      if (g.playerIslands(w, p.id).length !== owned) throw new Error('owned ' + g.playerIslands(w, p.id).length);
+      return { owned, one: g.trainCost(w, isl, 'colonyship', 1), three: g.trainCost(w, isl, 'colonyship', 3),
+               raider: g.trainCost(w, isl, 'raider', 3) };
+    };
+    console.log(JSON.stringify({ o1: costsAt(1), o5: costsAt(5), o10: costsAt(10) }));
+  `;
+  const run = (growth) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, COLONY_COST_GROWTH: String(growth) },
+    encoding: 'utf8',
+  }).trim().split('\n').pop());
+
+  const on = run(1.3);
+  check('growth 1.3: the first island is still flat', on.o1.one.wood === 1200,
+    JSON.stringify(on.o1.one));
+  check('growth 1.3: the 10th costs 1200 x 1.3^9 = 12725', on.o10.one.wood === 12725,
+    JSON.stringify(on.o10.one));
+  check('growth 1.3: at 5 owned, one ship costs 1200 x 1.3^4 = 3427',
+    on.o5.one.wood === 3427, JSON.stringify(on.o5.one));
+  check('growth 1.3: and every resource scales together',
+    on.o5.one.gold === 1714 && on.o5.one.stone === 2570, JSON.stringify(on.o5.one));
+  check('growth 1.3: a batch of 3 steps per ship, 1.3^4+1.3^5+1.3^6 -> 13675',
+    on.o5.three.wood === 13675, JSON.stringify(on.o5.three));
+  check('growth 1.3: a batch is dearer than 3x the single price',
+    on.o5.three.wood > on.o5.one.wood * 3);
+  check('growth 1.3: other units are untouched',
+    on.o5.raider?.wood === g.UNITS.raider.cost.wood * 3, JSON.stringify(on.o5.raider));
+
+  const off = run(1);
+  check('growth 1: nothing escalates at any island count',
+    off.o5.one.wood === 1200 && off.o5.three.wood === 3600, JSON.stringify(off.o5));
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
