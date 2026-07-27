@@ -5,6 +5,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+// Resolve against this file, not the working directory, so the suite runs from
+// anywhere. game.js already does this; tests.js did not, and reading the map
+// fixture broke immediately under `node path/to/tests.js` from elsewhere.
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
 process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
@@ -2147,7 +2153,7 @@ console.log('map themes');
   check('migration backfills theme and seed',
     w.theme === 'generated' && Number.isInteger(w.mapSeed) && w.mapSeed >= 1);
 
-  const region = JSON.parse(fs.readFileSync('./public/maps/aegean.json', 'utf8'));
+  const region = JSON.parse(fs.readFileSync(path.join(HERE, 'public/maps/aegean.json'), 'utf8'));
   const landCells = region.rows.reduce(
     (s, row) => s + [...row].filter((c) => c === '1').length, 0);
   check('aegean land mask is well-formed',
@@ -2435,7 +2441,7 @@ console.log('combat characterisation');
   // per ship across a batch, so they assert the intended formula rather than
   // whatever the code currently returns.
   const probe = `
-    const g = await import('${process.cwd().replace(/\\/g, '/')}/game.js');
+    const g = await import(${JSON.stringify(new URL('./game.js', import.meta.url).href)});
     // A fresh world per island-count: trimming one world in place got stuck at
     // the smallest count and every later reading came back flat.
     const costsAt = (owned) => {
