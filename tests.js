@@ -1238,6 +1238,60 @@ function lpWorld(reserves = { wood: 10000, stone: 9200, gold: 16000 }) {
 }
 
 {
+  // A shipment already inbound counts against the room, exactly as it does for
+  // a swap. Isolated from the resources-alone case: without the inbound leg
+  // this withdrawal fits.
+  const { w, a, ia } = lpWorld();
+  const dep = g.sendPoolDeposit(w, a, ia, 1000, t0);
+  ia.buildings.storehouse = 4;                    // capacity 2025
+  ia.resources = { wood: 900, stone: 900, gold: 300 };
+  const ok = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('the withdrawal fits with nothing inbound', !ok.error, JSON.stringify(ok));
+
+  const blocked = lpWorld();
+  const dep2 = g.sendPoolDeposit(blocked.w, blocked.a, blocked.ia, 1000, t0);
+  blocked.ia.buildings.storehouse = 4;
+  blocked.ia.resources = { wood: 900, stone: 900, gold: 300 };
+  blocked.w.movements.push({
+    id: 9101, type: 'trade', ownerId: blocked.a.id,
+    fromId: blocked.ia.id, toId: blocked.ia.id, units: g.zeroUnits(),
+    loot: { wood: 0, stone: 0, gold: 200 }, depart: t0, arrive: t0 + 60000,
+  });
+  const no = g.sendPoolWithdraw(blocked.w, blocked.a, blocked.ia, dep2.minted, t0);
+  check('but an inbound shipment tips it over the storehouse',
+    no.error === 'err.poolStorage', JSON.stringify(no));
+  check('and the shares survive the refusal', close(blocked.a.lpShares, dep2.minted));
+
+  // ...but only shipments that land BEFORE ours, and only to THIS island.
+  // Both filters need a negative case or they can be deleted unnoticed.
+  const late = lpWorld();
+  const dep3 = g.sendPoolDeposit(late.w, late.a, late.ia, 1000, t0);
+  late.ia.buildings.storehouse = 4;
+  late.ia.resources = { wood: 900, stone: 900, gold: 300 };
+  late.w.movements.push({
+    id: 9102, type: 'trade', ownerId: late.a.id,
+    fromId: late.ia.id, toId: late.ia.id, units: g.zeroUnits(),
+    loot: { wood: 0, stone: 0, gold: 200 },
+    depart: t0, arrive: t0 + 4 * H,          // lands long after ours does
+  });
+  check('a shipment arriving after ours does not block it',
+    !g.sendPoolWithdraw(late.w, late.a, late.ia, dep3.minted, t0).error);
+
+  const elsewhere = lpWorld();
+  const dep4 = g.sendPoolDeposit(elsewhere.w, elsewhere.a, elsewhere.ia, 1000, t0);
+  elsewhere.ia.buildings.storehouse = 4;
+  elsewhere.ia.resources = { wood: 900, stone: 900, gold: 300 };
+  const other = g.playerIsland(elsewhere.w, elsewhere.b.id);
+  elsewhere.w.movements.push({
+    id: 9103, type: 'trade', ownerId: elsewhere.b.id,
+    fromId: other.id, toId: other.id, units: g.zeroUnits(),
+    loot: { wood: 0, stone: 0, gold: 200 }, depart: t0, arrive: t0 + 60000,
+  });
+  check('a shipment to someone else does not block it',
+    !g.sendPoolWithdraw(elsewhere.w, elsewhere.a, elsewhere.ia, dep4.minted, t0).error);
+}
+
+{
   // Over-withdrawal is clamped to what you hold, never more.
   const { w, a, ia } = lpWorld();
   const dep = g.sendPoolDeposit(w, a, ia, 1000, t0);

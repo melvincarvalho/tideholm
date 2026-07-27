@@ -1039,7 +1039,14 @@ export function createApp(opts = {}) {
       // some form layers arrives as strings, poolAmount refuses those, and a
       // holder would be told they had no stake. Coercing on one side only is
       // how a preview and its action drift apart.
-      const result = game.sendPoolWithdraw(world, player, island, Number(body.shares), Date.now());
+      // Validate here, not downstream. Number(undefined) is NaN, poolAmount
+      // turns that into 0, and the player is told "you have no stake to
+      // withdraw" — which is wrong and unactionable when the real problem is
+      // a malformed request. Coercing without validating, which is what last
+      // round's fix did, just moved the misleading error rather than removing it.
+      const shares = Number(body.shares);
+      if (!Number.isFinite(shares) || shares <= 0) return sendErr(res, 400, lang, 'err.badRequest');
+      const result = game.sendPoolWithdraw(world, player, island, shares, Date.now());
       if (result.error) return gameErr(res, lang, result);
       return sendJson(res, 200, {
         ok: true, arrive: result.arrive, burned: result.burned,

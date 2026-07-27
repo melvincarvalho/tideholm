@@ -694,6 +694,28 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   r = await req(oa.port, 'POST', '/api/pool/withdraw',
     { body: { islandId: isl.id, shares: 100 }, cookie: ocookie });
   check('withdrawing with no stake is a 400', r.status === 400);
+  check('and says so, rather than blaming the request',
+    r.data.error && !/request/i.test(r.data.error), r.data.error);
+
+  // A malformed request must not masquerade as "you have no stake". Number()
+  // turns these into NaN, poolAmount turns NaN into 0, and the player was
+  // told something both wrong and unactionable.
+  //
+  // Own player again: the POST budget is 20 per 10s per player, and six more
+  // on the shared one tipped it into "Slow down" — which then failed the
+  // checks AFTER it too, not just these.
+  r = await req(oa.port, 'POST', '/api/register',
+    { body: { name: 'Malformed Tester', password: 'sekrit', lang: 'en' } });
+  const mcookie = (r.headers.get('set-cookie') || '').split(';')[0];
+  const mIsle = gameMod.playerIslands(openApp.world,
+    openApp.world.players.find((p) => p.name === 'Malformed Tester').id)[0];
+  for (const bad of [undefined, null, 'abc', {}, -5, 0]) {
+    r = await req(oa.port, 'POST', '/api/pool/withdraw',
+      { body: { islandId: mIsle.id, shares: bad }, cookie: mcookie });
+    check(`shares=${JSON.stringify(bad)} is a bad request, not "no stake"`,
+      r.status === 400 && /request/i.test(r.data.error || ''),
+      `${r.status} ${JSON.stringify(r.data)}`);
+  }
 
   // Strings over the wire. poolAmount deliberately refuses them, so the HTTP
   // layer has to coerce — and it has to do so on the ACTION as well as the

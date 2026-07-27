@@ -1085,11 +1085,17 @@ function sendPoolWithdraw(world, player, island, shares, now) {
   const cap = storageCapacity(island.buildings.storehouse);
   const hours = (arrive - now) / 3600000;
   const rates = islandRates(island);
+  // One pass over the movement list, not one per resource. A withdrawal
+  // touches all three legs, so scanning separately made it
+  // O(movements x resources) and repeated the same filter three times.
+  const inbound = { wood: 0, stone: 0, gold: 0 };
+  for (const m of world.movements) {
+    if (m.toId !== island.id || !m.loot || m.arrive > arrive) continue;
+    for (const r of RESOURCES) inbound[r] += m.loot[r] || 0;
+  }
   for (const r of RESOURCES) {
     if (!(plan.out[r] > 0)) continue;
-    const inbound = world.movements.reduce(
-      (n, m) => n + (m.toId === island.id && m.loot && m.arrive <= arrive ? (m.loot[r] || 0) : 0), 0);
-    const atArrival = Math.min(cap, island.resources[r] + rates[r] * hours + inbound);
+    const atArrival = Math.min(cap, island.resources[r] + rates[r] * hours + inbound[r]);
     if (plan.out[r] > cap - atArrival) {
       return { error: 'err.poolStorage', errorParams: { room: Math.max(0, Math.floor(cap - atArrival)) } };
     }
