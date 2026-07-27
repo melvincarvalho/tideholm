@@ -963,6 +963,10 @@ export function createApp(opts = {}) {
       const depositLeg = query.get('deposit');
       if (depositLeg !== null && depositLeg !== '') {
         const dIsland = myIsland(player, query.get('islandId'));
+        // Resolve first. The POST actions resolveIsland() before planning, so a
+        // preview reading the stored object sees pre-accrual resources and a
+        // pre-upgrade harbour — and refuses deposits the action would accept.
+        game.resolveIsland(dIsland, Date.now());
         const plan = game.planPoolDeposit(world, dIsland, Number(depositLeg));
         // errorParams travel with the error. err.tradeCapacity carries {cap},
         // err.buildFirst {building}, err.noResources {need}/{res} — drop them
@@ -974,6 +978,7 @@ export function createApp(opts = {}) {
       const burnShares = query.get('withdraw');
       if (burnShares !== null && burnShares !== '') {
         const wIsland = myIsland(player, query.get('islandId'));
+        game.resolveIsland(wIsland, Date.now());
         // Number() at the boundary: query params are strings, and poolAmount
         // deliberately refuses those. HTTP is where the coercion belongs.
         const plan = game.planPoolWithdraw(world, player, wIsland, Number(burnShares));

@@ -624,6 +624,40 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       : errPlan.errorParams?.cap > 0,
     JSON.stringify(errPlan));
 
+  // The preview must resolve the island exactly as the action does. Reading
+  // the stored object shows pre-accrual resources and a pre-upgrade harbour,
+  // so the preview refused deposits the POST accepted — a preview/action
+  // disagreement that sharing the planner does not prevent, because it is
+  // about the INPUT each side reads, not the maths.
+  {
+    // Its own player, so this block gets its own rate-limit bucket. Adding one
+    // more POST to the shared one tipped the block past 20-per-10s and failed
+    // a later check with "Slow down".
+    r = await req(oa.port, 'POST', '/api/register',
+      { body: { name: 'Stale Tester', password: 'sekrit', lang: 'en' } });
+    const scookie = (r.headers.get('set-cookie') || '').split(';')[0];
+    const staler = openApp.world.players.find((p) => p.name === 'Stale Tester');
+    const stale = gameMod.newIsland(openApp.world, staler.id, 'Stale Isle');
+    stale.buildings.harbor = 10;
+    stale.buildings.storehouse = 14;
+    stale.buildings.lumberyard = 15;
+    stale.buildings.quarry = 15;
+    stale.buildings.goldmine = 15;
+    gameMod.resolveIsland(stale, Date.now());
+    stale.resources = { wood: 100, stone: 100, gold: 100 };
+    stale.lastUpdate = Date.now() - 3600 * 1000;   // an hour of pending accrual
+
+    r = await req(oa.port, `GET`, `/api/pool?islandId=${stale.id}&deposit=500`, { cookie: scookie });
+    check('the preview resolves the island before planning',
+      !r.data.depositPlan?.error, JSON.stringify(r.data.depositPlan));
+
+    stale.resources = { wood: 100, stone: 100, gold: 100 };
+    stale.lastUpdate = Date.now() - 3600 * 1000;
+    r = await req(oa.port, 'POST', '/api/pool/deposit',
+      { body: { islandId: stale.id, wood: 500 }, cookie: scookie });
+    check('and the action agrees with it', r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+  }
+
   // Withdraw.
   const held = swapper.lpShares;
   r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&withdraw=${held}`, { cookie: ocookie });
