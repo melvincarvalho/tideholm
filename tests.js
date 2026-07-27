@@ -822,6 +822,121 @@ console.log('resource pool');
     g.poolShareValue(seed, 100, 1e9).wood === seed.wood);
 }
 
+// ---------------------------------------------------------------- pool state
+// world.pool exists but is CLOSED. Nothing reads it yet; these pin the one
+// property that matters most before anything does — no code path that merely
+// creates or loads a world may conjure resources into the pool.
+//
+// That is the #36 scar restated: land respawn fired from inside migrateWorld,
+// so a client-only release restarted the process and added 30 islands to a
+// live season. Seeding is a deliberate act or it is a bug.
+console.log('pool state');
+
+{
+  const w = g.createWorld();
+  check('a new world has a pool', !!w.pool);
+  check('and it starts closed', w.pool.open === false);
+  check('with nothing in it', g.RESOURCES.every((r) => w.pool.reserves[r] === 0));
+  check('and no shares issued', w.pool.totalShares === 0);
+  check('config is stored in the world, not read from env',
+    w.pool.feeBps === g.POOL_FEE_BPS && w.pool.maxOutFrac === g.POOL_MAX_OUT_FRAC
+    && w.pool.floorFrac === g.POOL_FLOOR_FRAC);
+
+  // A closed pool must refuse to trade on its own, without needing a caller
+  // to check `open` first.
+  const q = g.poolQuote(w.pool.reserves, 'wood', 'gold', 500, g.poolOpts(w.pool));
+  check('a closed pool quotes nothing', q.out === 0 && q.used === 0);
+}
+
+{
+  // Migration backfills, and that is all it does.
+  const old = { createdAt: 1, players: [], islands: [], offers: [] };
+  g.migrateWorld(old);
+  check('migration backfills a missing pool', !!old.pool && old.pool.open === false);
+  check('the backfilled pool is empty', g.RESOURCES.every((r) => old.pool.reserves[r] === 0));
+
+  // The one that matters: a live season's pool is never touched.
+  const live = g.createWorld();
+  live.pool = {
+    open: true,
+    reserves: { wood: 4000, stone: 3600, gold: 6800 },
+    seeded: { wood: 4000, stone: 3600, gold: 6800 },
+    totalShares: 3794.7, feeBps: 30, maxOutFrac: 0.30, floorFrac: 0.25,
+  };
+  const snapshot = JSON.stringify(live.pool);
+  g.migrateWorld(live);
+  check('migration does NOT reseed a pool that already exists',
+    JSON.stringify(live.pool) === snapshot, live.pool.reserves.wood + ' wood');
+
+  // ...and cannot quietly reopen or reprice one that was deliberately closed.
+  const shut = g.createWorld();
+  shut.pool.open = false;
+  shut.pool.feeBps = 100;
+  g.migrateWorld(shut);
+  check('migration does not reopen a closed pool', shut.pool.open === false);
+  check('migration does not overwrite tuned config', shut.pool.feeBps === 100);
+
+  // Idempotent: migrateWorld runs on every load, so twice must equal once.
+  const twice = g.createWorld();
+  g.migrateWorld(twice);
+  const after1 = JSON.stringify(twice.pool);
+  g.migrateWorld(twice);
+  check('migration is idempotent', JSON.stringify(twice.pool) === after1);
+
+  // A pool object from a future/partial save gets its missing keys only.
+  const partial = { createdAt: 1, players: [], islands: [], pool: { open: true, reserves: { wood: 5, stone: 5, gold: 5 } } };
+  g.migrateWorld(partial);
+  check('a partial pool keeps its own values', partial.pool.reserves.wood === 5 && partial.pool.open === true);
+  check('and gains the missing ones', partial.pool.totalShares === 0 && partial.pool.feeBps === g.POOL_FEE_BPS);
+}
+
+{
+  // Liquidity positions live on the player, alongside questIndex and stats.
+  const w = g.createWorld();
+  const p = g.createPlayer(w, 'Ada', 'pw', false).player;
+  check('a new player starts with no liquidity position', p.lpShares === 0);
+
+  const legacy = { createdAt: 1, players: [{ id: 1, name: 'Old', isBot: false }], islands: [], offers: [] };
+  g.migrateWorld(legacy);
+  check('migration backfills lpShares on existing players', legacy.players[0].lpShares === 0);
+}
+
+{
+  // poolOpts turns stored config into the shape the pure functions take. The
+  // floor is derived from what was SEEDED, so it survives the reserve being
+  // drawn down — the whole reason a percentage cap could not protect one.
+  const pool = g.newPool();
+  pool.seeded = { wood: 4000, stone: 3600, gold: 6800 };
+  pool.reserves = { wood: 4000, stone: 500, gold: 20000 }; // stone drawn below its floor
+  const opts = g.poolOpts(pool);
+  check('the floor is derived from the seeded amount', close(opts.floor.stone, 3600 * 0.25));
+  check('not from what is left', opts.floor.stone > pool.reserves.stone);
+
+  const q = g.poolQuote(pool.reserves, 'gold', 'stone', 1e6, opts);
+  check('a reserve already under its floor sells no more', q.out === 0);
+  check('and says the floor is why', q.cappedBy === 'floor');
+
+  pool.floorFrac = 0;
+  check('floorFrac 0 means no floor at all', g.poolOpts(pool).floor === undefined);
+  check('poolOpts survives a missing pool', g.poolOpts(null).feeBps === g.POOL_FEE_BPS);
+}
+
+{
+  // The world is persisted as JSON, so the pool has to survive a round trip
+  // with no live references or lost precision.
+  const w = g.createWorld();
+  w.pool.open = true;
+  w.pool.reserves = { wood: 4000, stone: 3600, gold: 6800 };
+  w.pool.seeded = { wood: 4000, stone: 3600, gold: 6800 };
+  w.pool.totalShares = Math.sqrt(4000 * 3600);
+  const revived = JSON.parse(JSON.stringify(w));
+  g.migrateWorld(revived);
+  check('the pool survives a save/load round trip',
+    JSON.stringify(revived.pool) === JSON.stringify(w.pool));
+  check('and still quotes the same price after it',
+    close(g.poolSpot(revived.pool.reserves, 'wood', 'gold'), g.poolSpot(w.pool.reserves, 'wood', 'gold')));
+}
+
 // ---------------------------------------------------------------- diplomacy & board
 
 console.log('diplomacy & board');
