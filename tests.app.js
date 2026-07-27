@@ -250,11 +250,35 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   check('and every price is a finite number, not null',
     r.data.prices?.every((p) => typeof p.price === 'number' && Number.isFinite(p.price)),
     JSON.stringify(r.data.prices?.slice(0, 2)));
-  check('no null anywhere in a closed pool payload',
-    !JSON.stringify(r.data).includes('null') || r.data.floor === null,
-    JSON.stringify(r.data));
+  // Walk the payload rather than pattern-matching the JSON text. The previous
+  // version was `!json.includes('null') || floor === null`, which goes vacuous
+  // the moment floor is null and would then wave through any other null.
+  // `cappedBy` is the one field allowed to be null, and only inside a quote.
+  const nulls = (o, path = '') => {
+    if (o === null) return [path || '(root)'];
+    if (typeof o === 'number') return Number.isFinite(o) ? [] : [`${path}=${o}`];
+    if (Array.isArray(o)) return o.flatMap((v, i) => nulls(v, `${path}[${i}]`));
+    if (o && typeof o === 'object') {
+      return Object.entries(o).flatMap(([k, v]) =>
+        (k === 'cappedBy' ? [] : nulls(v, path ? `${path}.${k}` : k)));
+    }
+    return [];
+  };
+  check('no null or non-finite number anywhere in a closed pool payload',
+    nulls(r.data).length === 0, nulls(r.data).join(', '));
   check('a new player holds no position', r.data.mine?.shares === 0 && r.data.mine?.share === 0);
   check('no quote unless one is asked for', r.data.quote === undefined);
+
+  // Number(null) is 0, which is finite — so an absent amount must be rejected
+  // on presence, not on coercibility, or the endpoint quotes for nothing.
+  for (const qs of ['?from=wood&to=gold', '?from=wood&to=gold&amount=']) {
+    r = await req(pa.port, 'GET', '/api/pool' + qs, { cookie: pcookie });
+    check(`${qs} returns no quote block`, r.data.quote === undefined,
+      JSON.stringify(r.data.quote));
+  }
+  r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=0', { cookie: pcookie });
+  check('an explicit amount=0 still quotes, since it was asked for',
+    r.data.quote !== undefined && r.data.quote.amountIn === 0);
 
   r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: pcookie });
   check('a quote is returned when asked', r.status === 200 && !!r.data.quote);
