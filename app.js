@@ -964,8 +964,11 @@ export function createApp(opts = {}) {
       if (depositLeg !== null && depositLeg !== '') {
         const dIsland = myIsland(player, query.get('islandId'));
         const plan = game.planPoolDeposit(world, dIsland, Number(depositLeg));
+        // errorParams travel with the error. err.tradeCapacity carries {cap},
+        // err.buildFirst {building}, err.noResources {need}/{res} — drop them
+        // and the client renders the placeholder literally.
         body.depositPlan = plan.error
-          ? { error: plan.error }
+          ? { error: plan.error, errorParams: plan.errorParams || null }
           : { required: finAll(plan.required), minted: fin(plan.minted), share: fin(plan.share) };
       }
       const burnShares = query.get('withdraw');
@@ -975,7 +978,7 @@ export function createApp(opts = {}) {
         // deliberately refuses those. HTTP is where the coercion belongs.
         const plan = game.planPoolWithdraw(world, player, wIsland, Number(burnShares));
         body.withdrawPlan = plan.error
-          ? { error: plan.error }
+          ? { error: plan.error, errorParams: plan.errorParams || null }
           : { burn: fin(plan.burn), out: finAll(plan.out) };
       }
       return sendJson(res, 200, body);

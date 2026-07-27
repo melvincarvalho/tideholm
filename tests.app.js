@@ -612,6 +612,18 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   check('and a fractional deposit is not a spurious slippage failure',
     r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
 
+  // A preview error must carry its placeholders. err.tradeCapacity says
+  // "your Harbor can carry {cap}" — without errorParams the player is shown
+  // the brace.
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=999999`, { cookie: ocookie });
+  const errPlan = r.data.depositPlan;
+  check('a preview error is reported', !!errPlan?.error, JSON.stringify(errPlan));
+  check('and carries its params so the message can render',
+    errPlan.error === 'err.noResources'
+      ? (errPlan.errorParams?.need > 0 && !!errPlan.errorParams?.res)
+      : errPlan.errorParams?.cap > 0,
+    JSON.stringify(errPlan));
+
   // Withdraw.
   const held = swapper.lpShares;
   r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&withdraw=${held}`, { cookie: ocookie });

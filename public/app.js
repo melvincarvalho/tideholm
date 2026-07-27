@@ -1212,7 +1212,9 @@ async function previewLiquidity() {
   try {
     const d = await api(`/api/pool?islandId=${activeIslandId}&deposit=${wood}`);
     const p = d.depositPlan;
-    if (!p || p.error) { el.textContent = p ? T(p.error) : ''; return; }
+    // Pass errorParams through, or messages like "your Harbor can carry {cap}"
+    // reach the player with the placeholder still in them.
+    if (!p || p.error) { el.textContent = p ? T(p.error, p.errorParams || {}) : ''; return; }
     el.textContent = T('ui.pool.depositPlan', {
       cost: ['wood', 'stone', 'gold']
         .map((r) => `${RES_EMOJI[r]}${fmtNum(Math.ceil(p.required[r]))}`).join(' '),
