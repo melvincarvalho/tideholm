@@ -716,6 +716,47 @@ console.log('resource pool');
   check('the first deposit defines the pool', first.reserves.gold === 50 && first.totalShares > 0);
 }
 
+{
+  // Malformed input. Nothing calls the pool yet, so these are cheap to pin
+  // now and expensive to discover later — each one is a way to print or
+  // destroy resources once a real caller is deducting `used` from a player.
+  const seed = { wood: 4000, stone: 3600, gold: 6800 };
+  const empty = { wood: 0, stone: 0, gold: 0 };
+
+  // A floor object missing the leg being sold must mean "no floor here", not
+  // NaN. Unguarded it zeroed every quote and blamed the drain cap.
+  const partial = g.poolQuote(seed, 'wood', 'gold', 500, { floor: { wood: 1000 } });
+  const full = g.poolQuote(seed, 'wood', 'gold', 500);
+  check('a floor missing this leg is ignored, not NaN', close(partial.out, full.out),
+    `got ${partial.out}`);
+  check('and it does not falsely blame the cap', partial.cappedBy === null);
+  check('a non-numeric floor entry is ignored too',
+    close(g.poolQuote(seed, 'wood', 'gold', 500, { floor: { gold: undefined } }).out, full.out));
+
+  // Negative input is a resource printer: `used` is what a caller deducts
+  // from the player, so a negative one credits them while the reserve drops.
+  for (const bad of [-1000, NaN, Infinity, undefined, null, 'abc']) {
+    const r = g.poolApplySwap(seed, 'wood', 'gold', bad);
+    check(`input ${String(bad)} is refused, not honoured`,
+      r.used === 0 && r.out === 0, `used ${r.used}, out ${r.out}`);
+    check(`input ${String(bad)} leaves every reserve untouched`,
+      r.reserves.wood === seed.wood && r.reserves.gold === seed.gold);
+  }
+
+  // A first deposit that cannot define a pool must no-op, not mint a share
+  // against nothing — that bricked the pool permanently, because reserves
+  // stayed at zero and every later deposit then scaled to zero.
+  for (const bad of [empty, { wood: 100, stone: 0, gold: 50 }, { wood: -100, stone: 50, gold: 50 }]) {
+    const a = g.poolAddLiquidity(empty, 0, bad);
+    check(`first deposit ${JSON.stringify(bad)} is refused`,
+      a.totalShares === 0 && a.minted === 0);
+  }
+  // ...and the pool is still openable afterwards.
+  const revived = g.poolAddLiquidity(empty, 0, { wood: 100, stone: 100, gold: 50 });
+  check('a refused first deposit does not brick the pool',
+    revived.totalShares > 0 && revived.reserves.gold === 50);
+}
+
 // ---------------------------------------------------------------- diplomacy & board
 
 console.log('diplomacy & board');

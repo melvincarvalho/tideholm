@@ -714,8 +714,19 @@ function poolQuote(reserves, from, to, amountIn, opts = {}) {
   const floor = opts.floor;
   const spotPrice = poolSpot(reserves, from, to);
 
+  // A negative or non-numeric input must never reach the arithmetic below.
+  // Unclamped, `next[from] = reserves[from] + used` with a negative `used`
+  // shrinks the reserve while a caller deducting `used` from the player
+  // credits them instead — a resource printer. Callers will validate too;
+  // this is the backstop that makes the pure function safe on its own.
+  const wanted = Number.isFinite(amountIn) && amountIn > 0 ? amountIn : 0;
+
   const byCap = reserves[to] * maxOutFrac;
-  const byFloor = floor ? Math.max(0, reserves[to] - floor[to]) : Infinity;
+  // A floor entry that is missing or non-numeric means "no floor on this leg",
+  // not NaN. Without this, a partial floor object silently zeroes every quote
+  // and blames the drain cap for it.
+  const hasFloor = floor && Number.isFinite(floor[to]);
+  const byFloor = hasFloor ? Math.max(0, reserves[to] - floor[to]) : Infinity;
   const maxOut = Math.min(byCap, byFloor);
 
   // Largest input whose output stays inside that ceiling, from
@@ -724,8 +735,8 @@ function poolQuote(reserves, from, to, amountIn, opts = {}) {
   const headroom = reserves[to] - maxOut;
   const maxIn = f > 0 && headroom > 0 ? (maxOut * reserves[from]) / headroom / f : 0;
 
-  const capped = amountIn > maxIn;
-  const used = capped ? maxIn : amountIn;
+  const capped = wanted > maxIn;
+  const used = capped ? maxIn : wanted;
   const dxf = used * f;
   const out = used > 0
     ? reserves[to] - (reserves[from] * reserves[to]) / (reserves[from] + dxf)
@@ -761,7 +772,19 @@ function poolApplySwap(reserves, from, to, amountIn, opts = {}) {
  */
 function poolAddLiquidity(reserves, totalShares, desired) {
   if (totalShares <= 0) {
-    const minted = Math.sqrt(desired.wood * desired.stone) || 1;
+    // Every leg has to be present, or the pairs involving a missing one
+    // cannot price at all. Refusing beats the old `|| 1` fallback, which
+    // minted a share against nothing: reserves stayed at zero, so `scale`
+    // was zero for every later deposit and the pool could never be revived.
+    if (!RESOURCES.every((r) => Number.isFinite(desired[r]) && desired[r] > 0)) {
+      return {
+        reserves: { ...reserves },
+        totalShares,
+        minted: 0,
+        required: { wood: 0, stone: 0, gold: 0 },
+      };
+    }
+    const minted = Math.sqrt(desired.wood * desired.stone);
     return {
       reserves: { ...desired },
       totalShares: minted,
