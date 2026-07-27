@@ -656,6 +656,21 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     r = await req(oa.port, 'POST', '/api/pool/deposit',
       { body: { islandId: stale.id, wood: 500 }, cookie: scookie });
     check('and the action agrees with it', r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+
+    // Same for withdrawal, where the stale field that bites is the HARBOUR:
+    // resolveIsland completes finished builds, so an unresolved island still
+    // shows the old level and mis-caps (or refuses) the shipment.
+    const stStaler = openApp.world.players.find((p) => p.name === 'Stale Tester');
+    check('the stale tester holds a stake', stStaler.lpShares > 0);
+    stale.buildings.harbor = 0;                       // no harbour => err.buildFirst
+    stale.queue = [{ building: 'harbor', level: 10, finish: Date.now() - 60_000 }];
+    stale.lastUpdate = Date.now() - 3600 * 1000;
+    r = await req(oa.port, `GET`, `/api/pool?islandId=${stale.id}&withdraw=${stStaler.lpShares}`,
+      { cookie: scookie });
+    check('the withdraw preview resolves the island too',
+      !r.data.withdrawPlan?.error, JSON.stringify(r.data.withdrawPlan));
+    check('and the finished harbour upgrade is what made it possible',
+      stale.buildings.harbor === 10, `harbour ${stale.buildings.harbor}`);
   }
 
   // Withdraw.
