@@ -1209,9 +1209,26 @@ function lpWorld(reserves = { wood: 10000, stone: 9200, gold: 16000 }) {
   }
   check('a deposit beyond the island is refused',
     g.sendPoolDeposit(w, a, ia, 999999, t0).error === 'err.noResources');
+  // A deposit ships all three legs, so the total is several times the wood leg
+  // typed. The plain "shipment too heavy — carries 563" message read as
+  // nonsense next to a request for 200, so the error names the real total and
+  // what would fit.
+  const heavy = g.sendPoolDeposit(w, a, ia, 5000, t0);
   check('a deposit beyond the harbour is refused',
-    g.sendPoolDeposit(w, a, ia, 5000, t0).error === 'err.tradeCapacity',
-    `cap ${g.tradeCapacity(ia.buildings.harbor)}`);
+    heavy.error === 'err.poolDepositCapacity', JSON.stringify(heavy));
+  const cap = g.tradeCapacity(ia.buildings.harbor);
+  check('and reports the total it would have shipped, not the wood leg',
+    heavy.errorParams?.total > 5000, `total ${heavy.errorParams?.total}`);
+  check('and the harbour limit', heavy.errorParams?.cap === cap);
+  check('and a wood leg that would actually fit',
+    heavy.errorParams?.max > 0 && heavy.errorParams.max < 5000,
+    `max ${heavy.errorParams?.max}`);
+  // On a fresh world: this one succeeds, and this block's premise is that
+  // nothing in it moves.
+  const fresh = lpWorld();
+  fresh.ia.buildings.harbor = ia.buildings.harbor;
+  const fits = g.sendPoolDeposit(fresh.w, fresh.a, fresh.ia, heavy.errorParams.max, t0);
+  check('and that suggestion really does fit', !fits.error, JSON.stringify(fits));
   check('none of that moved anything', ia.resources.wood === 20000 && a.lpShares === 0);
 
   check('withdrawing with no stake is refused',

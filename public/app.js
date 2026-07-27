@@ -1243,7 +1243,11 @@ if ($('lp-wood')) {
 
 if ($('lp-deposit')) {
   $('lp-deposit').addEventListener('click', async () => {
-    $('market-error').textContent = '';
+    // Errors go to #lp-preview, which sits directly under this form.
+    // #market-error lives beneath "Post an offer", so a failed deposit was
+    // reported in the offer section — and duplicated, because the preview
+    // line showed the same message already.
+    $('lp-preview').textContent = '';
     $('pool-sent').textContent = '';
     try {
       const d = await api('/api/pool/deposit', {
@@ -1258,18 +1262,18 @@ if ($('lp-deposit')) {
       loadMarket();
       refresh();
     } catch (err) {
-      $('market-error').textContent = err.message;
+      $('lp-preview').textContent = err.message;
     }
   });
 }
 
 if ($('lp-withdraw')) {
   $('lp-withdraw').addEventListener('click', async () => {
-    $('market-error').textContent = '';
+    $('lp-preview').textContent = '';
     $('pool-sent').textContent = '';
     try {
       const d = await api('/api/pool');
-      if (!(d.mine.shares > 0)) { $('market-error').textContent = T('err.poolNoShares'); return; }
+      if (!(d.mine.shares > 0)) { $('lp-preview').textContent = T('err.poolNoShares'); return; }
       const r = await api('/api/pool/withdraw',
         { islandId: activeIslandId, shares: d.mine.shares });
       // #pool-sent, not #lp-preview. The preview line is rewritten by the
@@ -1282,7 +1286,7 @@ if ($('lp-withdraw')) {
       loadMarket();
       refresh();
     } catch (err) {
-      $('market-error').textContent = err.message;
+      $('lp-preview').textContent = err.message;
     }
   });
 }
