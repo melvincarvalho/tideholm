@@ -1195,6 +1195,101 @@ async function loadPool() {
         .map((r) => `${RES_EMOJI[r]}${fmtNum(Math.floor(data.mine.value[r]))}`).join(' '),
     })
     : T('ui.pool.noStake');
+
+  fillPoolSelects();
+  quotePool();
+}
+
+// Slippage tolerance. A quote is fetched, then the player acts; the pool can
+// move in between. minOut is what stops them being committed to whatever price
+// it has drifted to by the time the request lands.
+const POOL_SLIPPAGE = 0.01;
+let lastQuote = null;
+
+function fillPoolSelects() {
+  for (const [sel, dflt] of [[$('pool-from'), 'wood'], [$('pool-to'), 'gold']]) {
+    if (sel.options.length) continue;
+    for (const r of ['wood', 'stone', 'gold']) {
+      const o = document.createElement('option');
+      o.value = r;
+      o.textContent = `${RES_EMOJI[r]} ${T('res.' + r)}`;
+      sel.appendChild(o);
+    }
+    sel.value = dflt;
+  }
+}
+
+// The quote comes from the server, never from arithmetic here, so what the
+// player is shown is what they will actually be charged.
+async function quotePool() {
+  const from = $('pool-from').value, to = $('pool-to').value;
+  const amount = Number($('pool-amount').value);
+  const out = $('pool-quote');
+  lastQuote = null;
+  if (from === to) { out.textContent = T('ui.pool.samePair'); return; }
+  if (!(amount > 0)) { out.textContent = ''; return; }
+  try {
+    const d = await api(`/api/pool?from=${from}&to=${to}&amount=${amount}`);
+    const q = d.quote;
+    if (!q || !(q.out > 0)) { out.textContent = T('ui.pool.noQuote'); return; }
+    lastQuote = q;
+    out.textContent = T('ui.pool.quote', {
+      pay: `${RES_EMOJI[from]}${fmtNum(Math.floor(q.used))}`,
+      get: `${RES_EMOJI[to]}${fmtNum(Math.floor(q.out))}`,
+      impact: (q.impact * 100).toFixed(1),
+    }) + (q.capped ? ' ' + T('ui.pool.capped') : '');
+  } catch (err) {
+    out.textContent = err.message;
+  }
+}
+
+// Clearing the confirmation belongs here, on user intent — not inside
+// quotePool(), which also runs on every refresh and so wiped the message
+// before it could be read. Guessing from document.activeElement was worse: a
+// programmatic click does not focus the button.
+for (const id of ['pool-from', 'pool-to', 'pool-amount']) {
+  const el = $(id);
+  if (!el) continue;
+  el.addEventListener(id === 'pool-amount' ? 'input' : 'change', () => {
+    const sent = $('pool-sent');
+    if (sent) sent.textContent = '';
+    quotePool();
+  });
+}
+
+const poolSwapBtn = $('pool-swap');
+if (poolSwapBtn) {
+  poolSwapBtn.addEventListener('click', async () => {
+    // Clear BOTH lines first. Clearing the confirmation only on edit meant a
+    // second click — one that failed, or bailed for want of a quote — left
+    // the previous "Sent" on screen, reading as if the latest attempt had
+    // worked. It must only ever describe the most recent attempt.
+    $('market-error').textContent = '';
+    $('pool-sent').textContent = '';
+    if (!lastQuote) {
+      $('pool-quote').textContent = T('ui.pool.noQuote');
+      return;
+    }
+    try {
+      const r = await api('/api/pool/swap', {
+        islandId: activeIslandId,
+        from: $('pool-from').value,
+        to: $('pool-to').value,
+        amount: Number($('pool-amount').value),
+        // Floor what we will accept at the quote we showed, less tolerance.
+        minOut: lastQuote.out * (1 - POOL_SLIPPAGE),
+      });
+      // Its own line. Writing this into #pool-quote meant loadMarket() below
+      // re-quoted and wiped the confirmation before it could be read.
+      $('pool-sent').textContent = T('ui.pool.sent', {
+        get: `${RES_EMOJI[$('pool-to').value]}${fmtNum(Math.floor(r.out))}`,
+      });
+      loadMarket();
+      refresh();
+    } catch (err) {
+      $('market-error').textContent = err.message;
+    }
+  });
 }
 
 async function loadMarket() {

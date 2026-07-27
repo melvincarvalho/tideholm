@@ -414,6 +414,161 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     r.status === 200 && r.data.resumed === true && openApp.world.pool.reserves.wood === 4000,
     JSON.stringify(r.data));
 
+  // ---------------------------------------------------------------- POST /api/pool/swap
+  // The first endpoint through which a player can move resources. The pool is
+  // already open on this app from the block above.
+  console.log('\npool swap (POST)');
+  const swapper = openApp.world.players.find((p) => p.name === 'Pool Player');
+  const isl = openApp.world.islands.find((i) => i.ownerId === swapper.id);
+  isl.buildings.harbor = 5;
+  isl.buildings.storehouse = 12;
+  isl.buildings.lumberyard = 0; isl.buildings.quarry = 0; isl.buildings.goldmine = 0;
+  openApp.world.pool.open = true;
+  const gameMod = game;
+  gameMod.resolveIsland(isl, Date.now());
+  isl.resources = { wood: 5000, stone: 5000, gold: 5000 };
+
+  r = await req(oa.port, 'POST', '/api/pool/swap',
+    { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 500 } });
+  check('swapping without a session is refused', r.status === 401);
+
+  // This world is still in pregame from the season-reset block above, which
+  // makes it the natural place to assert the freeze applies to swaps too — a
+  // swap is world-mutating, so it belongs in PREGAME_BLOCKED like every other
+  // action. Found by the fixture rather than by design, but worth keeping.
+  r = await req(oa.port, 'POST', '/api/pool/swap',
+    { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 500 }, cookie: ocookie });
+  check('the pregame freeze blocks swaps', r.status === 409, `got ${r.status}`);
+  check('and nothing moved during the freeze',
+    isl.resources.wood === 5000 && openApp.world.pool.reserves.wood === 4000);
+
+  openApp.world.startAt = Date.now() - 1000; // launch the season
+  r = await req(oa.port, 'GET', '/api/meta');
+  check('the season is live now', r.data.phase === 'live', JSON.stringify(r.data));
+
+  for (const [label, body, want] of [
+    ['same resource', { from: 'wood', to: 'wood', amount: 500 }, 400],
+    ['unknown resource', { from: 'wood', to: 'iron', amount: 500 }, 400],
+    ['zero amount', { from: 'wood', to: 'gold', amount: 0 }, 400],
+    ['negative amount', { from: 'wood', to: 'gold', amount: -500 }, 400],
+    ['unaffordable', { from: 'wood', to: 'gold', amount: 99999 }, 400],
+    ['unusable minOut', { from: 'wood', to: 'gold', amount: 500, minOut: 'abc' }, 400],
+    ['unreachable minOut', { from: 'wood', to: 'gold', amount: 500, minOut: 1e9 }, 400],
+  ]) {
+    r = await req(oa.port, 'POST', '/api/pool/swap',
+      { body: { islandId: isl.id, ...body }, cookie: ocookie });
+    check(`${label} is a ${want}`, r.status === want, `got ${r.status} ${JSON.stringify(r.data)}`);
+  }
+  check('none of those moved anything',
+    isl.resources.wood === 5000 && openApp.world.pool.reserves.wood === 4000);
+
+  // A good swap, checked for conservation across the API boundary.
+  const poolWoodBefore = openApp.world.pool.reserves.wood;
+  const poolGoldBefore = openApp.world.pool.reserves.gold;
+  const movementsBefore = openApp.world.movements.length;
+  // Captured BEFORE the request: travel time has a 5s floor, so comparing
+  // `arrive` against Date.now() *after* the round trip races the handler and
+  // flaps on a slow machine.
+  const sentAt = Date.now();
+  r = await req(oa.port, 'POST', '/api/pool/swap',
+    { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 500 }, cookie: ocookie });
+  check('a good swap succeeds', r.status === 200 && r.data.ok === true, JSON.stringify(r.data));
+  check('and reports what it did',
+    r.data.out > 500 && r.data.used === 500 && r.data.arrive >= sentAt + 5000,
+    JSON.stringify(r.data));
+  const swapOut = r.data.out;
+  check('the island paid exactly `used`', Math.abs(isl.resources.wood - (5000 - r.data.used)) < 1e-9);
+  check('the pool gained exactly `used`',
+    Math.abs(openApp.world.pool.reserves.wood - (poolWoodBefore + r.data.used)) < 1e-9);
+  check('the pool gave up exactly `out`',
+    Math.abs(openApp.world.pool.reserves.gold - (poolGoldBefore - r.data.out)) < 1e-9);
+  check('nothing is credited before the ship lands', isl.resources.gold === 5000);
+  check('exactly one new shipment was created',
+    openApp.world.movements.length === movementsBefore + 1,
+    `${movementsBefore} -> ${openApp.world.movements.length}`);
+  // Match on everything that identifies THIS swap. Any `trade` movement to
+  // this island satisfied the old check, and the suite reuses one world across
+  // blocks, so a leftover from an earlier block would have passed it.
+  const mine = openApp.world.movements.find((m) => m.type === 'trade'
+    && m.ownerId === swapper.id && m.fromId === isl.id && m.toId === isl.id
+    && m.arrive === r.data.arrive);
+  check('and it is this swap: right owner, island, arrival and cargo',
+    !!mine && Math.abs(mine.loot.gold - r.data.out) < 1e-9
+    && mine.loot.wood === 0 && mine.loot.stone === 0,
+    JSON.stringify(mine && mine.loot));
+
+  // A quote taken now must reflect the swap that just happened. Compared
+  // against the actual fill, not a loose bound — `out < 1000` passed even when
+  // no swap had happened at all.
+  r = await req(oa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: ocookie });
+  const nextOut = r.data.quote?.out;
+  check('the next quote is strictly worse than the fill just received',
+    nextOut > 0 && nextOut < swapOut, `now ${nextOut} vs just filled ${swapOut}`);
+
+  // Fractional amounts. The swap floors, so the quote must floor identically
+  // or minOut derived from the quote is unreachable and the swap fails with
+  // "the price moved" when nothing moved — 1.9 quoted as 1.9 but swapped as 1.
+  r = await req(oa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500.7', { cookie: ocookie });
+  const fracQuote = r.data.quote;
+  check('a fractional quote is floored', fracQuote?.amountIn === 500,
+    `amountIn ${fracQuote?.amountIn}`);
+  r = await req(oa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: ocookie });
+  check('and matches the whole-number quote exactly',
+    Math.abs(fracQuote.out - r.data.quote.out) < 1e-12,
+    `${fracQuote.out} vs ${r.data.quote.out}`);
+
+  // The end-to-end case that was broken: quote a fractional amount, derive
+  // minOut from it, swap. Small amounts are where flooring bites hardest.
+  for (const amt of [500.7, 1.9]) {
+    r = await req(oa.port, 'GET', `/api/pool?from=wood&to=gold&amount=${amt}`, { cookie: ocookie });
+    const q = r.data.quote;
+    if (!(q?.out > 0)) { check(`quote for ${amt} is usable`, false, JSON.stringify(q)); continue; }
+    r = await req(oa.port, 'POST', '/api/pool/swap', {
+      body: { islandId: isl.id, from: 'wood', to: 'gold', amount: amt, minOut: q.out * 0.99 },
+      cookie: ocookie,
+    });
+    check(`quote-then-swap at ${amt} is not a spurious slippage failure`,
+      r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+    check(`and delivers at least the quoted minus tolerance at ${amt}`,
+      r.data.out >= q.out * 0.99, `got ${r.data.out} vs quoted ${q.out}`);
+  }
+
+  // Which island did it actually swap from? myIsland() falls back to your
+  // FIRST island when the id is not one of yours — the convention every
+  // handler uses — so a bad id can never touch someone else's island, but it
+  // must not silently use the wrong one of yours either.
+  const second = gameMod.newIsland(openApp.world, swapper.id, 'Second Isle');
+  second.buildings.harbor = 5;
+  second.buildings.storehouse = 12;
+  second.buildings.lumberyard = 0; second.buildings.quarry = 0; second.buildings.goldmine = 0;
+  gameMod.resolveIsland(second, Date.now());
+  second.resources = { wood: 3000, stone: 3000, gold: 3000 };
+  const firstWood = isl.resources.wood;
+
+  r = await req(oa.port, 'POST', '/api/pool/swap',
+    { body: { islandId: second.id, from: 'wood', to: 'gold', amount: 200 }, cookie: ocookie });
+  check('a swap debits the island it was told to', r.status === 200
+    && Math.abs(second.resources.wood - (3000 - r.data.used)) < 1e-9,
+    `second isle wood ${second.resources.wood}`);
+  check('and leaves the other island alone', Math.abs(isl.resources.wood - firstWood) < 1e-9);
+
+  // Another player's island id must not reach their resources.
+  const other = openApp.world.players.find((p) => p.id !== swapper.id && !p.isBot)
+    || openApp.world.players.find((p) => p.isBot);
+  const otherIsle = openApp.world.islands.find((i) => i.ownerId === other.id);
+  const otherWoodBefore = otherIsle.resources.wood;
+  r = await req(oa.port, 'POST', '/api/pool/swap',
+    { body: { islandId: otherIsle.id, from: 'wood', to: 'gold', amount: 100 }, cookie: ocookie });
+  check("another player's island is never debited",
+    Math.abs(otherIsle.resources.wood - otherWoodBefore) < 1e-6,
+    `${otherWoodBefore} -> ${otherIsle.resources.wood}`);
+
+  // Closing stops new swaps.
+  await req(oa.port, 'POST', '/api/admin/pool/close', { body: { token: 'sekrit-admin' } });
+  r = await req(oa.port, 'POST', '/api/pool/swap',
+    { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 100 }, cookie: ocookie });
+  check('a closed pool refuses swaps over HTTP', r.status === 400, `got ${r.status}`);
+
   oa.srv.close();
   openApp.stop();
 

@@ -37,6 +37,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const PREGAME_BLOCKED = new Set([
   '/api/build', '/api/train', '/api/attack', '/api/support', '/api/withdraw',
   '/api/scout', '/api/trade', '/api/colonize', '/api/market/create',
+  '/api/pool/swap',
 ]);
 const BACKUP_KEEP = 24;
 
@@ -941,7 +942,11 @@ export function createApp(opts = {}) {
       const from = query.get('from');
       const to = query.get('to');
       const rawAmount = query.get('amount');
-      const amount = Number(rawAmount);
+      // Floor it, because sendPoolSwap does. Quoting the raw value made the
+      // two endpoints disagree: a request for 1.9 was quoted as 1.9 but swapped
+      // as 1, so minOut derived from the quote was unreachable and the swap
+      // failed with "the price moved" when nothing had moved at all.
+      const amount = Math.floor(Number(rawAmount));
       if (from && to && rawAmount !== null && rawAmount !== '' && Number.isFinite(amount)) {
         const q = game.poolQuote(pool.reserves, from, to, amount, opts);
         body.quote = {
@@ -952,6 +957,30 @@ export function createApp(opts = {}) {
         };
       }
       return sendJson(res, 200, body);
+    }
+
+    // Swap against the pool (#46 step 7). The rules live in game.js and were
+    // merged inert in step 5; this is the first thing that calls them, so it
+    // is the first way a player can move resources through the pool.
+    if (req.method === 'POST' && pathname === '/api/pool/swap') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      // minOut is passed straight through: game.js rejects a present-but-
+      // unusable value rather than silently trading without protection.
+      const result = game.sendPoolSwap(
+        world, player, island, body.from, body.to, body.amount, Date.now(),
+        body.minOut === undefined ? null : body.minOut,
+      );
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, {
+        ok: true,
+        arrive: result.arrive,
+        used: result.used,
+        out: result.out,
+        impact: result.impact,
+        capped: result.capped,
+      });
     }
 
     if (req.method === 'POST' && pathname === '/api/market/create') {
