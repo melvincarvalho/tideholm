@@ -18,6 +18,7 @@ process.on('exit', () => {
 });
 
 const { createApp } = await import('./app.js'); // dynamic: after DATA_DIR above
+const game = await import('./game.js');
 
 let failures = 0;
 function check(name, cond, detail) {
@@ -353,6 +354,68 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
 
   pa.srv.close();
   poolApp.stop();
+
+  // ---------------------------------------------------------------- admin: open the pool
+  // Seeding mints resources, so it is admin-only and must stay that way.
+  console.log('\npool opening (admin)');
+  const openApp = createApp({ botCount: 1, freeIsles: 1, log: silent, adminToken: 'sekrit-admin' });
+  // Every app in this file shares one DATA_DIR, and stop() saves — so this
+  // world arrives carrying the pool the previous block opened by hand. Reset
+  // it, or the seeding path is tested against an already-open pool.
+  Object.assign(openApp.world.pool, game.newPool());
+  for (const p of openApp.world.players) p.lpShares = 0;
+  const oa = await serve(openApp);
+
+  r = await req(oa.port, 'POST', '/api/admin/pool/open', { body: { wood: 4000, stone: 3600, gold: 6800 } });
+  check('opening without the admin token is refused', r.status === 403);
+  check('and did not open the pool', openApp.world.pool.open === false);
+
+  r = await req(oa.port, 'POST', '/api/register', { body: { name: 'Pool Player', password: 'sekrit', lang: 'en' } });
+  const ocookie = (r.headers.get('set-cookie') || '').split(';')[0];
+  r = await req(oa.port, 'POST', '/api/admin/pool/open', { body: { wood: 4000, stone: 3600, gold: 6800 }, cookie: ocookie });
+  check('a logged-in player cannot open it either', r.status === 403);
+
+  for (const bad of [{}, { wood: 4000, stone: 3600 }, { wood: 0, stone: 1, gold: 1 }]) {
+    r = await req(oa.port, 'POST', '/api/admin/pool/open',
+      { body: { ...bad, token: 'sekrit-admin' } });
+    check(`seed ${JSON.stringify(bad)} is a 400`, r.status === 400, `got ${r.status}`);
+  }
+  check('no bad seed opened it', openApp.world.pool.open === false);
+
+  r = await req(oa.port, 'POST', '/api/admin/pool/open',
+    { body: { wood: 4000, stone: 3600, gold: 6800, token: 'sekrit-admin' } });
+  check('a valid seed opens the pool', r.status === 200 && r.data.ok === true, JSON.stringify(r.data));
+  check('the response reports the reserves', r.data.reserves?.gold === 6800);
+  check('and the shares minted', Math.abs(r.data.totalShares - Math.sqrt(4000 * 3600)) < 1e-6);
+
+  r = await req(oa.port, 'POST', '/api/admin/pool/open',
+    { body: { wood: 1, stone: 1, gold: 1, token: 'sekrit-admin' } });
+  check('opening an open pool is a 400', r.status === 400);
+  check('and did not reprice it', openApp.world.pool.reserves.wood === 4000);
+
+  // The read-only endpoint now has something real to say.
+  r = await req(oa.port, 'GET', '/api/pool', { cookie: ocookie });
+  check('GET /api/pool reports it open', r.data.open === true);
+  check('with the tuned price — gold below wood',
+    Math.abs(r.data.prices?.find((p) => p.from === 'wood' && p.to === 'gold')?.price - 4000 / 6800) < 1e-9);
+  check('and a floor derived from the seed', r.data.floor?.stone === 900);
+
+  r = await req(oa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: ocookie });
+  check('an open pool gives a real quote', r.data.quote?.out > 500,
+    `500 wood -> ${r.data.quote?.out} gold`);
+
+  // Close, then reopen: an off switch, not a demolition.
+  r = await req(oa.port, 'POST', '/api/admin/pool/close', { body: { token: 'sekrit-admin' } });
+  check('closing works', r.status === 200 && openApp.world.pool.open === false);
+  r = await req(oa.port, 'POST', '/api/admin/pool/close', { body: { token: 'sekrit-admin' } });
+  check('closing a shut pool is a 400', r.status === 400);
+  r = await req(oa.port, 'POST', '/api/admin/pool/open', { body: { wood: 9, stone: 9, gold: 9, token: 'sekrit-admin' } });
+  check('reopening resumes rather than reseeding',
+    r.status === 200 && r.data.resumed === true && openApp.world.pool.reserves.wood === 4000,
+    JSON.stringify(r.data));
+
+  oa.srv.close();
+  openApp.stop();
 
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);

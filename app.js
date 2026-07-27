@@ -571,6 +571,27 @@ export function createApp(opts = {}) {
         return sendJson(res, 200, { ok: true });
       }
 
+      // Open the Tidepool (#46). Admin-only because seeding mints resources
+      // into the world, which is exactly what no automatic code path may do.
+      if (req.method === 'POST' && pathname === '/api/admin/pool/open') {
+        const now = Date.now();
+        const r = game.openPool(world, body || {}, now);
+        if (r.error) return sendErr(res, 400, 'en', r.error);
+        game.saveWorld(world); // a mint should not wait for the 30s autosave
+        log.log(`ADMIN: pool opened ${JSON.stringify(r.reserves)}, shares ${r.totalShares.toFixed(2)}`);
+        return sendJson(res, 200, { ok: true, ...r });
+      }
+
+      // The off switch. Reserves, shares and positions all survive, so
+      // reopening resumes where it left off.
+      if (req.method === 'POST' && pathname === '/api/admin/pool/close') {
+        const r = game.closePool(world);
+        if (r.error) return sendErr(res, 400, 'en', r.error);
+        game.saveWorld(world);
+        log.log('ADMIN: pool closed');
+        return sendJson(res, 200, { ok: true });
+      }
+
       if (req.method === 'POST' && pathname === '/api/admin/reset') {
         // Archive the old world, then start a fresh season. An optional
         // startInHours opens a signup countdown (#8) instead of launching now.
