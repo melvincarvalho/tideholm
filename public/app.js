@@ -1146,10 +1146,20 @@ async function loadPool() {
   let data;
   try {
     data = await api('/api/pool');
-  } catch {
-    // An older server has no pool endpoint. Say nothing rather than error:
-    // the client is deployed by git pull and can be newer than the process.
-    box.classList.add('hidden');
+  } catch (err) {
+    // 404 only: an older server has no pool endpoint. The client is deployed
+    // by git pull and the server by restart, so a newer client routinely runs
+    // against an older process — that case should go quiet.
+    if (err.status === 404) {
+      box.classList.add('hidden');
+      return;
+    }
+    // Anything else is a real failure. Hiding it would mask exactly the
+    // regressions worth knowing about.
+    box.classList.remove('hidden');
+    $('pool-shut').classList.add('hidden');
+    $('pool-live').classList.add('hidden');
+    $('market-error').textContent = err.message;
     return;
   }
   box.classList.remove('hidden');

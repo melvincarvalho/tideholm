@@ -209,7 +209,7 @@
       'ui.market.want': 'For',
       'ui.market.post': 'Post offer',
       'ui.pool.title': 'The Tidepool',
-      'ui.pool.shut': 'The Tidepool is closed. No harbourmaster has stocked it yet.',
+      'ui.pool.shut': 'The Tidepool is closed. No harbormaster has stocked it yet.',
       'ui.pool.rate': '{one} = {many}',
       'ui.pool.floored': 'at its floor',
       'ui.pool.mine': 'Your stake: {pct}% of the pool, worth {value}.',
