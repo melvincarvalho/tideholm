@@ -913,11 +913,15 @@ export function createApp(opts = {}) {
         },
       };
 
-      // ?from=wood&to=gold&amount=500 — a quote, not an order.
+      // ?from=wood&to=gold&amount=500 — a quote, not an order. The parameter
+      // has to be present, not merely coercible: Number(null) is 0, which is
+      // finite, so an absent amount would otherwise return a quote for
+      // nothing and imply the caller asked for one.
       const from = query.get('from');
       const to = query.get('to');
-      const amount = Number(query.get('amount'));
-      if (from && to && Number.isFinite(amount)) {
+      const rawAmount = query.get('amount');
+      const amount = Number(rawAmount);
+      if (from && to && rawAmount !== null && rawAmount !== '' && Number.isFinite(amount)) {
         const q = game.poolQuote(pool.reserves, from, to, amount, opts);
         body.quote = {
           from, to, amountIn: fin(amount),
