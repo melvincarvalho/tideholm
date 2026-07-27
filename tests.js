@@ -4,6 +4,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+// Resolve against this file, not the working directory, so the suite runs from
+// anywhere. game.js already does this; tests.js did not, and reading the map
+// fixture broke immediately under `node path/to/tests.js` from elsewhere.
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
 process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
@@ -2146,7 +2153,7 @@ console.log('map themes');
   check('migration backfills theme and seed',
     w.theme === 'generated' && Number.isInteger(w.mapSeed) && w.mapSeed >= 1);
 
-  const region = JSON.parse(fs.readFileSync('./public/maps/aegean.json', 'utf8'));
+  const region = JSON.parse(fs.readFileSync(path.join(HERE, 'public/maps/aegean.json'), 'utf8'));
   const landCells = region.rows.reduce(
     (s, row) => s + [...row].filter((c) => c === '1').length, 0);
   check('aegean land mask is well-formed',
@@ -2401,6 +2408,118 @@ console.log('combat characterisation');
   check('char: a won attack clears every support contingent', ib.support.length === 0);
   check('char: the support owner is told they lost troops',
     w.reports.some((x) => x.ownerId === c.id));
+}
+
+// --- Colony Ship cost growth (#27) ------------------------------------------
+// COLONY_COST_GROWTH is read at module load, so these assert the pure cost
+// function across a range rather than trying to re-import with a new env.
+{
+  const w = g.createWorld();
+  const r = g.createPlayer(w, 'Settler', 'pw123456');
+  const p = r.player || r;
+  const isl = g.playerIsland(w, p.id);
+  const flat = g.UNITS.colonyship.cost;
+
+  // Default is 1 = flat, so nothing changes for anyone until it is set.
+  const one = g.trainCost(w, isl, 'colonyship', 1);
+  check('colony cost flat by default', one.wood === flat.wood && one.gold === flat.gold);
+  const five = g.trainCost(w, isl, 'colonyship', 5);
+  check('colony batch of 5 is 5x flat by default', five.wood === flat.wood * 5);
+
+  // Other units must never escalate.
+  const rd = g.trainCost(w, isl, 'raider', 3);
+  check('raider cost unaffected', rd.wood === g.UNITS.raider.cost.wood * 3);
+
+  // The escalation itself has to run in a CHILD process: COLONY_COST_GROWTH is
+  // read once at module load, so it cannot be varied in-process.
+  //
+  // This replaces a block that reimplemented the formula in the test and
+  // asserted it against itself. That version could not fail: making escalated
+  // colony ships cost ZERO passed the entire suite.
+  //
+  // Expected values are worked by hand from cost x growth^(owned-1), summed
+  // per ship across a batch, so they assert the intended formula rather than
+  // whatever the code currently returns.
+  const probe = `
+    const g = await import(${JSON.stringify(new URL('./game.js', import.meta.url).href)});
+    // A fresh world per island-count: trimming one world in place got stuck at
+    // the smallest count and every later reading came back flat.
+    const costsAt = (owned) => {
+      const w = g.createWorld();
+      const p = g.createPlayer(w, 'S', 'pw123456').player;
+      for (let i = 1; i < owned; i++) g.newIsland(w, p.id, 'X' + i);
+      const isl = g.playerIsland(w, p.id);
+      if (g.playerIslands(w, p.id).length !== owned) throw new Error('owned ' + g.playerIslands(w, p.id).length);
+      // Order three singly, letting each land in the garrison, and compare
+      // with one order of three. If they differ, splitting dodges the curve.
+      let singly = 0;
+      const w2 = g.createWorld();
+      const p2 = g.createPlayer(w2, 'T', 'pw123456').player;
+      for (let i = 1; i < owned; i++) g.newIsland(w2, p2.id, 'Y' + i);
+      const isl2 = g.playerIsland(w2, p2.id);
+      for (let k = 0; k < 3; k++) {
+        singly += g.trainCost(w2, isl2, 'colonyship', 1).wood;
+        isl2.units.colonyship = (isl2.units.colonyship || 0) + 1;
+      }
+      return { owned, one: g.trainCost(w, isl, 'colonyship', 1), three: g.trainCost(w, isl, 'colonyship', 3),
+               singly, raider: g.trainCost(w, isl, 'raider', 3),
+               posBare: g.colonyPosition(w, p.id),
+               posWithShip: (() => { isl.units.colonyship = 1; const n = g.colonyPosition(w, p.id); isl.units.colonyship = 0; return n; })(),
+               // A ship still in the training queue is already paid for, so it
+               // must count too — otherwise queue three and order a fourth cheap.
+               posWithQueued: (() => {
+                 isl.trainQueue.push({ unit: 'colonyship', count: 2, finish: Date.now() + 1e6 });
+                 const n = g.colonyPosition(w, p.id); isl.trainQueue.pop(); return n;
+               })(),
+               // And one already sailing to settle: out of the garrison, not
+               // yet an island, so neither end would count it.
+               posWithFlight: (() => {
+                 w.movements.push({ id: 1, type: 'colonize', ownerId: p.id, fromId: isl.id, toId: isl.id,
+                   units: { ...g.zeroUnits(), colonyship: 1 }, depart: 0, arrive: Date.now() + 1e6 });
+                 const n = g.colonyPosition(w, p.id); w.movements.pop(); return n;
+               })() };
+    };
+    console.log(JSON.stringify({ o1: costsAt(1), o5: costsAt(5), o10: costsAt(10) }));
+  `;
+  const run = (growth) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, COLONY_COST_GROWTH: String(growth) },
+    encoding: 'utf8',
+  }).trim().split('\n').pop());
+
+  const on = run(1.3);
+  check('growth 1.3: the first island is still flat', on.o1.one.wood === 1200,
+    JSON.stringify(on.o1.one));
+  check('growth 1.3: the 10th costs 1200 x 1.3^9 = 12725', on.o10.one.wood === 12725,
+    JSON.stringify(on.o10.one));
+  check('growth 1.3: at 5 owned, one ship costs 1200 x 1.3^4 = 3427',
+    on.o5.one.wood === 3427, JSON.stringify(on.o5.one));
+  check('growth 1.3: and every resource scales together',
+    on.o5.one.gold === 1714 && on.o5.one.stone === 2570, JSON.stringify(on.o5.one));
+  check('growth 1.3: a batch of 3 steps per ship, 1.3^4+1.3^5+1.3^6 -> 13675',
+    on.o5.three.wood === 13675, JSON.stringify(on.o5.three));
+  check('growth 1.3: a batch is dearer than 3x the single price',
+    on.o5.three.wood > on.o5.one.wood * 3);
+  // The dodge: `owned` does not move until a ship LANDS, so three orders of
+  // one used to cost 3 x growth^(n-1) — 10,281 against 13,675 at five
+  // islands, a 25% discount for clicking three times. Ships already paid for
+  // now count toward the position, which makes the two identical.
+  check('growth 1.3: ordering singly costs the same as one batch',
+    on.o5.singly === on.o5.three.wood, `singly ${on.o5.singly} vs batch ${on.o5.three.wood}`);
+  check('a colony ship in hand counts toward the position',
+    on.o5.posWithShip === on.o5.posBare + 1,
+    `${on.o5.posBare} -> ${on.o5.posWithShip}`);
+  check('and one still in the training queue',
+    on.o5.posWithQueued === on.o5.posBare + 2,
+    `${on.o5.posBare} -> ${on.o5.posWithQueued} (queued 2)`);
+  check('and one already sailing to settle',
+    on.o5.posWithFlight === on.o5.posBare + 1,
+    `${on.o5.posBare} -> ${on.o5.posWithFlight}`);
+  check('growth 1.3: other units are untouched',
+    on.o5.raider?.wood === g.UNITS.raider.cost.wood * 3, JSON.stringify(on.o5.raider));
+
+  const off = run(1);
+  check('growth 1: nothing escalates at any island count',
+    off.o5.one.wood === 1200 && off.o5.three.wood === 3600, JSON.stringify(off.o5));
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
