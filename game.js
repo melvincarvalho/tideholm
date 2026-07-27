@@ -466,12 +466,34 @@ function trainTime(key, buildingLevel) {
   return Math.max(2, Math.round(t));
 }
 
+/**
+ * How far along the expansion curve a player already is: islands held, plus
+ * every colony ship they have paid for and not yet spent. A ship in hand is a
+ * committed island, so it should price the next one.
+ */
+function colonyPosition(world, ownerId) {
+  let n = 0;
+  for (const i of world.islands) {
+    if (i.ownerId !== ownerId) continue;
+    n += 1;
+    n += (i.units && i.units.colonyship) || 0;
+    for (const q of i.trainQueue || []) if (q.unit === 'colonyship') n += q.count || 0;
+  }
+  // In flight to settle: no longer in a garrison, not yet an island.
+  for (const m of world.movements || []) {
+    if (m.ownerId === ownerId && m.units && m.units.colonyship) n += m.units.colonyship;
+  }
+  return n;
+}
+
 // What a batch of `count` units costs. Flat for every unit except the Colony
 // Ship, whose price climbs with the breadth of the empire buying it (#27):
 // expansion stays open but stops being free, and past a handful of islands
 // taking a developed island becomes the cheaper way to grow. The step is
-// PER SHIP inside a batch, so training 5 at once costs the same as training
-// them one at a time — otherwise a single big order would dodge the curve.
+// PER SHIP, and counted against ships already paid for as well as islands
+// held, so training 5 at once costs the same as training them one at a time.
+// Counting islands alone made a batch DEARER than the same ships ordered
+// singly, which is the opposite of what this comment used to claim.
 // Counted on islands OWNED, so conquest raises the price too: the brake is on
 // breadth, not on method.
 function trainCost(world, island, key, count) {
@@ -482,7 +504,17 @@ function trainCost(world, island, key, count) {
     for (const r of RESOURCES) cost[r] = unit.cost[r] * count;
     return cost;
   }
-  const owned = playerIslands(world, island.ownerId).length;
+  // Islands owned PLUS colony ships already paid for: in hand, in a training
+  // queue, or aboard a colonize movement. Counting islands alone let a player
+  // dodge the curve entirely by placing single orders — `owned` does not move
+  // until a ship actually lands, so three orders of one cost 3 x growth^(n-1)
+  // while one order of three costs growth^(n-1)+growth^n+growth^(n+1). At 1.3
+  // with five islands that was 10,281 against 13,675, a 25% discount for
+  // clicking three times, and the comment above claimed the opposite.
+  //
+  // Counting ships makes the two identical, and stays consistent when one is
+  // spent: islands +1, ships -1, position unchanged.
+  const owned = colonyPosition(world, island.ownerId);
   let mult = 0;
   for (let i = 0; i < count; i++) {
     mult += Math.pow(COLONY_COST_GROWTH, Math.max(0, owned - 1 + i));
@@ -2355,7 +2387,7 @@ export {
   maxBuildingLevel, setMaxBuildingLevel,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
-  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, tryTrain,
+  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, colonyPosition, tryTrain,
   popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,

@@ -2444,8 +2444,34 @@ console.log('combat characterisation');
       for (let i = 1; i < owned; i++) g.newIsland(w, p.id, 'X' + i);
       const isl = g.playerIsland(w, p.id);
       if (g.playerIslands(w, p.id).length !== owned) throw new Error('owned ' + g.playerIslands(w, p.id).length);
+      // Order three singly, letting each land in the garrison, and compare
+      // with one order of three. If they differ, splitting dodges the curve.
+      let singly = 0;
+      const w2 = g.createWorld();
+      const p2 = g.createPlayer(w2, 'T', 'pw123456').player;
+      for (let i = 1; i < owned; i++) g.newIsland(w2, p2.id, 'Y' + i);
+      const isl2 = g.playerIsland(w2, p2.id);
+      for (let k = 0; k < 3; k++) {
+        singly += g.trainCost(w2, isl2, 'colonyship', 1).wood;
+        isl2.units.colonyship = (isl2.units.colonyship || 0) + 1;
+      }
       return { owned, one: g.trainCost(w, isl, 'colonyship', 1), three: g.trainCost(w, isl, 'colonyship', 3),
-               raider: g.trainCost(w, isl, 'raider', 3) };
+               singly, raider: g.trainCost(w, isl, 'raider', 3),
+               posBare: g.colonyPosition(w, p.id),
+               posWithShip: (() => { isl.units.colonyship = 1; const n = g.colonyPosition(w, p.id); isl.units.colonyship = 0; return n; })(),
+               // A ship still in the training queue is already paid for, so it
+               // must count too — otherwise queue three and order a fourth cheap.
+               posWithQueued: (() => {
+                 isl.trainQueue.push({ unit: 'colonyship', count: 2, finish: Date.now() + 1e6 });
+                 const n = g.colonyPosition(w, p.id); isl.trainQueue.pop(); return n;
+               })(),
+               // And one already sailing to settle: out of the garrison, not
+               // yet an island, so neither end would count it.
+               posWithFlight: (() => {
+                 w.movements.push({ id: 1, type: 'colonize', ownerId: p.id, fromId: isl.id, toId: isl.id,
+                   units: { ...g.zeroUnits(), colonyship: 1 }, depart: 0, arrive: Date.now() + 1e6 });
+                 const n = g.colonyPosition(w, p.id); w.movements.pop(); return n;
+               })() };
     };
     console.log(JSON.stringify({ o1: costsAt(1), o5: costsAt(5), o10: costsAt(10) }));
   `;
@@ -2467,6 +2493,21 @@ console.log('combat characterisation');
     on.o5.three.wood === 13675, JSON.stringify(on.o5.three));
   check('growth 1.3: a batch is dearer than 3x the single price',
     on.o5.three.wood > on.o5.one.wood * 3);
+  // The dodge: `owned` does not move until a ship LANDS, so three orders of
+  // one used to cost 3 x growth^(n-1) — 10,281 against 13,675 at five
+  // islands, a 25% discount for clicking three times. Ships already paid for
+  // now count toward the position, which makes the two identical.
+  check('growth 1.3: ordering singly costs the same as one batch',
+    on.o5.singly === on.o5.three.wood, `singly ${on.o5.singly} vs batch ${on.o5.three.wood}`);
+  check('a colony ship in hand counts toward the position',
+    on.o5.posWithShip === on.o5.posBare + 1,
+    `${on.o5.posBare} -> ${on.o5.posWithShip}`);
+  check('and one still in the training queue',
+    on.o5.posWithQueued === on.o5.posBare + 2,
+    `${on.o5.posBare} -> ${on.o5.posWithQueued} (queued 2)`);
+  check('and one already sailing to settle',
+    on.o5.posWithFlight === on.o5.posBare + 1,
+    `${on.o5.posBare} -> ${on.o5.posWithFlight}`);
   check('growth 1.3: other units are untouched',
     on.o5.raider?.wood === g.UNITS.raider.cost.wood * 3, JSON.stringify(on.o5.raider));
 
