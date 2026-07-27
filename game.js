@@ -26,7 +26,25 @@ const MAP_SIZE = 40;
 // 1.55^level, so it looks self-limiting per building. That is misleading at
 // scale — 33 human islands producing 35,940 wood/h fund a level-15 upgrade in
 // under two hours of aggregate output, so nothing restrains it in practice.
-const MAX_BUILDING_LEVEL_DEFAULT = Number(process.env.MAX_BUILDING_LEVEL || 14);
+const MAX_BUILDING_LEVEL_FALLBACK = 14;
+
+/**
+ * Parse a cap from anywhere — env, a world field, an admin call — and refuse
+ * anything unusable rather than propagating it.
+ *
+ * Unvalidated, both failure modes are severe and both come from a typo:
+ * `MAX_BUILDING_LEVEL=abc` gives NaN, and `target > NaN` is always false, so
+ * the cap silently does nothing. `0` or a negative blocks every upgrade in the
+ * game, including a level-1 wall.
+ */
+function parseMaxLevel(raw, fallback = MAX_BUILDING_LEVEL_FALLBACK) {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1 || n > 100) return fallback;
+  return n;
+}
+
+const MAX_BUILDING_LEVEL_DEFAULT = parseMaxLevel(process.env.MAX_BUILDING_LEVEL);
 const QUEUE_MAX = 3;
 
 const RESOURCES = ['wood', 'stone', 'gold'];
@@ -333,8 +351,7 @@ function canAfford(island, cost) {
 // Queue an upgrade. Returns { ok } or { error }.
 /** The cap in force for this world. Old saves without the field get the default. */
 function maxBuildingLevel(world) {
-  const n = world && Number(world.maxBuildingLevel);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : MAX_BUILDING_LEVEL_DEFAULT;
+  return parseMaxLevel(world && world.maxBuildingLevel, MAX_BUILDING_LEVEL_DEFAULT);
 }
 
 /**
@@ -344,8 +361,10 @@ function maxBuildingLevel(world) {
  * tryBuild only blocks the NEXT upgrade.
  */
 function setMaxBuildingLevel(world, level) {
-  const n = Math.floor(Number(level));
-  if (!Number.isFinite(n) || n < 1 || n > 100) return { error: 'err.badRequest' };
+  // Sentinel, not a fallback: an explicit request for a bad value is an error,
+  // where a bad env or a corrupt save just falls back to the default.
+  const n = parseMaxLevel(level, null);
+  if (n === null) return { error: 'err.badRequest' };
   world.maxBuildingLevel = n;
   return { ok: true, maxBuildingLevel: n };
 }
@@ -2298,7 +2317,8 @@ export {
   SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, PROTECT_GRACE_MS, isProtected, RESOURCES, BUILDINGS, UNITS,
   LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,
-  MAX_BUILDING_LEVEL_DEFAULT, maxBuildingLevel, setMaxBuildingLevel,
+  MAX_BUILDING_LEVEL_DEFAULT, MAX_BUILDING_LEVEL_FALLBACK, parseMaxLevel,
+  maxBuildingLevel, setMaxBuildingLevel,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,

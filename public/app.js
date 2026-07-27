@@ -311,8 +311,8 @@ function renderState() {
     tr.innerHTML = `
       <td><b>${b.name}</b><br><small>${b.desc}</small></td>
       <td>${b.level}</td>
-      <td class="cost">🪵 ${b.cost.wood} 🪨 ${b.cost.stone} 🪙 ${b.cost.gold}</td>
-      <td>${fmtTime(b.time)}</td>
+      <td class="cost">${b.atMax ? '—' : `🪵 ${b.cost.wood} 🪨 ${b.cost.stone} 🪙 ${b.cost.gold}`}</td>
+      <td>${b.atMax ? '—' : fmtTime(b.time)}</td>
       <td>${b.atMax
         ? `<span class="hint">${T('ui.maxLevel', { max: b.maxLevel })}</span>`
         : `<button data-build="${key}" ${b.affordable && !queueFull ? '' : 'disabled'}>→ ${b.nextLevel}</button>`

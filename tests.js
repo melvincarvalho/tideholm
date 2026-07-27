@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
+process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
 process.env.HALL_FILE = path.join(os.tmpdir(), `tideholm-hall-test-${process.pid}.json`);
 const g = await import('./game.js'); // dynamic: after the env above is set
 process.on('exit', () => {
@@ -543,12 +544,27 @@ console.log('max building level');
 
 {
   const w = g.createWorld();
-  check('a new world carries the cap', w.maxBuildingLevel === g.MAX_BUILDING_LEVEL_DEFAULT);
-  check('the default is 14', g.MAX_BUILDING_LEVEL_DEFAULT === 14);
+  const D = g.MAX_BUILDING_LEVEL_DEFAULT;
+  check('a new world carries the cap', w.maxBuildingLevel === D);
+  check('the shipped fallback is 14', g.MAX_BUILDING_LEVEL_FALLBACK === 14);
+  check('and the env pinned above gives that', D === 14);
+
+  // Every source goes through one parser, because both failure modes are
+  // severe and both come from a typo: NaN makes `target > cap` always false
+  // and silently disables the cap, while 0 or a negative blocks every upgrade
+  // in the game including a level-1 wall.
+  for (const [raw, want] of [
+    ['abc', 14], ['0', 14], ['-5', 14], ['', 14], [undefined, 14], [null, 14],
+    [NaN, 14], [Infinity, 14], ['200', 14], [{}, 14],
+    ['20', 20], [20, 20], ['12.9', 12], [1, 1], [100, 100],
+  ]) {
+    check(`parseMaxLevel(${JSON.stringify(raw)}) = ${want}`, g.parseMaxLevel(raw) === want,
+      `got ${g.parseMaxLevel(raw)}`);
+  }
 
   const old = { createdAt: 1, players: [], islands: [], offers: [] };
   g.migrateWorld(old);
-  check('an old save is backfilled with the default', old.maxBuildingLevel === 14);
+  check('an old save is backfilled with the default', old.maxBuildingLevel === D);
 
   // Applied as a one-off: once a world has a value, later loads leave it be.
   const tuned = g.createWorld();
@@ -556,8 +572,9 @@ console.log('max building level');
   g.migrateWorld(tuned);
   check('migration never overwrites a value already set', tuned.maxBuildingLevel === 20);
 
-  check('a missing field falls back rather than throwing', g.maxBuildingLevel({}) === 14);
-  check('and so does a nonsense one', g.maxBuildingLevel({ maxBuildingLevel: 'abc' }) === 14);
+  check('a missing field falls back rather than throwing', g.maxBuildingLevel({}) === D);
+  check('and so does a nonsense one', g.maxBuildingLevel({ maxBuildingLevel: 'abc' }) === D);
+  check('and a corrupt zero does not brick the world', g.maxBuildingLevel({ maxBuildingLevel: 0 }) === D);
 }
 
 {
