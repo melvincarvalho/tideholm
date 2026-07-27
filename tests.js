@@ -755,6 +755,60 @@ console.log('resource pool');
   const revived = g.poolAddLiquidity(empty, 0, { wood: 100, stone: 100, gold: 50 });
   check('a refused first deposit does not brick the pool',
     revived.totalShares > 0 && revived.reserves.gold === 50);
+
+  const total = (r) => r.wood + r.stone + r.gold;
+
+  // Swapping a resource for itself wrote the same reserve key twice, so the
+  // `used` leg was discarded and the trader's payment vanished.
+  const same = g.poolApplySwap(seed, 'wood', 'wood', 500);
+  check('a resource cannot be swapped for itself',
+    same.used === 0 && same.out === 0);
+  check('a same-resource swap destroys nothing',
+    close(total(same.reserves), total(seed)), `${total(seed)} -> ${total(same.reserves)}`);
+
+  // An unknown key used to write NaN into the reserves, poisoning the pool
+  // for every quote after it.
+  const alien = g.poolApplySwap(seed, 'wood', 'iron', 500);
+  check('an unknown resource is refused', alien.used === 0 && alien.out === 0);
+  check('and does not add a NaN reserve',
+    g.RESOURCES.every((r) => Number.isFinite(alien.reserves[r])) && alien.reserves.iron === undefined);
+  check('spot price of an unknown pair is 0, not NaN', g.poolSpot(seed, 'wood', 'iron') === 0);
+
+  // Options are season config, so they get clamped rather than trusted.
+  const honest = g.poolQuote(seed, 'wood', 'gold', 500).out;
+  // A negative fee clamps to zero, which is the range edge — not a fallback
+  // to the default. What must hold is that it never becomes a *bonus*:
+  // unclamped, feeBps -10000 paid out 1360 against an honest 753.
+  const zeroFee = g.poolQuote(seed, 'wood', 'gold', 500, { feeBps: 0 }).out;
+  check('a negative fee is never better than no fee at all',
+    g.poolQuote(seed, 'wood', 'gold', 500, { feeBps: -10000 }).out <= zeroFee + 1e-9);
+  check('and no fee is still worse than the pre-clamp bonus was',
+    zeroFee < 1000 && zeroFee > honest, `zero-fee out ${zeroFee}`);
+  const negCap = g.poolApplySwap(seed, 'wood', 'gold', 500, { maxOutFrac: -0.5 });
+  check('a negative drain cap cannot make `used` negative', negCap.used >= 0,
+    `used ${negCap.used}`);
+  check('and cannot shrink the reserve being paid into',
+    negCap.reserves.wood >= seed.wood);
+  check('a non-numeric fee falls back to the default',
+    close(g.poolQuote(seed, 'wood', 'gold', 500, { feeBps: 'free' }).out, honest));
+
+  // Burning shares: negative ran the whole thing backwards, growing reserves
+  // from nothing; NaN turned every reserve into NaN.
+  for (const bad of [-100, NaN, 'abc', undefined]) {
+    const rm = g.poolRemoveLiquidity(seed, 100, bad);
+    check(`burn ${String(bad)} pays out nothing`,
+      rm.out.wood === 0 && rm.out.stone === 0 && rm.out.gold === 0);
+    check(`burn ${String(bad)} leaves the reserves exactly as they were`,
+      close(total(rm.reserves), total(seed)) && Number.isFinite(rm.reserves.wood),
+      `wood ${rm.reserves.wood}`);
+  }
+
+  // Share valuation, same family.
+  check('a negative share count is worth nothing, not less than nothing',
+    g.poolShareValue(seed, 100, -25).wood === 0);
+  check('a NaN share count is worth nothing', g.poolShareValue(seed, 100, NaN).wood === 0);
+  check('no share count can be worth more than the whole pool',
+    g.poolShareValue(seed, 100, 1e9).wood === seed.wood);
 }
 
 // ---------------------------------------------------------------- diplomacy & board

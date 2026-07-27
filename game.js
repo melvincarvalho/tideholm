@@ -688,9 +688,30 @@ function acceptOffer(world, player, island, offerId, now) {
 const POOL_FEE_BPS = 30;        // 0.30% of the input, kept by the pool
 const POOL_MAX_OUT_FRAC = 0.30; // no single swap may take more than this share
 
+// Every one of these will eventually be reachable from an HTTP body, so each
+// validates its own arguments rather than trusting the caller. Endpoints will
+// validate too — `sendTrade` already does — but these are the functions that
+// must never print or destroy resources, so they have to be safe alone.
+
+/** Finite and positive, or zero. The only amounts the pool will act on. */
+function poolAmount(n) {
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function poolClamp(n, lo, hi, fallback) {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(hi, Math.max(lo, n));
+}
+
+const poolNoQuote = () => ({
+  out: 0, impact: 0, effPrice: Infinity, spotPrice: 0,
+  capped: false, cappedBy: null, maxIn: 0, used: 0,
+});
+
 /** Spot price: how much `from` one unit of `to` costs, ignoring slippage. */
 function poolSpot(reserves, from, to) {
   if (from === to) return 1;
+  if (!RESOURCES.includes(from) || !RESOURCES.includes(to)) return 0;
   return reserves[from] / reserves[to];
 }
 
@@ -709,17 +730,26 @@ function poolSpot(reserves, from, to) {
  *   that says the pool is too thin for the trade you asked for.
  */
 function poolQuote(reserves, from, to, amountIn, opts = {}) {
-  const feeBps = opts.feeBps ?? POOL_FEE_BPS;
-  const maxOutFrac = opts.maxOutFrac ?? POOL_MAX_OUT_FRAC;
+  // Refuse anything that is not a real, distinct pair before touching the
+  // arithmetic. `from === to` would have applySwap write the same reserve key
+  // twice, discarding `used` and destroying what the trader paid; an unknown
+  // key would write NaN into the pool and poison every quote after it.
+  if (!RESOURCES.includes(from) || !RESOURCES.includes(to) || from === to) {
+    return poolNoQuote();
+  }
+  // Options are season config, not constants, so clamp rather than trust: a
+  // negative fee would pay traders to trade, and a negative cap makes `used`
+  // negative, which is a resource printer once a caller deducts it.
+  const feeBps = poolClamp(opts.feeBps, 0, 10000, POOL_FEE_BPS);
+  const maxOutFrac = poolClamp(opts.maxOutFrac, 0, 1, POOL_MAX_OUT_FRAC);
   const floor = opts.floor;
   const spotPrice = poolSpot(reserves, from, to);
 
   // A negative or non-numeric input must never reach the arithmetic below.
   // Unclamped, `next[from] = reserves[from] + used` with a negative `used`
   // shrinks the reserve while a caller deducting `used` from the player
-  // credits them instead — a resource printer. Callers will validate too;
-  // this is the backstop that makes the pure function safe on its own.
-  const wanted = Number.isFinite(amountIn) && amountIn > 0 ? amountIn : 0;
+  // credits them instead — a resource printer.
+  const wanted = poolAmount(amountIn);
 
   const byCap = reserves[to] * maxOutFrac;
   // A floor entry that is missing or non-numeric means "no floor on this leg",
@@ -758,6 +788,10 @@ function poolQuote(reserves, from, to, amountIn, opts = {}) {
 /** Apply a swap, returning new reserves. Does not mutate its argument. */
 function poolApplySwap(reserves, from, to, amountIn, opts = {}) {
   const q = poolQuote(reserves, from, to, amountIn, opts);
+  // A refused quote must not write anything at all. Assigning even a zero
+  // would add the key: `next['iron'] = undefined - 0` is NaN, which poisons
+  // the pool for every quote after it.
+  if (q.used <= 0 && q.out <= 0) return { reserves: { ...reserves }, ...q };
   const next = { ...reserves };
   next[from] = reserves[from] + q.used;
   next[to] = reserves[to] - q.out;
@@ -811,8 +845,10 @@ function poolAddLiquidity(reserves, totalShares, desired) {
 /** Burn shares for a proportional slice of every reserve. */
 function poolRemoveLiquidity(reserves, totalShares, burn) {
   // Burning more than exists takes everything rather than driving the share
-  // count negative.
-  const burned = totalShares > 0 ? Math.min(burn, totalShares) : 0;
+  // count negative. A negative burn would run the whole thing backwards —
+  // `frac` goes negative, so reserves *grow* and the payout is negative —
+  // and a NaN one turns every reserve into NaN, so both are refused.
+  const burned = totalShares > 0 ? Math.min(poolAmount(burn), totalShares) : 0;
   const frac = totalShares > 0 ? burned / totalShares : 0;
   const out = {};
   const next = {};
@@ -825,7 +861,10 @@ function poolRemoveLiquidity(reserves, totalShares, burn) {
 
 /** What a share balance is currently worth, resource by resource. */
 function poolShareValue(reserves, totalShares, shares) {
-  const frac = totalShares > 0 ? shares / totalShares : 0;
+  // Same family as the guard in poolRemoveLiquidity: a negative or NaN share
+  // count would value a position at less than nothing, and claiming more
+  // shares than exist cannot be worth more than the whole pool.
+  const frac = totalShares > 0 ? Math.min(1, poolAmount(shares) / totalShares) : 0;
   const out = {};
   for (const r of RESOURCES) out[r] = reserves[r] * frac;
   return out;
