@@ -209,4 +209,6 @@ devDependency; the game itself stays zero-dependency).
   rate limiting, lockfile, backups
 - `public/` — vanilla JS single-page client (+ `help.html`)
 - `tests.js` — engine math and invariant tests
+- `AMM.md` — the Tidepool: how the constant-product pool works, how its
+  parameters were derived, and what to lift if you want one elsewhere
 - `deploy/` — systemd unit, Caddyfile, Dockerfile, fly.toml, deploy guide
