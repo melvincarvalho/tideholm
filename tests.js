@@ -863,10 +863,20 @@ console.log('pool state');
     seeded: { wood: 4000, stone: 3600, gold: 6800 },
     totalShares: 3794.7, feeBps: 30, maxOutFrac: 0.30, floorFrac: 0.25,
   };
-  const snapshot = JSON.stringify(live.pool);
+  // Asserting byte-identity would forbid the one thing migration IS for:
+  // adding a field that a later version introduced. The precise property is
+  // that it only ever ADDS keys and never rewrites one that is already there.
+  // Deep clone, not a spread. A shallow snapshot shares the nested objects,
+  // so an in-place `pool.reserves.wood = ...` would compare equal to itself
+  // and the assertion would pass — vacuous for exactly the case that matters.
+  const snapshot = JSON.parse(JSON.stringify(live.pool));
   g.migrateWorld(live);
+  const rewritten = Object.keys(snapshot)
+    .filter((k) => JSON.stringify(live.pool[k]) !== JSON.stringify(snapshot[k]));
+  check('migration rewrites no existing pool field', rewritten.length === 0, rewritten.join(', '));
   check('migration does NOT reseed a pool that already exists',
-    JSON.stringify(live.pool) === snapshot, live.pool.reserves.wood + ' wood');
+    live.pool.reserves.wood === 4000 && live.pool.open === true,
+    live.pool.reserves.wood + ' wood');
 
   // ...and cannot quietly reopen or reprice one that was deliberately closed.
   const shut = g.createWorld();
@@ -935,6 +945,122 @@ console.log('pool state');
     JSON.stringify(revived.pool) === JSON.stringify(w.pool));
   check('and still quotes the same price after it',
     close(g.poolSpot(revived.pool.reserves, 'wood', 'gold'), g.poolSpot(w.pool.reserves, 'wood', 'gold')));
+}
+
+// ---------------------------------------------------------------- opening the pool
+// Seeding mints resources into the world, so it is an admin act and nothing
+// automatic may do it (#36). It is also what makes the floor mean anything,
+// since the floor is measured against what was seeded.
+console.log('pool opening');
+
+{
+  const w = g.createWorld();
+  check('a fresh world opens closed', w.pool.open === false);
+
+  for (const bad of [null, {}, { wood: 100, stone: 100 }, { wood: 0, stone: 1, gold: 1 },
+    { wood: -5, stone: 1, gold: 1 }, { wood: 'a', stone: 1, gold: 1 }]) {
+    const r = g.openPool(w, bad, t0);
+    check(`seed ${JSON.stringify(bad)} is refused`, r.error === 'err.badRequest', JSON.stringify(r));
+  }
+  check('a refused seed leaves the pool shut and empty',
+    w.pool.open === false && w.pool.reserves.wood === 0 && w.pool.totalShares === 0);
+
+  const r = g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+  check('a valid seed opens the pool', !r.error && w.pool.open === true);
+  check('reserves are the seed', w.pool.reserves.wood === 4000 && w.pool.reserves.gold === 6800);
+  check('`seeded` records it, so the floor has something to measure against',
+    JSON.stringify(w.pool.seeded) === JSON.stringify(w.pool.reserves));
+  check('the floor now resolves to a quarter of the seed',
+    close(g.poolOpts(w.pool).floor.stone, 900));
+  check('shares are minted against the initial reserves',
+    close(w.pool.totalShares, Math.sqrt(4000 * 3600)));
+  check('and the opening is timestamped', w.pool.openedAt === t0);
+
+  // The seed stake belongs to nobody: no player holds it, so it cannot be
+  // withdrawn. That is what makes it a floor under the whole thing.
+  const held = w.players.reduce((n, p) => n + (p.lpShares || 0), 0);
+  check('no player owns the seed stake', held === 0 && w.pool.totalShares > 0);
+
+  check('opening twice is refused',
+    g.openPool(w, { wood: 1, stone: 1, gold: 1 }, t0).error === 'err.poolAlreadyOpen');
+  check('and the second attempt did not reprice the pool', w.pool.reserves.wood === 4000);
+
+  // Fractional seeds are floored, as everywhere a quantity is named.
+  const w2 = g.createWorld();
+  g.openPool(w2, { wood: 100.9, stone: 100.9, gold: 50.9 }, t0);
+  check('a fractional seed is floored',
+    w2.pool.reserves.wood === 100 && w2.pool.reserves.gold === 50);
+}
+
+{
+  // Closing is an off switch, not a demolition.
+  const w = g.createWorld();
+  check('closing a shut pool is refused', g.closePool(w).error === 'err.poolClosed');
+  g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+  const before = JSON.stringify(w.pool.reserves);
+  check('closing an open pool works', !g.closePool(w).error && w.pool.open === false);
+  check('closing destroys nothing', JSON.stringify(w.pool.reserves) === before);
+  check('and shares survive', close(w.pool.totalShares, Math.sqrt(4000 * 3600)));
+}
+
+{
+  // Reopening must RESUME, never reseed. This was a real bug, and the first
+  // version of this test hid it behind an `||` that short-circuited on the
+  // wrong clause: reseeding reset totalShares while players still held their
+  // lpShares, so a holder of half the pool came out claiming 189,737% of it
+  // and could drain the lot.
+  const w = g.createWorld();
+  const lp = g.createPlayer(w, 'Provider', 'pw', false).player;
+  g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+  lp.lpShares = w.pool.totalShares * 0.5;
+  g.closePool(w);
+
+  const r = g.openPool(w, { wood: 1, stone: 1, gold: 1 }, t0 + H);
+  check('reopening reports that it resumed', r.resumed === true, JSON.stringify(r));
+  check('reopening does not reseed the reserves',
+    w.pool.reserves.wood === 4000 && w.pool.reserves.gold === 6800,
+    JSON.stringify(w.pool.reserves));
+  check('reopening does not reset the share count',
+    close(w.pool.totalShares, Math.sqrt(4000 * 3600)));
+  check('an existing position still means what it meant',
+    close(lp.lpShares / w.pool.totalShares, 0.5),
+    `${(lp.lpShares / w.pool.totalShares * 100).toFixed(0)}%`);
+  check('and is still worth half the pool',
+    close(g.poolShareValue(w.pool.reserves, w.pool.totalShares, lp.lpShares).gold, 3400));
+  check('the pool is open again', w.pool.open === true);
+  check('and the original seeding timestamp is kept', w.pool.openedAt === t0);
+}
+
+{
+  // End to end: open the pool, then actually trade against it. Until now
+  // every swap test hand-assembled a pool object.
+  const { w, a, ia } = freshWorld();
+  ia.buildings.harbor = 5;
+  ia.buildings.storehouse = 12;
+  ia.buildings.lumberyard = 0; ia.buildings.quarry = 0; ia.buildings.goldmine = 0;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 5000, stone: 5000, gold: 5000 };
+
+  check('a swap before opening is refused',
+    g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0).error === 'err.poolClosed');
+
+  g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('a swap after opening goes through', !r.error, JSON.stringify(r));
+  check('at the tuned rate — gold costs less than wood', r.out > 500,
+    `500 wood bought ${r.out && r.out.toFixed(1)} gold`);
+
+  g.resolveWorld(w, r.arrive + 1);
+  check('the proceeds land', close(ia.resources.gold, 5000 + r.out, 1e-9));
+
+  // Closing mid-flight must not strand a shipment already paid for.
+  const r2 = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, r.arrive + 2);
+  g.closePool(w);
+  const goldBefore = ia.resources.gold;
+  g.resolveWorld(w, r2.arrive + 1);
+  check('closing the pool does not strand a shipment in flight',
+    close(ia.resources.gold, goldBefore + r2.out, 1e-9),
+    `${ia.resources.gold} vs ${goldBefore + r2.out}`);
 }
 
 // ---------------------------------------------------------------- pool swaps

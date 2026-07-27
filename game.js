@@ -888,6 +888,7 @@ function newPool() {
     // left, which is the only reason it can hold at all.
     seeded: { wood: 0, stone: 0, gold: 0 },
     totalShares: 0,
+    openedAt: null,
     feeBps: POOL_FEE_BPS,
     maxOutFrac: POOL_MAX_OUT_FRAC,
     floorFrac: POOL_FLOOR_FRAC,
@@ -904,6 +905,61 @@ function poolOpts(pool) {
       ? Object.fromEntries(RESOURCES.map((r) => [r, poolAmount(pool.seeded[r]) * frac]))
       : undefined,
   };
+}
+
+// ---- opening and closing the pool
+//
+// Seeding is an admin act, deliberately: it mints resources into the world,
+// and nothing that merely creates or loads a world may do that (#36). It is
+// also what makes the floor meaningful, since the floor is measured against
+// what was seeded.
+//
+// The seed stake belongs to nobody. Shares are minted against the initial
+// reserves but held by no player, so `totalShares` minus the sum of every
+// player's lpShares is permanent liquidity that cannot be withdrawn. That is
+// the point of an admin seed: players deposit on top of a base that will not
+// vanish when one of them cashes out.
+
+function openPool(world, reserves, now) {
+  const pool = world.pool;
+  if (pool.open) return { error: 'err.poolAlreadyOpen' };
+
+  // Already seeded and merely closed? Resume — never mint a second seed.
+  // Reseeding would reset totalShares while players still held their
+  // lpShares, so a holder of half the pool would suddenly claim many times
+  // all of it: at 4000/3600/6800 with half the shares, reopening at 1/1/1
+  // left one player claiming 189,737% of the pool. A season reset is how a
+  // pool gets seeded afresh; reopening is only an off switch going back on.
+  if (pool.totalShares > 0) {
+    pool.open = true;
+    return { ok: true, resumed: true, reserves: { ...pool.reserves }, totalShares: pool.totalShares };
+  }
+
+  const seed = {};
+  for (const r of RESOURCES) {
+    seed[r] = Math.floor(poolAmount(reserves && reserves[r]));
+    // Every leg has to be present or the pairs involving a missing one cannot
+    // price at all — the same rule poolAddLiquidity applies to a first deposit.
+    if (seed[r] < 1) return { error: 'err.badRequest' };
+  }
+  pool.reserves = { ...seed };
+  pool.seeded = { ...seed };
+  pool.totalShares = Math.sqrt(seed.wood * seed.stone);
+  pool.open = true;
+  pool.openedAt = now;
+  return { ok: true, reserves: { ...pool.reserves }, totalShares: pool.totalShares };
+}
+
+/**
+ * Stop trading without destroying anything. An off switch for a live economic
+ * feature is worth having before the feature is live: reserves, shares and
+ * positions all survive, so reopening resumes where it left off.
+ */
+function closePool(world) {
+  const pool = world.pool;
+  if (!pool.open) return { error: 'err.poolClosed' };
+  pool.open = false;
+  return { ok: true };
 }
 
 // ---- swapping against the pool
@@ -2051,7 +2107,7 @@ export {
   poolSpot, poolQuote, poolApplySwap,
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
   newPool, poolOpts, poolAmount,
-  POOL_TRAVEL_MIN, sendPoolSwap,
+  POOL_TRAVEL_MIN, sendPoolSwap, openPool, closePool,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };
