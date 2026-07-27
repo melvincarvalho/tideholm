@@ -297,6 +297,7 @@ export function createApp(opts = {}) {
   // ---------------------------------------------------------------- api
 
   function buildingCatalog(island, lang) {
+    const cap = game.maxBuildingLevel(world);
     const out = {};
     for (const key of Object.keys(game.BUILDINGS)) {
       const target = game.pendingLevel(island, key) + 1;
@@ -309,6 +310,8 @@ export function createApp(opts = {}) {
         cost,
         time: game.upgradeTime(key, target, island.buildings.hall),
         affordable: game.canAfford(island, cost),
+        maxLevel: cap,
+        atMax: target > cap,
       };
     }
     return out;

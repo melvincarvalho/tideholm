@@ -532,6 +532,81 @@ console.log('market');
   check('offer removed from the market', !w.offers.some((o) => o.id === mine[0].id));
 }
 
+// ---------------------------------------------------------------- max building level
+// A ceiling on every building, stored per world so different seasons can
+// differ and a restart cannot move it under a season in progress.
+//
+// 14 rather than 15 because of the two curves that do not self-limit: a
+// storehouse holds 400 * 1.5^level, which at 14 is under half the wood in the
+// live world and at 15 is over two thirds.
+console.log('max building level');
+
+{
+  const w = g.createWorld();
+  check('a new world carries the cap', w.maxBuildingLevel === g.MAX_BUILDING_LEVEL_DEFAULT);
+  check('the default is 14', g.MAX_BUILDING_LEVEL_DEFAULT === 14);
+
+  const old = { createdAt: 1, players: [], islands: [], offers: [] };
+  g.migrateWorld(old);
+  check('an old save is backfilled with the default', old.maxBuildingLevel === 14);
+
+  // Applied as a one-off: once a world has a value, later loads leave it be.
+  const tuned = g.createWorld();
+  tuned.maxBuildingLevel = 20;
+  g.migrateWorld(tuned);
+  check('migration never overwrites a value already set', tuned.maxBuildingLevel === 20);
+
+  check('a missing field falls back rather than throwing', g.maxBuildingLevel({}) === 14);
+  check('and so does a nonsense one', g.maxBuildingLevel({ maxBuildingLevel: 'abc' }) === 14);
+}
+
+{
+  // The guard itself.
+  const { w, ia } = freshWorld();
+  w.maxBuildingLevel = 5;
+  ia.buildings.storehouse = 12;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 1e9, stone: 1e9, gold: 1e9 };
+
+  ia.buildings.quarry = 4;
+  check('below the cap still builds', !g.tryBuild(w, ia, 'quarry', t0).error);
+  ia.queue = [];
+  ia.buildings.quarry = 5;
+  // Snapshot here, not at the top: the successful build above already spent.
+  const woodBefore = ia.resources.wood;
+  const r = g.tryBuild(w, ia, 'quarry', t0);
+  check('at the cap it refuses', r.error === 'err.maxLevel', JSON.stringify(r));
+  check('and names the cap', r.errorParams?.max === 5);
+  check('and takes no resources', ia.resources.wood === woodBefore);
+  check('and queues nothing', ia.queue.length === 0);
+
+  // Lowering the cap must not delete what exists.
+  check('a building already ABOVE the cap is left alone', ia.buildings.storehouse === 12);
+  check('it just cannot go higher',
+    g.tryBuild(w, ia, 'storehouse', t0).error === 'err.maxLevel');
+
+  // Queued upgrades count, or you could stack past the ceiling.
+  ia.buildings.quarry = 3;
+  ia.queue = [];
+  check('queueing to the cap is allowed', !g.tryBuild(w, ia, 'quarry', t0).error);
+  check('and again to the cap', !g.tryBuild(w, ia, 'quarry', t0).error);
+  const past = g.tryBuild(w, ia, 'quarry', t0);
+  check('but not past it, counting what is queued', past.error === 'err.maxLevel',
+    `queue ${JSON.stringify(ia.queue.map((q) => q.level))}`);
+}
+
+{
+  // The knob.
+  const w = g.createWorld();
+  check('setting the cap works', g.setMaxBuildingLevel(w, 18).ok && w.maxBuildingLevel === 18);
+  for (const bad of [0, -1, NaN, 'abc', null, undefined, 101]) {
+    check(`cap ${String(bad)} is refused`,
+      g.setMaxBuildingLevel(w, bad).error === 'err.badRequest');
+  }
+  check('a refused change leaves the old value', w.maxBuildingLevel === 18);
+  check('a fractional cap is floored', g.setMaxBuildingLevel(w, 12.9).ok && w.maxBuildingLevel === 12);
+}
+
 // ---------------------------------------------------------------- resource pool
 // Nothing in the game calls the pool yet (#46). These pin the arithmetic
 // before anything can move a player's resources with it.

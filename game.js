@@ -13,6 +13,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SPEED = Number(process.env.GAME_SPEED || 5); // multiplies production and divides build times
 const MAP_SIZE = 40;
+// Ceiling on every building level. A knob rather than a constant because the
+// right value is not known yet: it is stored per world, so different seasons
+// can differ and a restart cannot move it under a world already in progress.
+//
+// 14 rather than 15 because of the two curves that do not self-limit. A
+// storehouse holds 400 * 1.5^level, so at 14 one island banks 116,772 — under
+// half the wood in the live world — and at 15 it banks 175,158, which is over
+// two thirds. Below half, overflow and raiding still mean something.
+//
+// Production is not the reason: it grows at 1.12^level against costs at
+// 1.55^level, so it looks self-limiting per building. That is misleading at
+// scale — 33 human islands producing 35,940 wood/h fund a level-15 upgrade in
+// under two hours of aggregate output, so nothing restrains it in practice.
+const MAX_BUILDING_LEVEL_DEFAULT = Number(process.env.MAX_BUILDING_LEVEL || 14);
 const QUEUE_MAX = 3;
 
 const RESOURCES = ['wood', 'stone', 'gold'];
@@ -317,6 +331,25 @@ function canAfford(island, cost) {
 }
 
 // Queue an upgrade. Returns { ok } or { error }.
+/** The cap in force for this world. Old saves without the field get the default. */
+function maxBuildingLevel(world) {
+  const n = world && Number(world.maxBuildingLevel);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : MAX_BUILDING_LEVEL_DEFAULT;
+}
+
+/**
+ * Change the cap on a live world. Deliberately an explicit call rather than an
+ * env read on load: a restart must not be able to move the rules under a
+ * season in progress (#36). Lowering it never removes levels already built —
+ * tryBuild only blocks the NEXT upgrade.
+ */
+function setMaxBuildingLevel(world, level) {
+  const n = Math.floor(Number(level));
+  if (!Number.isFinite(n) || n < 1 || n > 100) return { error: 'err.badRequest' };
+  world.maxBuildingLevel = n;
+  return { ok: true, maxBuildingLevel: n };
+}
+
 function tryBuild(world, island, key, now) {
   if (!BUILDINGS[key]) return { error: 'err.unknownBuilding' };
   resolveIsland(island, now);
@@ -333,6 +366,9 @@ function tryBuild(world, island, key, now) {
     }
   }
   const target = pendingLevel(island, key) + 1;
+  // Counts what is already queued, so you cannot stack upgrades past the cap.
+  const cap = maxBuildingLevel(world);
+  if (target > cap) return { error: 'err.maxLevel', errorParams: { max: cap } };
   const cost = upgradeCost(key, target);
   if (!canAfford(island, cost)) return { error: 'err.noResources' };
   for (const r of RESOURCES) island.resources[r] -= cost[r];
@@ -2169,6 +2205,7 @@ function createWorld() {
     alliances: [],
     offers: [],
     pool: newPool(), // closed until deliberately seeded (#46)
+    maxBuildingLevel: MAX_BUILDING_LEVEL_DEFAULT,
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -2184,6 +2221,9 @@ function migrateWorld(world) {
   // Backfill the pool CLOSED, and never touch one that already exists. A
   // migration must not be able to seed, reprice or reopen a live season's
   // pool just because the process restarted (#36).
+  // Backfilled only when absent, so a value set deliberately on a live world
+  // survives every later load.
+  if (world.maxBuildingLevel == null) world.maxBuildingLevel = MAX_BUILDING_LEVEL_DEFAULT;
   if (!world.pool) world.pool = newPool();
   for (const [k, v] of Object.entries(newPool())) {
     if (world.pool[k] == null) world.pool[k] = v;
@@ -2258,6 +2298,7 @@ export {
   SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, PROTECT_GRACE_MS, isProtected, RESOURCES, BUILDINGS, UNITS,
   LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,
+  MAX_BUILDING_LEVEL_DEFAULT, maxBuildingLevel, setMaxBuildingLevel,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, tryTrain,
