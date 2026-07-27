@@ -1260,8 +1260,16 @@ for (const id of ['pool-from', 'pool-to', 'pool-amount']) {
 const poolSwapBtn = $('pool-swap');
 if (poolSwapBtn) {
   poolSwapBtn.addEventListener('click', async () => {
+    // Clear BOTH lines first. Clearing the confirmation only on edit meant a
+    // second click — one that failed, or bailed for want of a quote — left
+    // the previous "Sent" on screen, reading as if the latest attempt had
+    // worked. It must only ever describe the most recent attempt.
     $('market-error').textContent = '';
-    if (!lastQuote) return;
+    $('pool-sent').textContent = '';
+    if (!lastQuote) {
+      $('pool-quote').textContent = T('ui.pool.noQuote');
+      return;
+    }
     try {
       const r = await api('/api/pool/swap', {
         islandId: activeIslandId,
