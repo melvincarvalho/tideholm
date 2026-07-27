@@ -993,10 +993,13 @@ const poolTotal = (w, ia) =>
     g.sendPoolSwap(w, a, ia, 'wood', 'wood', 100, t0).error === 'err.badRequest');
   check('cannot swap an unknown resource',
     g.sendPoolSwap(w, a, ia, 'wood', 'iron', 100, t0).error === 'err.badRequest');
+  // Call once and reuse. Arguments are evaluated eagerly, so passing the
+  // detail as a second call ran the mutating function twice per iteration —
+  // harmless while these all return before touching anything, but it would
+  // report on a different call than the one asserted the moment they didn't.
   for (const bad of [0, -100, NaN, 'abc', null, undefined]) {
-    check(`amount ${String(bad)} is refused`,
-      g.sendPoolSwap(w, a, ia, 'wood', 'gold', bad, t0).error === 'err.tradeAmount',
-      JSON.stringify(g.sendPoolSwap(w, a, ia, 'wood', 'gold', bad, t0)));
+    const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', bad, t0);
+    check(`amount ${String(bad)} is refused`, r.error === 'err.tradeAmount', JSON.stringify(r));
   }
   check('cannot swap what the island does not hold',
     g.sendPoolSwap(w, a, ia, 'wood', 'gold', 999999, t0).error === 'err.noResources');
