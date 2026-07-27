@@ -875,6 +875,50 @@ export function createApp(opts = {}) {
       return sendJson(res, 200, { offers });
     }
 
+    // Read-only view of the resource pool (#46 step 3). Nothing here mutates:
+    // no swap, no deposit, no seeding. It reports state and, given query
+    // params, quotes a hypothetical swap — so the client never has to carry a
+    // second copy of the curve maths and drift from the server's answer.
+    if (req.method === 'GET' && pathname === '/api/pool') {
+      const pool = world.pool;
+      const opts = game.poolOpts(pool);
+      const body = {
+        open: !!pool.open,
+        reserves: { ...pool.reserves },
+        seeded: { ...pool.seeded },
+        feeBps: pool.feeBps,
+        maxOutFrac: pool.maxOutFrac,
+        floorFrac: pool.floorFrac,
+        floor: opts.floor || null,
+        totalShares: pool.totalShares,
+        // Every ordered pair, so the client can label prices without doing
+        // any arithmetic of its own.
+        prices: game.RESOURCES.flatMap((from) =>
+          game.RESOURCES.filter((to) => to !== from)
+            .map((to) => ({ from, to, price: game.poolSpot(pool.reserves, from, to) }))),
+        mine: {
+          shares: player.lpShares || 0,
+          share: pool.totalShares > 0 ? (player.lpShares || 0) / pool.totalShares : 0,
+          value: game.poolShareValue(pool.reserves, pool.totalShares, player.lpShares || 0),
+        },
+      };
+
+      // ?from=wood&to=gold&amount=500 — a quote, not an order.
+      const from = query.get('from');
+      const to = query.get('to');
+      const amount = Number(query.get('amount'));
+      if (from && to && Number.isFinite(amount)) {
+        const q = game.poolQuote(pool.reserves, from, to, amount, opts);
+        body.quote = {
+          from, to, amountIn: amount,
+          out: q.out, used: q.used, impact: q.impact,
+          effPrice: q.effPrice, spotPrice: q.spotPrice,
+          capped: q.capped, cappedBy: q.cappedBy, maxIn: q.maxIn,
+        };
+      }
+      return sendJson(res, 200, body);
+    }
+
     if (req.method === 'POST' && pathname === '/api/market/create') {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
