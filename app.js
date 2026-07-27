@@ -1016,8 +1016,8 @@ export function createApp(opts = {}) {
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
       const result = game.sendPoolDeposit(
-        world, player, island, body.wood, Date.now(),
-        body.minShares === undefined ? null : body.minShares,
+        world, player, island, Number(body.wood), Date.now(),
+        body.minShares === undefined ? null : Number(body.minShares),
       );
       if (result.error) return gameErr(res, lang, result);
       return sendJson(res, 200, {
@@ -1030,7 +1030,11 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
-      const result = game.sendPoolWithdraw(world, player, island, body.shares, Date.now());
+      // Number() here for the same reason the GET preview does it: JSON from
+      // some form layers arrives as strings, poolAmount refuses those, and a
+      // holder would be told they had no stake. Coercing on one side only is
+      // how a preview and its action drift apart.
+      const result = game.sendPoolWithdraw(world, player, island, Number(body.shares), Date.now());
       if (result.error) return gameErr(res, lang, result);
       return sendJson(res, 200, {
         ok: true, arrive: result.arrive, burned: result.burned,

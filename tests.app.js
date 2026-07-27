@@ -646,6 +646,21 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     { body: { islandId: isl.id, shares: 100 }, cookie: ocookie });
   check('withdrawing with no stake is a 400', r.status === 400);
 
+  // Strings over the wire. poolAmount deliberately refuses them, so the HTTP
+  // layer has to coerce — and it has to do so on the ACTION as well as the
+  // preview, or a holder is told they have no stake. The preview coerced and
+  // the POST did not, which is the same preview/action split this whole step
+  // was built to avoid, reintroduced one layer above the shared planner.
+  r = await req(oa.port, 'POST', '/api/pool/deposit',
+    { body: { islandId: isl.id, wood: '400' }, cookie: ocookie });
+  check('a string deposit amount is accepted', r.status === 200, JSON.stringify(r.data));
+  const strShares = String(swapper.lpShares);
+  r = await req(oa.port, 'POST', '/api/pool/withdraw',
+    { body: { islandId: isl.id, shares: strShares }, cookie: ocookie });
+  check('a string share count is accepted, not read as no stake',
+    r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+  check('and it burned the whole holding', swapper.lpShares === 0);
+
   oa.srv.close();
   openApp.stop();
 

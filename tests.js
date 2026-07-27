@@ -1092,7 +1092,26 @@ function lpWorld(reserves = { wood: 10000, stone: 9200, gold: 16000 }) {
   check('the deposit mints exactly what the plan said', close(r.minted, plan.minted));
   check('and takes exactly what the plan said',
     !r.error && g.RESOURCES.every((x) => close(r.required?.[x], plan.required?.[x])));
-  check('planning changed nothing on its own', w.pool.totalShares > 0);
+  // Purity, properly: snapshot, plan, compare. The old version ran after
+  // sendPoolDeposit had already mutated the pool and only asserted
+  // totalShares > 0, which could not have caught a mutation inside the
+  // planner at all.
+  const clean = lpWorld();
+  const poolBefore = JSON.stringify(clean.w.pool);
+  const islandBefore = JSON.stringify(clean.ia.resources);
+  const sharesBefore = clean.a.lpShares;
+  g.planPoolDeposit(clean.w, clean.ia, 1000);
+  check('planPoolDeposit mutates nothing',
+    JSON.stringify(clean.w.pool) === poolBefore
+    && JSON.stringify(clean.ia.resources) === islandBefore
+    && clean.a.lpShares === sharesBefore);
+
+  const dep2 = g.sendPoolDeposit(clean.w, clean.a, clean.ia, 1000, t0);
+  const poolAfterDep = JSON.stringify(clean.w.pool);
+  const sharesAfterDep = clean.a.lpShares;
+  g.planPoolWithdraw(clean.w, clean.a, clean.ia, dep2.minted);
+  check('planPoolWithdraw mutates nothing',
+    JSON.stringify(clean.w.pool) === poolAfterDep && clean.a.lpShares === sharesAfterDep);
 }
 
 {
@@ -1192,7 +1211,7 @@ function lpWorld(reserves = { wood: 10000, stone: 9200, gold: 16000 }) {
     g.sendPoolDeposit(w, a, ia, 999999, t0).error === 'err.noResources');
   check('a deposit beyond the harbour is refused',
     g.sendPoolDeposit(w, a, ia, 5000, t0).error === 'err.tradeCapacity',
-    `cap ${g.tradeCapacity(8)}`);
+    `cap ${g.tradeCapacity(ia.buildings.harbor)}`);
   check('none of that moved anything', ia.resources.wood === 20000 && a.lpShares === 0);
 
   check('withdrawing with no stake is refused',
