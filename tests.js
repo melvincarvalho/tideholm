@@ -1311,6 +1311,35 @@ function lpWorld(reserves = { wood: 10000, stone: 9200, gold: 16000 }) {
   check('and neither attempt minted anything', s.a.lpShares === 0);
 }
 
+// ---------------------------------------------------------------- display of loot
+// Pool swaps and withdrawals are the first source of FRACTIONAL loot in the
+// game: combat floors it, sendTrade floors it, and market offers are integers.
+// So the report text and the movements list had never met a non-integer and
+// printed one raw at a player: "Shipment ... with 107.20775939008854 wood".
+//
+// The stored value stays fractional on purpose. The pool debited exactly
+// `out`, so flooring at creation would either destroy the remainder or force
+// the quote to floor too, reopening the quote-versus-delivery seam.
+console.log('loot display');
+
+{
+  const { w, a, ia } = lpWorld();
+  const r = g.sendPoolSwap(w, a, ia, 'gold', 'wood', 173, t0);
+  check('a pool swap really does produce fractional loot',
+    !r.error && r.out % 1 !== 0, `out ${r.out}`);
+  const mv = w.movements.find((m) => m.type === 'trade');
+  check('and the movement carries it at full precision',
+    close(mv.loot.wood, r.out), `${mv.loot.wood} vs ${r.out}`);
+
+  g.resolveWorld(w, r.arrive + 1);
+  const rep = w.reports.filter((x) => x.ownerId === a.id).pop();
+  const line = (rep.lines || []).join(' ');
+  check('but the report text shows a whole number',
+    /\b106 wood\b/.test(line) && !/106\.\d/.test(line), line);
+  check('the island still receives the exact fractional amount',
+    ia.resources.wood % 1 !== 0);
+}
+
 // ---------------------------------------------------------------- pool swaps
 // The first code that can move a player's resources (#46 step 5). Everything
 // before this was inert, so these carry the weight.

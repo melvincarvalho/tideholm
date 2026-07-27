@@ -388,8 +388,11 @@ function fmtUnits(units, lang) {
   return parts.join(', ') || t(lang, 'units.none');
 }
 
+// Report text. Floors for display only — pool swaps and withdrawals can carry
+// fractional loot, and a report reading "107.20775939008854 wood" is noise.
 function fmtRes(res, lang) {
-  return `${res.wood} ${t(lang, 'res.wood')}, ${res.stone} ${t(lang, 'res.stone')}, ${res.gold} ${t(lang, 'res.gold')}`;
+  const n = (v) => Math.floor(Number(v) || 0);
+  return `${n(res.wood)} ${t(lang, 'res.wood')}, ${n(res.stone)} ${t(lang, 'res.stone')}, ${n(res.gold)} ${t(lang, 'res.gold')}`;
 }
 
 // Seconds per unit to train, given the level of the building that trains it.
