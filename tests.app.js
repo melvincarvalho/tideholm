@@ -225,6 +225,135 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   sa.srv.close();
   seasonApp.stop();
 
+  // ---------------------------------------------------------------- pool (read-only)
+  // GET /api/pool must never mutate. The pool ships closed, so the strongest
+  // assertion available is that nothing this endpoint does can open it or put
+  // anything in it, however it is called (#46 step 3).
+  console.log('\npool (read-only)');
+  const poolApp = createApp({ botCount: 1, freeIsles: 1, log: silent, adminToken: '' });
+  const pa = await serve(poolApp);
+
+  r = await req(pa.port, 'GET', '/api/pool');
+  check('pool needs a session', r.status === 401);
+
+  r = await req(pa.port, 'POST', '/api/register', { body: { name: 'Pool Tester', password: 'sekrit', lang: 'en' } });
+  const pcookie = (r.headers.get('set-cookie') || '').split(';')[0];
+
+  r = await req(pa.port, 'GET', '/api/pool', { cookie: pcookie });
+  check('pool reports as closed', r.status === 200 && r.data.open === false, JSON.stringify(r.data));
+  check('with empty reserves', ['wood', 'stone', 'gold'].every((x) => r.data.reserves?.[x] === 0));
+  check('config comes from the world', r.data.feeBps === 30 && r.data.floorFrac === 0.25);
+  check('every ordered pair is priced', r.data.prices?.length === 6);
+  // A closed pool's reserves are 0, so every spot price is 0/0. Counting the
+  // pairs was not enough: JSON.stringify turns NaN into null silently, so the
+  // whole price table was null and the test passed anyway.
+  check('and every price is a finite number, not null',
+    r.data.prices?.every((p) => typeof p.price === 'number' && Number.isFinite(p.price)),
+    JSON.stringify(r.data.prices?.slice(0, 2)));
+  // Walk the payload rather than pattern-matching the JSON text. The previous
+  // version was `!json.includes('null') || floor === null`, which goes vacuous
+  // the moment floor is null and would then wave through any other null.
+  // `cappedBy` is the one field allowed to be null, and only inside a quote.
+  const nulls = (o, path = '') => {
+    if (o === null) return [path || '(root)'];
+    if (typeof o === 'number') return Number.isFinite(o) ? [] : [`${path}=${o}`];
+    if (Array.isArray(o)) return o.flatMap((v, i) => nulls(v, `${path}[${i}]`));
+    if (o && typeof o === 'object') {
+      return Object.entries(o).flatMap(([k, v]) =>
+        (k === 'cappedBy' ? [] : nulls(v, path ? `${path}.${k}` : k)));
+    }
+    return [];
+  };
+  check('no null or non-finite number anywhere in a closed pool payload',
+    nulls(r.data).length === 0, nulls(r.data).join(', '));
+  check('a new player holds no position', r.data.mine?.shares === 0 && r.data.mine?.share === 0);
+  check('no quote unless one is asked for', r.data.quote === undefined);
+
+  // Number(null) is 0, which is finite — so an absent amount must be rejected
+  // on presence, not on coercibility, or the endpoint quotes for nothing.
+  for (const qs of ['?from=wood&to=gold', '?from=wood&to=gold&amount=']) {
+    r = await req(pa.port, 'GET', '/api/pool' + qs, { cookie: pcookie });
+    check(`${qs} returns no quote block`, r.data.quote === undefined,
+      JSON.stringify(r.data.quote));
+  }
+  r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=0', { cookie: pcookie });
+  check('an explicit amount=0 still quotes, since it was asked for',
+    r.data.quote !== undefined && r.data.quote.amountIn === 0);
+
+  r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: pcookie });
+  check('a quote is returned when asked', r.status === 200 && !!r.data.quote);
+  check('a closed pool quotes nothing', r.data.quote?.out === 0 && r.data.quote?.used === 0);
+  // effPrice is Infinity when nothing comes out, which also serialises to null.
+  check('every quote field is a finite number',
+    ['out', 'used', 'impact', 'effPrice', 'spotPrice', 'maxIn']
+      .every((k) => Number.isFinite(r.data.quote?.[k])),
+    JSON.stringify(r.data.quote));
+
+  // Malformed query strings reach poolQuote directly, so they are the most
+  // likely way to get an unexpected 500 out of this endpoint.
+  for (const qs of ['?from=wood&to=wood&amount=500', '?from=iron&to=gold&amount=5',
+    '?from=wood&to=gold&amount=-500', '?from=wood&to=gold&amount=abc',
+    '?from=wood&amount=500', '?from=wood&to=gold&amount=1e999']) {
+    r = await req(pa.port, 'GET', '/api/pool' + qs, { cookie: pcookie });
+    check(`malformed query ${qs} is answered, not an error`, r.status === 200,
+      `status ${r.status}`);
+  }
+
+  check('none of that opened the pool', poolApp.world.pool.open === false);
+  check('none of that added reserves',
+    ['wood', 'stone', 'gold'].every((x) => poolApp.world.pool.reserves[x] === 0));
+  check('none of that minted shares', poolApp.world.pool.totalShares === 0);
+
+  // Open one by hand so the paths that only exist on a live pool — real
+  // prices, a real quote, a held position — are actually exercised. There is
+  // no endpoint that can do this yet, which is the point.
+  const tuned = { wood: 4000, stone: 3600, gold: 6800 };
+  Object.assign(poolApp.world.pool, {
+    open: true,
+    reserves: { ...tuned },
+    seeded: { ...tuned },
+    totalShares: 1000,
+  });
+  poolApp.world.players.find((p) => p.name === 'Pool Tester').lpShares = 250;
+
+  r = await req(pa.port, 'GET', '/api/pool', { cookie: pcookie });
+  check('an open pool reports open', r.data.open === true);
+  check('gold is priced below wood, as the tuning found',
+    Math.abs((r.data.prices?.find((p) => p.from === 'wood' && p.to === 'gold')?.price ?? NaN) - 4000 / 6800) < 1e-9);
+  check('the floor is derived from what was seeded', r.data.floor?.stone === 900);
+  check('a quarter share is reported as a quarter',
+    r.data.mine?.shares === 250 && Math.abs(r.data.mine?.share - 0.25) < 1e-9);
+  check('and valued pro rata', Math.abs(r.data.mine?.value?.gold - 1700) < 1e-9);
+
+  r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: pcookie });
+  const expect = 6800 - (4000 * 6800) / (4000 + 500 * 0.997);
+  check('a live quote follows x*y=k after fee',
+    Math.abs(r.data.quote?.out - expect) < 1e-9, `got ${r.data.quote?.out}`);
+  check('and reports impact', r.data.quote?.impact > 0 && r.data.quote?.capped === false);
+
+  r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=999999', { cookie: pcookie });
+  check('an oversized quote is capped, not refused',
+    r.data.quote?.capped === true && r.data.quote?.out > 0 && r.data.quote?.used < 999999);
+
+  // A position cannot be reported as negative. Nothing writes lpShares yet,
+  // but step 6 will, and shares/share/value disagreeing with each other is
+  // exactly the kind of inconsistency a UI would render as a bug.
+  poolApp.world.players.find((p) => p.name === 'Pool Tester').lpShares = -50;
+  r = await req(pa.port, 'GET', '/api/pool', { cookie: pcookie });
+  check('a negative position reports as zero, not negative',
+    r.data.mine?.shares === 0 && r.data.mine?.share === 0);
+  check('and stays consistent with its valuation',
+    ['wood', 'stone', 'gold'].every((x) => r.data.mine?.value?.[x] === 0));
+  poolApp.world.players.find((p) => p.name === 'Pool Tester').lpShares = 250;
+
+  const beforeQuoting = JSON.stringify(poolApp.world.pool);
+  await req(pa.port, 'GET', '/api/pool?from=gold&to=stone&amount=99999', { cookie: pcookie });
+  check('quoting an open pool still mutates nothing',
+    JSON.stringify(poolApp.world.pool) === beforeQuoting);
+
+  pa.srv.close();
+  poolApp.stop();
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

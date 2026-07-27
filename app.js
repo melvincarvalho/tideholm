@@ -875,6 +875,64 @@ export function createApp(opts = {}) {
       return sendJson(res, 200, { offers });
     }
 
+    // Read-only view of the resource pool (#46 step 3). Nothing here mutates:
+    // no swap, no deposit, no seeding. It reports state and, given query
+    // params, quotes a hypothetical swap — so the client never has to carry a
+    // second copy of the curve maths and drift from the server's answer.
+    if (req.method === 'GET' && pathname === '/api/pool') {
+      const pool = world.pool;
+      const opts = game.poolOpts(pool);
+      // Every number in this payload must be finite. An empty reserve makes a
+      // spot price 0/0, and a refused quote makes effPrice Infinity — both of
+      // which JSON.stringify turns silently into `null`, leaving a client
+      // unable to tell "no price" from a missing field. `open` and `out`
+      // already say whether a price means anything, so 0 is unambiguous here.
+      const fin = (n) => (Number.isFinite(n) ? n : 0);
+      const finAll = (o) => Object.fromEntries(game.RESOURCES.map((r) => [r, fin(o && o[r])]));
+      // Clamped at the boundary as well as in the maths, so shares, share and
+      // value can never disagree with each other.
+      const mine = game.poolAmount(player.lpShares);
+      const body = {
+        open: !!pool.open,
+        reserves: finAll(pool.reserves),
+        seeded: finAll(pool.seeded),
+        feeBps: fin(pool.feeBps),
+        maxOutFrac: fin(pool.maxOutFrac),
+        floorFrac: fin(pool.floorFrac),
+        floor: opts.floor ? finAll(opts.floor) : null,
+        totalShares: fin(pool.totalShares),
+        // Every ordered pair, so the client can label prices without doing
+        // any arithmetic of its own.
+        prices: game.RESOURCES.flatMap((from) =>
+          game.RESOURCES.filter((to) => to !== from)
+            .map((to) => ({ from, to, price: fin(game.poolSpot(pool.reserves, from, to)) }))),
+        mine: {
+          shares: mine,
+          share: pool.totalShares > 0 ? fin(mine / pool.totalShares) : 0,
+          value: finAll(game.poolShareValue(pool.reserves, pool.totalShares, mine)),
+        },
+      };
+
+      // ?from=wood&to=gold&amount=500 — a quote, not an order. The parameter
+      // has to be present, not merely coercible: Number(null) is 0, which is
+      // finite, so an absent amount would otherwise return a quote for
+      // nothing and imply the caller asked for one.
+      const from = query.get('from');
+      const to = query.get('to');
+      const rawAmount = query.get('amount');
+      const amount = Number(rawAmount);
+      if (from && to && rawAmount !== null && rawAmount !== '' && Number.isFinite(amount)) {
+        const q = game.poolQuote(pool.reserves, from, to, amount, opts);
+        body.quote = {
+          from, to, amountIn: fin(amount),
+          out: fin(q.out), used: fin(q.used), impact: fin(q.impact),
+          effPrice: fin(q.effPrice), spotPrice: fin(q.spotPrice),
+          capped: q.capped, cappedBy: q.cappedBy, maxIn: fin(q.maxIn),
+        };
+      }
+      return sendJson(res, 200, body);
+    }
+
     if (req.method === 'POST' && pathname === '/api/market/create') {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
