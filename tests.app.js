@@ -244,12 +244,26 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   check('with empty reserves', ['wood', 'stone', 'gold'].every((x) => r.data.reserves?.[x] === 0));
   check('config comes from the world', r.data.feeBps === 30 && r.data.floorFrac === 0.25);
   check('every ordered pair is priced', r.data.prices?.length === 6);
+  // A closed pool's reserves are 0, so every spot price is 0/0. Counting the
+  // pairs was not enough: JSON.stringify turns NaN into null silently, so the
+  // whole price table was null and the test passed anyway.
+  check('and every price is a finite number, not null',
+    r.data.prices?.every((p) => typeof p.price === 'number' && Number.isFinite(p.price)),
+    JSON.stringify(r.data.prices?.slice(0, 2)));
+  check('no null anywhere in a closed pool payload',
+    !JSON.stringify(r.data).includes('null') || r.data.floor === null,
+    JSON.stringify(r.data));
   check('a new player holds no position', r.data.mine?.shares === 0 && r.data.mine?.share === 0);
   check('no quote unless one is asked for', r.data.quote === undefined);
 
   r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: pcookie });
   check('a quote is returned when asked', r.status === 200 && !!r.data.quote);
   check('a closed pool quotes nothing', r.data.quote?.out === 0 && r.data.quote?.used === 0);
+  // effPrice is Infinity when nothing comes out, which also serialises to null.
+  check('every quote field is a finite number',
+    ['out', 'used', 'impact', 'effPrice', 'spotPrice', 'maxIn']
+      .every((k) => Number.isFinite(r.data.quote?.[k])),
+    JSON.stringify(r.data.quote));
 
   // Malformed query strings reach poolQuote directly, so they are the most
   // likely way to get an unexpected 500 out of this endpoint.
@@ -296,6 +310,17 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   r = await req(pa.port, 'GET', '/api/pool?from=wood&to=gold&amount=999999', { cookie: pcookie });
   check('an oversized quote is capped, not refused',
     r.data.quote?.capped === true && r.data.quote?.out > 0 && r.data.quote?.used < 999999);
+
+  // A position cannot be reported as negative. Nothing writes lpShares yet,
+  // but step 6 will, and shares/share/value disagreeing with each other is
+  // exactly the kind of inconsistency a UI would render as a bug.
+  poolApp.world.players.find((p) => p.name === 'Pool Tester').lpShares = -50;
+  r = await req(pa.port, 'GET', '/api/pool', { cookie: pcookie });
+  check('a negative position reports as zero, not negative',
+    r.data.mine?.shares === 0 && r.data.mine?.share === 0);
+  check('and stays consistent with its valuation',
+    ['wood', 'stone', 'gold'].every((x) => r.data.mine?.value?.[x] === 0));
+  poolApp.world.players.find((p) => p.name === 'Pool Tester').lpShares = 250;
 
   const beforeQuoting = JSON.stringify(poolApp.world.pool);
   await req(pa.port, 'GET', '/api/pool?from=gold&to=stone&amount=99999', { cookie: pcookie });

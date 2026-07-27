@@ -882,24 +882,34 @@ export function createApp(opts = {}) {
     if (req.method === 'GET' && pathname === '/api/pool') {
       const pool = world.pool;
       const opts = game.poolOpts(pool);
+      // Every number in this payload must be finite. An empty reserve makes a
+      // spot price 0/0, and a refused quote makes effPrice Infinity — both of
+      // which JSON.stringify turns silently into `null`, leaving a client
+      // unable to tell "no price" from a missing field. `open` and `out`
+      // already say whether a price means anything, so 0 is unambiguous here.
+      const fin = (n) => (Number.isFinite(n) ? n : 0);
+      const finAll = (o) => Object.fromEntries(game.RESOURCES.map((r) => [r, fin(o && o[r])]));
+      // Clamped at the boundary as well as in the maths, so shares, share and
+      // value can never disagree with each other.
+      const mine = game.poolAmount(player.lpShares);
       const body = {
         open: !!pool.open,
-        reserves: { ...pool.reserves },
-        seeded: { ...pool.seeded },
-        feeBps: pool.feeBps,
-        maxOutFrac: pool.maxOutFrac,
-        floorFrac: pool.floorFrac,
-        floor: opts.floor || null,
-        totalShares: pool.totalShares,
+        reserves: finAll(pool.reserves),
+        seeded: finAll(pool.seeded),
+        feeBps: fin(pool.feeBps),
+        maxOutFrac: fin(pool.maxOutFrac),
+        floorFrac: fin(pool.floorFrac),
+        floor: opts.floor ? finAll(opts.floor) : null,
+        totalShares: fin(pool.totalShares),
         // Every ordered pair, so the client can label prices without doing
         // any arithmetic of its own.
         prices: game.RESOURCES.flatMap((from) =>
           game.RESOURCES.filter((to) => to !== from)
-            .map((to) => ({ from, to, price: game.poolSpot(pool.reserves, from, to) }))),
+            .map((to) => ({ from, to, price: fin(game.poolSpot(pool.reserves, from, to)) }))),
         mine: {
-          shares: player.lpShares || 0,
-          share: pool.totalShares > 0 ? (player.lpShares || 0) / pool.totalShares : 0,
-          value: game.poolShareValue(pool.reserves, pool.totalShares, player.lpShares || 0),
+          shares: mine,
+          share: pool.totalShares > 0 ? fin(mine / pool.totalShares) : 0,
+          value: finAll(game.poolShareValue(pool.reserves, pool.totalShares, mine)),
         },
       };
 
@@ -910,10 +920,10 @@ export function createApp(opts = {}) {
       if (from && to && Number.isFinite(amount)) {
         const q = game.poolQuote(pool.reserves, from, to, amount, opts);
         body.quote = {
-          from, to, amountIn: amount,
-          out: q.out, used: q.used, impact: q.impact,
-          effPrice: q.effPrice, spotPrice: q.spotPrice,
-          capped: q.capped, cappedBy: q.cappedBy, maxIn: q.maxIn,
+          from, to, amountIn: fin(amount),
+          out: fin(q.out), used: fin(q.used), impact: fin(q.impact),
+          effPrice: fin(q.effPrice), spotPrice: fin(q.spotPrice),
+          capped: q.capped, cappedBy: q.cappedBy, maxIn: fin(q.maxIn),
         };
       }
       return sendJson(res, 200, body);
