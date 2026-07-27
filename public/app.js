@@ -1135,9 +1135,62 @@ function offerLabel(o) {
   });
 }
 
+// The pool (#46 step 4). Read-only: reserves, prices and your own position.
+// No swap UI yet — there is no endpoint to swap against.
+//
+// Prices come from the server rather than being derived here. The client
+// deliberately carries no copy of the curve maths, so it cannot drift from
+// what the server would actually charge.
+async function loadPool() {
+  const box = $('pool-box');
+  let data;
+  try {
+    data = await api('/api/pool');
+  } catch {
+    // An older server has no pool endpoint. Say nothing rather than error:
+    // the client is deployed by git pull and can be newer than the process.
+    box.classList.add('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  $('pool-shut').classList.toggle('hidden', !!data.open);
+  $('pool-live').classList.toggle('hidden', !data.open);
+  if (!data.open) return;
+
+  const tb = $('pool-reserves').tBodies[0];
+  tb.innerHTML = '';
+  for (const r of ['wood', 'stone', 'gold']) {
+    const tr = tb.insertRow();
+    tr.insertCell().textContent = `${RES_EMOJI[r]} ${T('res.' + r)}`;
+    tr.insertCell().textContent = fmtNum(Math.floor(data.reserves[r]));
+    // A reserve on its floor is the pool reporting that the economy is
+    // lopsided, so it is worth saying out loud rather than just going quiet.
+    const floored = data.floor && data.reserves[r] <= data.floor[r] + 1e-9;
+    tr.insertCell().textContent = floored ? T('ui.pool.floored') : '';
+  }
+
+  $('pool-prices').textContent = [['wood', 'gold'], ['stone', 'gold'], ['wood', 'stone']]
+    .map(([a, b]) => {
+      const p = data.prices.find((x) => x.from === a && x.to === b);
+      return T('ui.pool.rate', {
+        one: `${RES_EMOJI[b]} 1`,
+        many: `${RES_EMOJI[a]} ${p ? p.price.toFixed(2) : '?'}`,
+      });
+    }).join(' · ');
+
+  $('pool-mine').textContent = data.mine.shares > 0
+    ? T('ui.pool.mine', {
+      pct: (data.mine.share * 100).toFixed(1),
+      value: ['wood', 'stone', 'gold']
+        .map((r) => `${RES_EMOJI[r]}${fmtNum(Math.floor(data.mine.value[r]))}`).join(' '),
+    })
+    : T('ui.pool.noStake');
+}
+
 async function loadMarket() {
   fillResSelects();
   $('market-error').textContent = '';
+  loadPool();
   const data = await api('/api/market');
   const mine = data.offers.filter((o) => o.isMine);
   const open = data.offers.filter((o) => !o.isMine);
