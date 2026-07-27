@@ -937,6 +937,247 @@ console.log('pool state');
     close(g.poolSpot(revived.pool.reserves, 'wood', 'gold'), g.poolSpot(w.pool.reserves, 'wood', 'gold')));
 }
 
+// ---------------------------------------------------------------- pool swaps
+// The first code that can move a player's resources (#46 step 5). Everything
+// before this was inert, so these carry the weight.
+//
+// Two properties matter more than any individual number. Resources must be
+// conserved end to end — what leaves the island equals what enters the pool,
+// and what leaves the pool equals what arrives back. And the pool must move
+// at SEND time, not on arrival: if the price only moved when goods landed, a
+// player could fire a dozen swaps at the same opening rate and strip a
+// reserve before any of them arrived.
+console.log('pool swaps');
+
+// An island that can actually trade: harbour, deep storehouse, known stock.
+// Stock is set AFTER resolveIsland, because accrual clamps to the storehouse
+// and would otherwise quietly rewrite the fixture.
+function poolWorld(reserves = { wood: 4000, stone: 3600, gold: 6800 }, harbor = 5) {
+  const { w, a, ia } = freshWorld();
+  ia.buildings.harbor = harbor;  // level 5 carries 1265
+  ia.buildings.storehouse = 12;
+  // Production off. These tests are about what a swap moves, and an island
+  // quietly earning wood mid-flight makes exact conservation unassertable —
+  // the arrival check was out by the nine gold the mine produced in transit.
+  ia.buildings.lumberyard = 0;
+  ia.buildings.quarry = 0;
+  ia.buildings.goldmine = 0;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 5000, stone: 5000, gold: 5000 };
+  Object.assign(w.pool, {
+    open: true,
+    reserves: { ...reserves },
+    seeded: { ...reserves },
+    totalShares: 1000,
+  });
+  return { w, a, ia };
+}
+const poolTotal = (w, ia) =>
+  g.RESOURCES.reduce((n, r) => n + w.pool.reserves[r] + ia.resources[r], 0)
+  + w.movements.reduce((n, m) => n + g.RESOURCES.reduce((x, r) => x + (m.loot ? m.loot[r] : 0), 0), 0);
+
+{
+  // Refusals, in the order a request meets them.
+  const { w, a, ia } = poolWorld();
+  w.pool.open = false;
+  check('a closed pool refuses to trade',
+    g.sendPoolSwap(w, a, ia, 'wood', 'gold', 100, t0).error === 'err.poolClosed');
+  w.pool.open = true;
+
+  const noHarbor = poolWorld();
+  noHarbor.ia.buildings.harbor = 0;
+  check('swapping needs a harbour',
+    g.sendPoolSwap(noHarbor.w, noHarbor.a, noHarbor.ia, 'wood', 'gold', 100, t0).error === 'err.buildFirst');
+
+  check('cannot swap a resource for itself',
+    g.sendPoolSwap(w, a, ia, 'wood', 'wood', 100, t0).error === 'err.badRequest');
+  check('cannot swap an unknown resource',
+    g.sendPoolSwap(w, a, ia, 'wood', 'iron', 100, t0).error === 'err.badRequest');
+  // Call once and reuse. Arguments are evaluated eagerly, so passing the
+  // detail as a second call ran the mutating function twice per iteration —
+  // harmless while these all return before touching anything, but it would
+  // report on a different call than the one asserted the moment they didn't.
+  for (const bad of [0, -100, NaN, 'abc', null, undefined]) {
+    const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', bad, t0);
+    check(`amount ${String(bad)} is refused`, r.error === 'err.tradeAmount', JSON.stringify(r));
+  }
+  check('cannot swap what the island does not hold',
+    g.sendPoolSwap(w, a, ia, 'wood', 'gold', 999999, t0).error === 'err.noResources');
+  check('the harbour caps the shipment',
+    g.sendPoolSwap(w, a, ia, 'wood', 'gold', 2000, t0).error === 'err.tradeCapacity',
+    `cap is ${g.tradeCapacity(5)}`);
+  check('nothing above changed the pool',
+    w.pool.reserves.wood === 4000 && w.pool.reserves.gold === 6800);
+  check('and nothing above created a movement', w.movements.length === 0);
+}
+
+{
+  // Slippage protection: the quote a player saw may be stale by the time they act.
+  const { w, a, ia } = poolWorld();
+  const fair = g.poolQuote(w.pool.reserves, 'wood', 'gold', 500, g.poolOpts(w.pool)).out;
+  check('a swap below minOut is refused',
+    g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0, fair + 1).error === 'err.poolSlippage');
+  check('a refused swap leaves the pool untouched', w.pool.reserves.wood === 4000);
+  check('a swap meeting minOut goes through',
+    !g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0, fair).error);
+
+  // An unusable minOut must be an error, not a silently disabled guard. A
+  // caller that asked for protection and got none is worse off than one that
+  // knew it had none.
+  const fresh = poolWorld();
+  for (const bad of [NaN, 'abc', -1, Infinity, {}]) {
+    const r = g.sendPoolSwap(fresh.w, fresh.a, fresh.ia, 'wood', 'gold', 500, t0, bad);
+    check(`minOut ${String(bad)} is rejected, not ignored`, r.error === 'err.badRequest',
+      JSON.stringify(r));
+  }
+  check('a rejected minOut moved nothing', fresh.ia.resources.wood === 5000);
+  // null/undefined still mean "no protection asked for".
+  check('omitting minOut is still allowed',
+    !g.sendPoolSwap(fresh.w, fresh.a, fresh.ia, 'wood', 'gold', 500, t0, null).error);
+}
+
+{
+  // The storehouse guard has to look at room on ARRIVAL, not room now. The
+  // ship is half an hour out and the store keeps filling while it sails.
+  const { w, a, ia } = poolWorld();
+  ia.buildings.storehouse = 1;                  // capacity 600
+  ia.buildings.goldmine = 10;                   // ~499 gold/h, so ~250 over the crossing
+  ia.resources = { wood: 500, stone: 0, gold: 300 };
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 100, t0);
+  check('production during the crossing is counted against the room',
+    r.error === 'err.poolStorage', JSON.stringify(r));
+
+  // Same island, production off: now there is genuinely room and it passes.
+  const idle = poolWorld();
+  idle.ia.buildings.storehouse = 1;
+  idle.ia.resources = { wood: 500, stone: 0, gold: 300 };
+  check('with nothing accruing, the same swap is allowed',
+    !g.sendPoolSwap(idle.w, idle.a, idle.ia, 'wood', 'gold', 100, t0).error);
+}
+
+{
+  // A shipment already inbound counts too — it lands before ours does.
+  const { w, a, ia } = poolWorld();
+  ia.buildings.storehouse = 1;                  // capacity 600
+  ia.resources = { wood: 500, stone: 0, gold: 300 };
+  check('with no shipment inbound the swap is fine',
+    !g.sendPoolSwap(w, a, ia, 'wood', 'gold', 100, t0).error);
+
+  const blocked = poolWorld();
+  blocked.ia.buildings.storehouse = 1;
+  blocked.ia.resources = { wood: 500, stone: 0, gold: 300 };
+  blocked.w.movements.push({
+    id: 9001, type: 'trade', ownerId: blocked.a.id,
+    fromId: blocked.ia.id, toId: blocked.ia.id, units: g.zeroUnits(),
+    loot: { wood: 0, stone: 0, gold: 290 }, depart: t0, arrive: t0 + 60000,
+  });
+  const r = g.sendPoolSwap(blocked.w, blocked.a, blocked.ia, 'wood', 'gold', 100, t0);
+  check('a shipment already inbound is counted against the room',
+    r.error === 'err.poolStorage', JSON.stringify(r));
+}
+
+{
+  // A full storehouse: refuse rather than deliver into an overflow, because
+  // arrival clamps and the paid-for surplus would simply evaporate.
+  const { w, a, ia } = poolWorld();
+  ia.buildings.storehouse = 1;                 // capacity 600
+  ia.resources = { wood: 500, stone: 0, gold: 595 };
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 100, t0);
+  check('a swap that would overflow the storehouse is refused', r.error === 'err.poolStorage');
+  check('and says how much room is left', r.errorParams?.room === 5, JSON.stringify(r.errorParams));
+  check('the island keeps its wood', ia.resources.wood === 500);
+}
+
+{
+  // Conservation. This is the one that matters.
+  const { w, a, ia } = poolWorld();
+  const before = poolTotal(w, ia);
+  const woodBefore = ia.resources.wood;
+  const poolWoodBefore = w.pool.reserves.wood;
+  const poolGoldBefore = w.pool.reserves.gold;
+
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('a swap is accepted', !r.error, JSON.stringify(r));
+  check('the island pays exactly what was used', ia.resources.wood === woodBefore - r.used);
+  check('the pool gains exactly what was used', w.pool.reserves.wood === poolWoodBefore + r.used);
+  check('the pool gives up exactly what was quoted', w.pool.reserves.gold === poolGoldBefore - r.out);
+  check('the island is not credited before the ship lands', ia.resources.gold === 5000);
+  check('the shipment carries exactly the proceeds',
+    w.movements[0].loot.gold === r.out && w.movements[0].loot.wood === 0);
+  check('nothing is created or destroyed in flight', close(poolTotal(w, ia), before),
+    `${before} -> ${poolTotal(w, ia)}`);
+
+  // ...and across arrival. With production off this is exact, not approximate.
+  g.resolveWorld(w, r.arrive + 1);
+  check('the proceeds arrive', close(ia.resources.gold, 5000 + r.out, 1e-9),
+    `${ia.resources.gold} vs ${5000 + r.out}`);
+  check('no movement is left behind', w.movements.length === 0);
+  check('nothing is created or destroyed across arrival either',
+    close(poolTotal(w, ia), before), `${before} -> ${poolTotal(w, ia)}`);
+}
+
+{
+  // The anti-exploit property: the price moves when the order is placed.
+  const { w, a, ia } = poolWorld();
+  const first = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  const second = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  const third = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('back-to-back swaps get progressively worse prices',
+    first.out > second.out && second.out > third.out,
+    `${first.out.toFixed(1)} > ${second.out.toFixed(1)} > ${third.out.toFixed(1)}`);
+  check('three swaps in flight at once', w.movements.length === 3);
+  check('the pool already reflects all three, before any has landed',
+    close(w.pool.reserves.wood, 4000 + first.used + second.used + third.used));
+}
+
+{
+  // Partial fill: the drain cap bites, and the player is charged only for
+  // what actually traded.
+  // A thin gold reserve of 100 caps output at 30, but maxIn is still ~1720 —
+  // so a harbour that can only carry 1265 never reaches the cap. Needs level 8
+  // (4271) to get an order big enough to be clamped by the pool rather than
+  // by the docks.
+  const { w, a, ia } = poolWorld({ wood: 4000, stone: 3600, gold: 100 }, 8);
+  const woodBefore = ia.resources.wood;
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 3000, t0);
+  check('an oversized swap fills partially rather than failing',
+    !r.error && r.capped === true, JSON.stringify(r));
+  check('the cap holds it to 30% of the reserve', close(r.out, 30), `out ${r.out}`);
+  check('and the island is charged only for what traded',
+    close(ia.resources.wood, woodBefore - r.used) && r.used < 3000,
+    `used ${r.used}`);
+}
+
+{
+  // Fractional amounts are floored, as everywhere else a player names a
+  // quantity (sendTrade does the same). Nothing exercised this, so dropping
+  // the floor() went unnoticed.
+  const { w, a, ia } = poolWorld();
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500.9, t0);
+  check('a fractional amount is floored', !r.error && close(r.used, 500), `used ${r.used}`);
+  check('and the island is charged the whole number', close(ia.resources.wood, 4500));
+}
+
+{
+  // A reserve on its floor sells nothing at all, and says so.
+  const { w, a, ia } = poolWorld();
+  w.pool.reserves.gold = w.pool.seeded.gold * 0.25; // exactly the floor
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('a reserve on its floor refuses the swap', r.error === 'err.poolDry');
+  check('and the island pays nothing for the refusal', ia.resources.wood === 5000);
+}
+
+{
+  // Fees accrue to the reserves, so the pool is worth more per share after
+  // trading than before — which is the whole return an LP gets.
+  const { w, a, ia } = poolWorld();
+  const k = (p) => Math.sqrt(p.reserves.wood * p.reserves.gold);
+  const kBefore = k(w.pool);
+  g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('trading grows the pool invariant, so shares appreciate', k(w.pool) > kBefore);
+  check('and the share count is untouched by trading', w.pool.totalShares === 1000);
+}
+
 // ---------------------------------------------------------------- diplomacy & board
 
 console.log('diplomacy & board');

@@ -906,6 +906,96 @@ function poolOpts(pool) {
   };
 }
 
+// ---- swapping against the pool
+//
+// Flat travel time. The pool has no place on the map, so every island trades
+// with it on the same terms (#46). Distance pricing would hand coastal and
+// central islands a permanent edge — a second balance problem nobody asked
+// for, easy to add later and hard to take away.
+//
+// Delivery goes out as an ordinary `trade` movement, which means this adds no
+// branch to applyMovement: arrival already credits the island and clamps to
+// the storehouse. The riskiest function in the codebase is untouched.
+const POOL_TRAVEL_MIN = 30; // minutes at game speed 1
+
+/**
+ * Swap `amount` of `from` for `to` against the world pool, shipping the
+ * proceeds home from the island's own harbour.
+ *
+ * `minOut` is optional slippage protection. A player quotes through
+ * GET /api/pool and then acts, and the pool may move in between — without a
+ * floor on what they will accept, they are committed to whatever price the
+ * pool has drifted to by the time the request lands.
+ */
+function sendPoolSwap(world, player, island, from, to, amount, now, minOut) {
+  resolveIsland(island, now);
+  const pool = world.pool;
+  if (!pool || !pool.open) return { error: 'err.poolClosed' };
+  if (island.buildings.harbor < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: '@building.harbor.name' } };
+  }
+  if (!RESOURCES.includes(from) || !RESOURCES.includes(to) || from === to) {
+    return { error: 'err.badRequest' };
+  }
+  const want = Math.floor(Number(amount));
+  if (!Number.isFinite(want) || want < 1) return { error: 'err.tradeAmount' };
+  if (want > island.resources[from]) return { error: 'err.noResources' };
+  const shipCap = tradeCapacity(island.buildings.harbor);
+  if (want > shipCap) return { error: 'err.tradeCapacity', errorParams: { cap: shipCap } };
+
+  // Slippage protection has to be all or nothing. Accepting an unusable
+  // minOut and carrying on would leave a caller believing it was protected
+  // while it traded at any price at all.
+  let floorOut = null;
+  if (minOut != null) {
+    floorOut = Number(minOut);
+    if (!Number.isFinite(floorOut) || floorOut < 0) return { error: 'err.badRequest' };
+  }
+
+  const q = poolQuote(pool.reserves, from, to, want, poolOpts(pool));
+  if (!(q.out > 0) || !(q.used > 0)) return { error: 'err.poolDry' };
+  if (floorOut != null && q.out < floorOut) return { error: 'err.poolSlippage' };
+
+  const arrive = now + Math.max(5000, Math.round((POOL_TRAVEL_MIN * 60000) / SPEED));
+
+  // Refuse rather than deliver into a full storehouse: arrival clamps to
+  // capacity, which is fair enough for a gift but not for goods already paid
+  // for, where the surplus would simply evaporate.
+  //
+  // The room that matters is the room on ARRIVAL, not now. The ship is half
+  // an hour out and the storehouse keeps filling while it sails, so this
+  // counts production over the crossing and anything already inbound that
+  // lands first. It cannot know about shipments the player sends afterwards,
+  // and arrival still clamps like every other delivery — so this is a good
+  // guard, not a guarantee.
+  const cap = storageCapacity(island.buildings.storehouse);
+  const hours = (arrive - now) / 3600000;
+  const inbound = world.movements.reduce(
+    (n, m) => n + (m.toId === island.id && m.loot && m.arrive <= arrive ? (m.loot[to] || 0) : 0), 0);
+  const atArrival = Math.min(cap, island.resources[to] + islandRates(island)[to] * hours + inbound);
+  const room = cap - atArrival;
+  if (q.out > room) {
+    return { error: 'err.poolStorage', errorParams: { room: Math.max(0, Math.floor(room)) } };
+  }
+
+  // The pool moves NOW; the goods arrive later. If the price only moved on
+  // arrival, a player could fire off a dozen swaps at the same stale price
+  // before any of them landed and drain a reserve at the opening rate.
+  pool.reserves[from] += q.used;
+  pool.reserves[to] -= q.out;
+  island.resources[from] -= q.used;
+
+  world.movements.push({
+    id: world.nextId++, type: 'trade', ownerId: player.id,
+    fromId: island.id, toId: island.id, units: zeroUnits(),
+    loot: fullLoad(to, q.out),
+    depart: now, arrive,
+  });
+  // `used` can be below `want` when the drain cap or a floor bites: a partial
+  // fill, charged only for what actually traded.
+  return { ok: true, arrive, used: q.used, out: q.out, impact: q.impact, capped: q.capped };
+}
+
 /** What a share balance is currently worth, resource by resource. */
 function poolShareValue(reserves, totalShares, shares) {
   // Same family as the guard in poolRemoveLiquidity: a negative or NaN share
@@ -1961,6 +2051,7 @@ export {
   poolSpot, poolQuote, poolApplySwap,
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
   newPool, poolOpts, poolAmount,
+  POOL_TRAVEL_MIN, sendPoolSwap,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };
