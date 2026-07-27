@@ -940,19 +940,40 @@ function sendPoolSwap(world, player, island, from, to, amount, now, minOut) {
   const want = Math.floor(Number(amount));
   if (!Number.isFinite(want) || want < 1) return { error: 'err.tradeAmount' };
   if (want > island.resources[from]) return { error: 'err.noResources' };
-  const cap = tradeCapacity(island.buildings.harbor);
-  if (want > cap) return { error: 'err.tradeCapacity', errorParams: { cap } };
+  const shipCap = tradeCapacity(island.buildings.harbor);
+  if (want > shipCap) return { error: 'err.tradeCapacity', errorParams: { cap: shipCap } };
+
+  // Slippage protection has to be all or nothing. Accepting an unusable
+  // minOut and carrying on would leave a caller believing it was protected
+  // while it traded at any price at all.
+  let floorOut = null;
+  if (minOut != null) {
+    floorOut = Number(minOut);
+    if (!Number.isFinite(floorOut) || floorOut < 0) return { error: 'err.badRequest' };
+  }
 
   const q = poolQuote(pool.reserves, from, to, want, poolOpts(pool));
   if (!(q.out > 0) || !(q.used > 0)) return { error: 'err.poolDry' };
-  if (minOut != null && Number.isFinite(Number(minOut)) && q.out < Number(minOut)) {
-    return { error: 'err.poolSlippage' };
-  }
+  if (floorOut != null && q.out < floorOut) return { error: 'err.poolSlippage' };
 
-  // Refuse rather than deliver into a full storehouse. Arrival clamps to
-  // capacity, which is fair enough for a gift but not for goods the player
-  // has already paid for — the overflow would simply evaporate.
-  const room = storageCapacity(island.buildings.storehouse) - island.resources[to];
+  const arrive = now + Math.max(5000, Math.round((POOL_TRAVEL_MIN * 60000) / SPEED));
+
+  // Refuse rather than deliver into a full storehouse: arrival clamps to
+  // capacity, which is fair enough for a gift but not for goods already paid
+  // for, where the surplus would simply evaporate.
+  //
+  // The room that matters is the room on ARRIVAL, not now. The ship is half
+  // an hour out and the storehouse keeps filling while it sails, so this
+  // counts production over the crossing and anything already inbound that
+  // lands first. It cannot know about shipments the player sends afterwards,
+  // and arrival still clamps like every other delivery — so this is a good
+  // guard, not a guarantee.
+  const cap = storageCapacity(island.buildings.storehouse);
+  const hours = (arrive - now) / 3600000;
+  const inbound = world.movements.reduce(
+    (n, m) => n + (m.toId === island.id && m.loot && m.arrive <= arrive ? (m.loot[to] || 0) : 0), 0);
+  const atArrival = Math.min(cap, island.resources[to] + islandRates(island)[to] * hours + inbound);
+  const room = cap - atArrival;
   if (q.out > room) {
     return { error: 'err.poolStorage', errorParams: { room: Math.max(0, Math.floor(room)) } };
   }
@@ -964,7 +985,6 @@ function sendPoolSwap(world, player, island, from, to, amount, now, minOut) {
   pool.reserves[to] -= q.out;
   island.resources[from] -= q.used;
 
-  const arrive = now + Math.max(5000, Math.round((POOL_TRAVEL_MIN * 60000) / SPEED));
   world.movements.push({
     id: world.nextId++, type: 'trade', ownerId: player.id,
     fromId: island.id, toId: island.id, units: zeroUnits(),

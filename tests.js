@@ -1017,6 +1017,60 @@ const poolTotal = (w, ia) =>
   check('a refused swap leaves the pool untouched', w.pool.reserves.wood === 4000);
   check('a swap meeting minOut goes through',
     !g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0, fair).error);
+
+  // An unusable minOut must be an error, not a silently disabled guard. A
+  // caller that asked for protection and got none is worse off than one that
+  // knew it had none.
+  const fresh = poolWorld();
+  for (const bad of [NaN, 'abc', -1, Infinity, {}]) {
+    const r = g.sendPoolSwap(fresh.w, fresh.a, fresh.ia, 'wood', 'gold', 500, t0, bad);
+    check(`minOut ${String(bad)} is rejected, not ignored`, r.error === 'err.badRequest',
+      JSON.stringify(r));
+  }
+  check('a rejected minOut moved nothing', fresh.ia.resources.wood === 5000);
+  // null/undefined still mean "no protection asked for".
+  check('omitting minOut is still allowed',
+    !g.sendPoolSwap(fresh.w, fresh.a, fresh.ia, 'wood', 'gold', 500, t0, null).error);
+}
+
+{
+  // The storehouse guard has to look at room on ARRIVAL, not room now. The
+  // ship is half an hour out and the store keeps filling while it sails.
+  const { w, a, ia } = poolWorld();
+  ia.buildings.storehouse = 1;                  // capacity 600
+  ia.buildings.goldmine = 10;                   // ~499 gold/h, so ~250 over the crossing
+  ia.resources = { wood: 500, stone: 0, gold: 300 };
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 100, t0);
+  check('production during the crossing is counted against the room',
+    r.error === 'err.poolStorage', JSON.stringify(r));
+
+  // Same island, production off: now there is genuinely room and it passes.
+  const idle = poolWorld();
+  idle.ia.buildings.storehouse = 1;
+  idle.ia.resources = { wood: 500, stone: 0, gold: 300 };
+  check('with nothing accruing, the same swap is allowed',
+    !g.sendPoolSwap(idle.w, idle.a, idle.ia, 'wood', 'gold', 100, t0).error);
+}
+
+{
+  // A shipment already inbound counts too — it lands before ours does.
+  const { w, a, ia } = poolWorld();
+  ia.buildings.storehouse = 1;                  // capacity 600
+  ia.resources = { wood: 500, stone: 0, gold: 300 };
+  check('with no shipment inbound the swap is fine',
+    !g.sendPoolSwap(w, a, ia, 'wood', 'gold', 100, t0).error);
+
+  const blocked = poolWorld();
+  blocked.ia.buildings.storehouse = 1;
+  blocked.ia.resources = { wood: 500, stone: 0, gold: 300 };
+  blocked.w.movements.push({
+    id: 9001, type: 'trade', ownerId: blocked.a.id,
+    fromId: blocked.ia.id, toId: blocked.ia.id, units: g.zeroUnits(),
+    loot: { wood: 0, stone: 0, gold: 290 }, depart: t0, arrive: t0 + 60000,
+  });
+  const r = g.sendPoolSwap(blocked.w, blocked.a, blocked.ia, 'wood', 'gold', 100, t0);
+  check('a shipment already inbound is counted against the room',
+    r.error === 'err.poolStorage', JSON.stringify(r));
 }
 
 {
