@@ -1960,7 +1960,7 @@ export {
   POOL_FEE_BPS, POOL_MAX_OUT_FRAC, POOL_FLOOR_FRAC,
   poolSpot, poolQuote, poolApplySwap,
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
-  newPool, poolOpts,
+  newPool, poolOpts, poolAmount,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };
