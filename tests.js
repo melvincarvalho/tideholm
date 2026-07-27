@@ -532,6 +532,190 @@ console.log('market');
   check('offer removed from the market', !w.offers.some((o) => o.id === mine[0].id));
 }
 
+// ---------------------------------------------------------------- resource pool
+// Nothing in the game calls the pool yet (#46). These pin the arithmetic
+// before anything can move a player's resources with it.
+//
+// The invariants matter more than the individual numbers. A market maker that
+// can be round-tripped for profit is a resource printer, and one that can be
+// drained to zero is a dead feature — so both are asserted directly rather
+// than inferred from a worked example.
+console.log('resource pool');
+
+{
+  // The tuned seed, from a week of the live season: gold is over-produced
+  // relative to what it is spent on, so it is worth LESS than wood.
+  const seed = () => ({ wood: 4000, stone: 3600, gold: 6800 });
+
+  check('spot price is the reserve ratio', close(g.poolSpot(seed(), 'wood', 'gold'), 4000 / 6800));
+  check('spot price of a resource against itself is 1', g.poolSpot(seed(), 'wood', 'wood') === 1);
+
+  // Spot prices around the triangle multiply to 1, so there is no free money
+  // sitting in the price table itself.
+  const p = seed();
+  check('no triangular arbitrage at spot', close(
+    g.poolSpot(p, 'wood', 'stone') * g.poolSpot(p, 'stone', 'gold') * g.poolSpot(p, 'gold', 'wood'), 1));
+
+  // x*y=k, worked by hand: dxf = 500*0.997 = 498.5
+  //   out = 6800 - (4000*6800)/(4000+498.5) = 6800 - 27_200_000/4498.5 = 754.57...
+  const q = g.poolQuote(seed(), 'wood', 'gold', 500);
+  check('quote follows x*y=k after fee', close(q.out, 6800 - (4000 * 6800) / (4000 + 500 * 0.997), 1e-9),
+    `got ${q.out}`);
+  check('effective price is worse than spot', q.effPrice > q.spotPrice);
+  check('impact is the gap between them', close(q.impact, q.effPrice / q.spotPrice - 1));
+  check('a quote inside the cap is not capped', q.capped === false && q.cappedBy === null);
+
+  // Bigger orders get more out in total but a worse rate each — the whole
+  // point of a curve over a fixed exchange rate.
+  const small = g.poolQuote(seed(), 'wood', 'gold', 100);
+  const big = g.poolQuote(seed(), 'wood', 'gold', 1000);
+  check('more in yields more out', big.out > small.out);
+  check('more in yields a worse rate', big.effPrice > small.effPrice);
+}
+
+{
+  // Conservation: a swap moves resources between the pool and the trader and
+  // creates none. The fee is not an extra charge, it stays in the reserve.
+  const before = { wood: 4000, stone: 3600, gold: 6800 };
+  const r = g.poolApplySwap(before, 'wood', 'gold', 500);
+  check('input reserve rises by exactly what was used',
+    close(r.reserves.wood, before.wood + r.used));
+  check('output reserve falls by exactly what was paid out',
+    close(r.reserves.gold, before.gold - r.out));
+  check('the untouched reserve does not move', r.reserves.stone === before.stone);
+  check('applySwap does not mutate its argument', before.wood === 4000 && before.gold === 6800);
+
+  // k grows by the fee and never shrinks — that is what makes a share of the
+  // pool worth more after trading than before.
+  const kBefore = before.wood * before.gold;
+  const kAfter = r.reserves.wood * r.reserves.gold;
+  check('k never decreases across a swap', kAfter >= kBefore);
+  check('k grows by roughly the fee', kAfter > kBefore);
+}
+
+{
+  // No free money. Every closed loop must lose, or the pool is a printer.
+  const start = { wood: 4000, stone: 3600, gold: 6800 };
+
+  const outbound = g.poolApplySwap(start, 'wood', 'gold', 500);
+  const back = g.poolApplySwap(outbound.reserves, 'gold', 'wood', outbound.out);
+  check('a there-and-back swap returns less than it sent', back.out < 500, `got ${back.out}`);
+
+  // The triangle too: wood -> stone -> gold -> wood.
+  let res = start;
+  let held = 500;
+  for (const [from, to] of [['wood', 'stone'], ['stone', 'gold'], ['gold', 'wood']]) {
+    const leg = g.poolApplySwap(res, from, to, held);
+    res = leg.reserves;
+    held = leg.out;
+  }
+  check('a triangular round trip returns less than it sent', held < 500, `got ${held}`);
+
+  // And with the fee switched off it must still lose, to slippage alone.
+  const free1 = g.poolApplySwap(start, 'wood', 'gold', 500, { feeBps: 0 });
+  const free2 = g.poolApplySwap(free1.reserves, 'gold', 'wood', free1.out, { feeBps: 0 });
+  check('round trip loses to slippage even at zero fee', free2.out <= 500 + 1e-9, `got ${free2.out}`);
+}
+
+{
+  // The per-swap drain cap.
+  const seed = { wood: 4000, stone: 3600, gold: 6800 };
+  const huge = g.poolQuote(seed, 'wood', 'gold', 1e12);
+  check('an oversized order is capped', huge.capped === true && huge.cappedBy === 'cap');
+  check('the cap is 30% of the output reserve', close(huge.out, 6800 * 0.30), `got ${huge.out}`);
+  check('a capped quote reports the input it actually used', huge.used < 1e12 && huge.used > 0);
+  check('using exactly maxIn is not over the cap', g.poolQuote(seed, 'wood', 'gold', huge.maxIn).capped === false);
+
+  // The cap is proportional, so it slows a drain but cannot stop one. This is
+  // the finding that made the floor necessary; pin it so it is not mistaken
+  // for protection later.
+  let res = seed;
+  for (let i = 0; i < 40; i++) res = g.poolApplySwap(res, 'gold', 'stone', 1e12).reserves;
+  check('the cap alone does NOT stop a sustained drain', res.stone < seed.stone * 0.0001,
+    `stone left ${res.stone}`);
+}
+
+{
+  // The floor does stop it, because it is measured against the seeded amount
+  // rather than against whatever is left.
+  const seed = { wood: 4000, stone: 3600, gold: 6800 };
+  const floor = { wood: 1000, stone: 900, gold: 1700 }; // 25% of seed
+  let res = seed;
+  for (let i = 0; i < 40; i++) res = g.poolApplySwap(res, 'gold', 'stone', 1e12, { floor }).reserves;
+  check('the floor holds under a sustained drain', close(res.stone, 900), `stone left ${res.stone}`);
+  check('the floor never lets a reserve go under', res.stone >= 900 - 1e-9);
+
+  const atFloor = g.poolQuote(res, 'gold', 'stone', 1000, { floor });
+  check('a reserve sitting on its floor quotes zero', atFloor.out === 0);
+  check('and says the floor is why', atFloor.cappedBy === 'floor');
+
+  // A floor below the current reserve still lets the cap bind first.
+  const loose = g.poolQuote(seed, 'gold', 'stone', 1e12, { floor: { wood: 1, stone: 1, gold: 1 } });
+  check('a slack floor leaves the cap in charge', loose.cappedBy === 'cap');
+}
+
+{
+  // Liquidity: deposits keep the ratio, withdrawal is proportional, and a
+  // round trip with no trading in between must not return more than it put in.
+  const seed = { wood: 4000, stone: 3600, gold: 6800 };
+  const shares0 = Math.sqrt(seed.wood * seed.stone);
+
+  const add = g.poolAddLiquidity(seed, shares0, { wood: 1000, stone: 1000, gold: 1000 });
+  check('deposit keeps every leg on the same ratio',
+    close(add.required.wood / seed.wood, add.required.gold / seed.gold));
+
+  // Scaling must follow the TIGHTEST leg, not just the last one looked at.
+  // Offer a lot of stone and gold but almost no wood: wood has to bind, and
+  // the deposit must never take more of anything than was actually offered.
+  const lopsided = { wood: 100, stone: 5000, gold: 5000 };
+  const bound = g.poolAddLiquidity(seed, shares0, lopsided);
+  check('deposit is limited by the scarcest leg offered',
+    close(bound.required.wood, 100), `took ${bound.required.wood} wood of 100 offered`);
+  check('a deposit never takes more of any resource than was offered',
+    g.RESOURCES.every((r) => bound.required[r] <= lopsided[r] + 1e-9),
+    g.RESOURCES.map((r) => `${r} ${bound.required[r].toFixed(1)}/${lopsided[r]}`).join(", "));
+  check('the surplus legs are left with the depositor',
+    bound.required.gold < lopsided.gold);
+  check('deposit preserves the price', close(
+    g.poolSpot(add.reserves, 'wood', 'gold'), g.poolSpot(seed, 'wood', 'gold')));
+  check('shares minted in proportion to the deposit',
+    close(add.minted / add.totalShares, add.required.wood / add.reserves.wood));
+
+  const rm = g.poolRemoveLiquidity(add.reserves, add.totalShares, add.minted);
+  check('deposit then withdraw returns what went in',
+    close(rm.out.wood, add.required.wood) && close(rm.out.gold, add.required.gold));
+  check('and leaves the pool as it was found', close(rm.reserves.wood, seed.wood));
+  check('withdrawal cannot return more than was deposited',
+    rm.out.wood <= add.required.wood + 1e-9);
+
+  check('burning more shares than exist takes everything, not more',
+    close(g.poolRemoveLiquidity(seed, 100, 1e9).reserves.wood, 0));
+  check('over-burning cannot drive the share count negative',
+    g.poolRemoveLiquidity(seed, 100, 1e9).totalShares === 0);
+
+  check('share value is the pro-rata slice',
+    close(g.poolShareValue(seed, 100, 25).wood, 1000));
+  check('shares in an empty pool are worth nothing',
+    g.poolShareValue(seed, 0, 25).wood === 0);
+
+  // Fees accrue to the reserves, so a share redeems for a better basket after
+  // trading than before. Note the measure: adding wood + stone + gold is NOT
+  // a value, because a swap trades few of a dear resource for many of a cheap
+  // one and the unit count can fall while the pool is worth more. The
+  // constant-product invariant per share is the honest one, and it is exactly
+  // what fees push up.
+  const traded = g.poolApplySwap(seed, 'wood', 'gold', 500).reserves;
+  const perShare = (res) => Math.sqrt(res.wood * res.gold) / shares0;
+  check('trading makes a share redeem for more', perShare(traded) > perShare(seed),
+    `${perShare(seed)} -> ${perShare(traded)}`);
+  check('a swap can lower the unit count while raising the value',
+    traded.wood + traded.stone + traded.gold < seed.wood + seed.stone + seed.gold);
+
+  // First deposit into an empty pool sets the price rather than matching one.
+  const first = g.poolAddLiquidity({ wood: 0, stone: 0, gold: 0 }, 0, { wood: 100, stone: 100, gold: 50 });
+  check('the first deposit defines the pool', first.reserves.gold === 50 && first.totalShares > 0);
+}
+
 // ---------------------------------------------------------------- diplomacy & board
 
 console.log('diplomacy & board');

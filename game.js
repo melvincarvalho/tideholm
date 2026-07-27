@@ -661,6 +661,153 @@ function acceptOffer(world, player, island, offerId, now) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------- resource pool
+//
+// A constant-product market maker, as the always-available counterparty the
+// offer book above cannot be. An order book needs someone to want the mirror
+// of your trade at the same moment; with a handful of active players that
+// never happens, and `world.offers` has sat empty all season to prove it.
+//
+// Nothing calls any of this yet — see #46. It is here first, and pure, so the
+// arithmetic can be reviewed and pinned by tests before it is wired to
+// anything that can move a player's resources.
+//
+// Three resources share one pool, but a swap only ever touches the two
+// reserves involved, so each pair behaves as its own curve:
+//
+//     k = R_in * R_out
+//     out = R_out - k / (R_in + in_after_fee)
+//
+// Spot prices stay mutually consistent because (Rw/Rs)*(Rs/Rg)*(Rg/Rw) = 1,
+// so there is no triangular arbitrage to harvest at spot, and fee plus
+// slippage make any actual round trip a loss. Both are pinned in tests.js.
+//
+// Tuned against a week of the live season rather than the base production
+// rates: gold is 17.3% of what the world produces but only 10.4% of what it
+// is spent on, so it is worth *less* than wood, not more. See #46.
+const POOL_FEE_BPS = 30;        // 0.30% of the input, kept by the pool
+const POOL_MAX_OUT_FRAC = 0.30; // no single swap may take more than this share
+
+/** Spot price: how much `from` one unit of `to` costs, ignoring slippage. */
+function poolSpot(reserves, from, to) {
+  if (from === to) return 1;
+  return reserves[from] / reserves[to];
+}
+
+/**
+ * Quote a swap without applying it.
+ *
+ * `opts.floor` is an absolute per-resource reserve floor. It exists because
+ * the per-swap drain cap cannot protect a reserve on its own: the cap is
+ * proportional, so a sustained one-way flow still empties it — 0.7^n reaches
+ * zero, and against the real season it did so in about 10,500 trades. A floor
+ * measured against the *seeded* amount holds where a percentage cannot.
+ *
+ * @returns {{out:number, impact:number, effPrice:number, spotPrice:number,
+ *            capped:boolean, cappedBy:('cap'|'floor'|null), maxIn:number, used:number}}
+ *   `impact` is the gap between the effective and spot price — the number
+ *   that says the pool is too thin for the trade you asked for.
+ */
+function poolQuote(reserves, from, to, amountIn, opts = {}) {
+  const feeBps = opts.feeBps ?? POOL_FEE_BPS;
+  const maxOutFrac = opts.maxOutFrac ?? POOL_MAX_OUT_FRAC;
+  const floor = opts.floor;
+  const spotPrice = poolSpot(reserves, from, to);
+
+  const byCap = reserves[to] * maxOutFrac;
+  const byFloor = floor ? Math.max(0, reserves[to] - floor[to]) : Infinity;
+  const maxOut = Math.min(byCap, byFloor);
+
+  // Largest input whose output stays inside that ceiling, from
+  // out = Rout * dxf / (Rin + dxf) solved for dxf, then undoing the fee.
+  const f = 1 - feeBps / 10000;
+  const headroom = reserves[to] - maxOut;
+  const maxIn = f > 0 && headroom > 0 ? (maxOut * reserves[from]) / headroom / f : 0;
+
+  const capped = amountIn > maxIn;
+  const used = capped ? maxIn : amountIn;
+  const dxf = used * f;
+  const out = used > 0
+    ? reserves[to] - (reserves[from] * reserves[to]) / (reserves[from] + dxf)
+    : 0;
+  const effPrice = out > 0 ? used / out : Infinity;
+
+  return {
+    out,
+    impact: out > 0 ? effPrice / spotPrice - 1 : 0,
+    effPrice,
+    spotPrice,
+    capped,
+    cappedBy: !capped ? null : (byFloor < byCap ? 'floor' : 'cap'),
+    maxIn,
+    used,
+  };
+}
+
+/** Apply a swap, returning new reserves. Does not mutate its argument. */
+function poolApplySwap(reserves, from, to, amountIn, opts = {}) {
+  const q = poolQuote(reserves, from, to, amountIn, opts);
+  const next = { ...reserves };
+  next[from] = reserves[from] + q.used;
+  next[to] = reserves[to] - q.out;
+  return { reserves: next, ...q };
+}
+
+/**
+ * Add liquidity in proportion to the current reserves.
+ * The first deposit into an empty pool defines the price, so it sets the
+ * ratio; every later one must match it or it would be donating value.
+ * @returns {{reserves, totalShares, minted, required}}
+ */
+function poolAddLiquidity(reserves, totalShares, desired) {
+  if (totalShares <= 0) {
+    const minted = Math.sqrt(desired.wood * desired.stone) || 1;
+    return {
+      reserves: { ...desired },
+      totalShares: minted,
+      minted,
+      required: { ...desired },
+    };
+  }
+  // Scale to the tightest resource so nothing is left stranded.
+  let scale = Infinity;
+  for (const r of RESOURCES) {
+    if (reserves[r] > 0) scale = Math.min(scale, desired[r] / reserves[r]);
+  }
+  if (!isFinite(scale) || scale <= 0) scale = 0;
+  const required = {};
+  const next = {};
+  for (const r of RESOURCES) {
+    required[r] = reserves[r] * scale;
+    next[r] = reserves[r] + required[r];
+  }
+  const minted = totalShares * scale;
+  return { reserves: next, totalShares: totalShares + minted, minted, required };
+}
+
+/** Burn shares for a proportional slice of every reserve. */
+function poolRemoveLiquidity(reserves, totalShares, burn) {
+  // Burning more than exists takes everything rather than driving the share
+  // count negative.
+  const burned = totalShares > 0 ? Math.min(burn, totalShares) : 0;
+  const frac = totalShares > 0 ? burned / totalShares : 0;
+  const out = {};
+  const next = {};
+  for (const r of RESOURCES) {
+    out[r] = reserves[r] * frac;
+    next[r] = reserves[r] - out[r];
+  }
+  return { reserves: next, totalShares: totalShares - burned, out };
+}
+
+/** What a share balance is currently worth, resource by resource. */
+function poolShareValue(reserves, totalShares, shares) {
+  const frac = totalShares > 0 ? shares / totalShares : 0;
+  const out = {};
+  for (const r of RESOURCES) out[r] = reserves[r] * frac;
+  return out;
+}
+
 // ---------------------------------------------------------------- diplomacy & board
 
 // Effective relation between two alliances: war is unilateral,
@@ -1692,6 +1839,9 @@ export {
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
   leaveAlliance, sendMessage,
   createOffer, cancelOffer, acceptOffer,
+  POOL_FEE_BPS, POOL_MAX_OUT_FRAC,
+  poolSpot, poolQuote, poolApplySwap,
+  poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };
