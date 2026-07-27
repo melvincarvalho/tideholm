@@ -569,6 +569,169 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 100 }, cookie: ocookie });
   check('a closed pool refuses swaps over HTTP', r.status === 400, `got ${r.status}`);
 
+  // ---------------------------------------------------------------- liquidity
+  // The preview and the action are the SAME function, so the property to pin
+  // is that they cannot disagree — the failure mode that bit the quote and
+  // the swap over fractional amounts in 7a.
+  console.log('\npool liquidity (POST)');
+  openApp.world.pool.open = true;
+  isl.buildings.harbor = 10;
+  isl.buildings.storehouse = 14;
+  gameMod.resolveIsland(isl, Date.now());
+  isl.resources = { wood: 20000, stone: 20000, gold: 20000 };
+  swapper.lpShares = 0;
+
+  r = await req(oa.port, 'POST', '/api/pool/deposit', { body: { islandId: isl.id, wood: 500 } });
+  check('depositing without a session is refused', r.status === 401);
+
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=500`, { cookie: ocookie });
+  const dPlan = r.data.depositPlan;
+  check('the deposit preview is returned', !!dPlan && !dPlan.error, JSON.stringify(dPlan));
+  check('the preview does not mint', swapper.lpShares === 0);
+
+  r = await req(oa.port, 'POST', '/api/pool/deposit',
+    { body: { islandId: isl.id, wood: 500 }, cookie: ocookie });
+  check('the deposit succeeds', r.status === 200, JSON.stringify(r.data));
+  check('and mints exactly what the preview promised',
+    Math.abs(r.data.minted - dPlan.minted) < 1e-9, `${r.data.minted} vs ${dPlan.minted}`);
+  check('and costs exactly what the preview promised',
+    r.status === 200 && ['wood','stone','gold'].every((x) => Math.abs(r.data.required?.[x] - dPlan.required[x]) < 1e-9),
+    JSON.stringify({ got: r.data.required, promised: dPlan.required }));
+  const minted = r.data.minted;
+  check('the player holds the shares', Math.abs(swapper.lpShares - minted) < 1e-9);
+
+  // A fractional deposit must be floored identically by preview and action —
+  // the exact shape of the 7a bug.
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=300.9`, { cookie: ocookie });
+  const fracPlan = r.data.depositPlan;
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=300`, { cookie: ocookie });
+  check('a fractional deposit preview matches the whole-number one',
+    Math.abs(fracPlan.minted - r.data.depositPlan.minted) < 1e-12);
+  r = await req(oa.port, 'POST', '/api/pool/deposit',
+    { body: { islandId: isl.id, wood: 300.9, minShares: fracPlan.minted }, cookie: ocookie });
+  check('and a fractional deposit is not a spurious slippage failure',
+    r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+
+  // A preview error must carry its placeholders. err.tradeCapacity says
+  // "your Harbor can carry {cap}" — without errorParams the player is shown
+  // the brace.
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&deposit=999999`, { cookie: ocookie });
+  const errPlan = r.data.depositPlan;
+  check('a preview error is reported', !!errPlan?.error, JSON.stringify(errPlan));
+  check('and carries its params so the message can render',
+    errPlan.error === 'err.noResources'
+      ? (errPlan.errorParams?.need > 0 && !!errPlan.errorParams?.res)
+      : errPlan.errorParams?.cap > 0,
+    JSON.stringify(errPlan));
+
+  // The preview must resolve the island exactly as the action does. Reading
+  // the stored object shows pre-accrual resources and a pre-upgrade harbour,
+  // so the preview refused deposits the POST accepted — a preview/action
+  // disagreement that sharing the planner does not prevent, because it is
+  // about the INPUT each side reads, not the maths.
+  {
+    // Its own player, so this block gets its own rate-limit bucket. Adding one
+    // more POST to the shared one tipped the block past 20-per-10s and failed
+    // a later check with "Slow down".
+    r = await req(oa.port, 'POST', '/api/register',
+      { body: { name: 'Stale Tester', password: 'sekrit', lang: 'en' } });
+    const scookie = (r.headers.get('set-cookie') || '').split(';')[0];
+    const staler = openApp.world.players.find((p) => p.name === 'Stale Tester');
+    const stale = gameMod.newIsland(openApp.world, staler.id, 'Stale Isle');
+    stale.buildings.harbor = 10;
+    stale.buildings.storehouse = 14;
+    stale.buildings.lumberyard = 15;
+    stale.buildings.quarry = 15;
+    stale.buildings.goldmine = 15;
+    gameMod.resolveIsland(stale, Date.now());
+    stale.resources = { wood: 100, stone: 100, gold: 100 };
+    stale.lastUpdate = Date.now() - 3600 * 1000;   // an hour of pending accrual
+
+    r = await req(oa.port, `GET`, `/api/pool?islandId=${stale.id}&deposit=500`, { cookie: scookie });
+    check('the preview resolves the island before planning',
+      !r.data.depositPlan?.error, JSON.stringify(r.data.depositPlan));
+
+    stale.resources = { wood: 100, stone: 100, gold: 100 };
+    stale.lastUpdate = Date.now() - 3600 * 1000;
+    r = await req(oa.port, 'POST', '/api/pool/deposit',
+      { body: { islandId: stale.id, wood: 500 }, cookie: scookie });
+    check('and the action agrees with it', r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+
+    // Same for withdrawal, where the stale field that bites is the HARBOUR:
+    // resolveIsland completes finished builds, so an unresolved island still
+    // shows the old level and mis-caps (or refuses) the shipment.
+    const stStaler = openApp.world.players.find((p) => p.name === 'Stale Tester');
+    check('the stale tester holds a stake', stStaler.lpShares > 0);
+    stale.buildings.harbor = 0;                       // no harbour => err.buildFirst
+    stale.queue = [{ building: 'harbor', level: 10, finish: Date.now() - 60_000 }];
+    stale.lastUpdate = Date.now() - 3600 * 1000;
+    r = await req(oa.port, `GET`, `/api/pool?islandId=${stale.id}&withdraw=${stStaler.lpShares}`,
+      { cookie: scookie });
+    check('the withdraw preview resolves the island too',
+      !r.data.withdrawPlan?.error, JSON.stringify(r.data.withdrawPlan));
+    check('and the finished harbour upgrade is what made it possible',
+      stale.buildings.harbor === 10, `harbour ${stale.buildings.harbor}`);
+  }
+
+  // Withdraw.
+  const held = swapper.lpShares;
+  r = await req(oa.port, `GET`, `/api/pool?islandId=${isl.id}&withdraw=${held}`, { cookie: ocookie });
+  const wPlan = r.data.withdrawPlan;
+  check('the withdraw preview is returned', !!wPlan && !wPlan.error, JSON.stringify(wPlan));
+  const woodBeforeW = isl.resources.wood;
+
+  r = await req(oa.port, 'POST', '/api/pool/withdraw',
+    { body: { islandId: isl.id, shares: held }, cookie: ocookie });
+  check('the withdrawal succeeds', r.status === 200, JSON.stringify(r.data));
+  check('and returns exactly what the preview promised',
+    r.status === 200 && !wPlan.error
+      && ['wood','stone','gold'].every((x) => Math.abs(r.data.out?.[x] - wPlan.out?.[x]) < 1e-9),
+    JSON.stringify({ got: r.data.out, promised: wPlan.out }));
+  check('the shares are gone', swapper.lpShares === 0);
+  check('nothing is credited before the ship lands', isl.resources.wood === woodBeforeW);
+  check('a shipment is in flight', r.data.arrive > Date.now());
+
+  r = await req(oa.port, 'POST', '/api/pool/withdraw',
+    { body: { islandId: isl.id, shares: 100 }, cookie: ocookie });
+  check('withdrawing with no stake is a 400', r.status === 400);
+  check('and says so, rather than blaming the request',
+    r.data.error && !/request/i.test(r.data.error), r.data.error);
+
+  // A malformed request must not masquerade as "you have no stake". Number()
+  // turns these into NaN, poolAmount turns NaN into 0, and the player was
+  // told something both wrong and unactionable.
+  //
+  // Own player again: the POST budget is 20 per 10s per player, and six more
+  // on the shared one tipped it into "Slow down" — which then failed the
+  // checks AFTER it too, not just these.
+  r = await req(oa.port, 'POST', '/api/register',
+    { body: { name: 'Malformed Tester', password: 'sekrit', lang: 'en' } });
+  const mcookie = (r.headers.get('set-cookie') || '').split(';')[0];
+  const mIsle = gameMod.playerIslands(openApp.world,
+    openApp.world.players.find((p) => p.name === 'Malformed Tester').id)[0];
+  for (const bad of [undefined, null, 'abc', {}, -5, 0]) {
+    r = await req(oa.port, 'POST', '/api/pool/withdraw',
+      { body: { islandId: mIsle.id, shares: bad }, cookie: mcookie });
+    check(`shares=${JSON.stringify(bad)} is a bad request, not "no stake"`,
+      r.status === 400 && /request/i.test(r.data.error || ''),
+      `${r.status} ${JSON.stringify(r.data)}`);
+  }
+
+  // Strings over the wire. poolAmount deliberately refuses them, so the HTTP
+  // layer has to coerce — and it has to do so on the ACTION as well as the
+  // preview, or a holder is told they have no stake. The preview coerced and
+  // the POST did not, which is the same preview/action split this whole step
+  // was built to avoid, reintroduced one layer above the shared planner.
+  r = await req(oa.port, 'POST', '/api/pool/deposit',
+    { body: { islandId: isl.id, wood: '400' }, cookie: ocookie });
+  check('a string deposit amount is accepted', r.status === 200, JSON.stringify(r.data));
+  const strShares = String(swapper.lpShares);
+  r = await req(oa.port, 'POST', '/api/pool/withdraw',
+    { body: { islandId: isl.id, shares: strShares }, cookie: ocookie });
+  check('a string share count is accepted, not read as no stake',
+    r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+  check('and it burned the whole holding', swapper.lpShares === 0);
+
   oa.srv.close();
   openApp.stop();
 

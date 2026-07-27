@@ -962,6 +962,158 @@ function closePool(world) {
   return { ok: true };
 }
 
+// ---- providing liquidity
+//
+// This is how the pool gets deep without minting: a deposit moves resources
+// that already exist out of an island and into the reserves. On the live
+// season a pool seeded deep enough to trade against would have cost 11-22%
+// resource inflation, so player liquidity is not a nice-to-have — it is the
+// only affordable way to a usable depth (#46).
+//
+// The plan is computed by ONE function that both the preview and the action
+// call. Two paths that agree by inspection is exactly how the quote and the
+// swap drifted apart over fractional amounts in step 7a; this way a preview
+// cannot describe a different trade from the one that executes.
+
+/**
+ * Work out what a deposit of `woodLeg` wood would cost and mint. Pure: reads
+ * the world, changes nothing.
+ * @returns {{error}|{required, minted, reserves, totalShares, share}}
+ */
+function planPoolDeposit(world, island, woodLeg) {
+  const pool = world && world.pool;
+  if (!pool || !pool.open) return { error: 'err.poolClosed' };
+  if (island.buildings.harbor < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: '@building.harbor.name' } };
+  }
+  const want = Math.floor(Number(woodLeg));
+  if (!Number.isFinite(want) || want < 1) return { error: 'err.tradeAmount' };
+  if (!(pool.reserves.wood > 0)) return { error: 'err.poolClosed' };
+
+  // The other legs follow the pool's own ratio, so a deposit never moves the
+  // price — it only makes the same price available in greater size.
+  const desired = {};
+  for (const r of RESOURCES) desired[r] = want * poolSpot(pool.reserves, r, 'wood');
+
+  const res = poolAddLiquidity(pool.reserves, pool.totalShares, desired);
+  if (!(res.minted > 0)) return { error: 'err.badRequest' };
+
+  for (const r of RESOURCES) {
+    if (res.required[r] > island.resources[r]) {
+      return { error: 'err.noResources', errorParams: { need: Math.ceil(res.required[r]), res: r } };
+    }
+  }
+  // Shipping it out is a harbour job, capped like any other shipment.
+  const total = RESOURCES.reduce((n, r) => n + res.required[r], 0);
+  const shipCap = tradeCapacity(island.buildings.harbor);
+  if (total > shipCap) return { error: 'err.tradeCapacity', errorParams: { cap: shipCap } };
+
+  return {
+    required: res.required,
+    minted: res.minted,
+    reserves: res.reserves,
+    totalShares: res.totalShares,
+    share: res.minted / res.totalShares,
+  };
+}
+
+/**
+ * Deposit into the pool. Takes effect at once: nothing is being delivered to
+ * the island, so there is no return leg to sail. Withdrawal is the asymmetric
+ * half — that ships goods home and travels.
+ */
+function sendPoolDeposit(world, player, island, woodLeg, now, minShares) {
+  resolveIsland(island, now);
+  let floorShares = null;
+  if (minShares != null) {
+    floorShares = Number(minShares);
+    if (!Number.isFinite(floorShares) || floorShares < 0) return { error: 'err.badRequest' };
+  }
+  const plan = planPoolDeposit(world, island, woodLeg);
+  if (plan.error) return plan;
+  if (floorShares != null && plan.minted < floorShares) return { error: 'err.poolSlippage' };
+
+  const pool = world.pool;
+  for (const r of RESOURCES) island.resources[r] -= plan.required[r];
+  pool.reserves = plan.reserves;
+  pool.totalShares = plan.totalShares;
+  player.lpShares = poolAmount(player.lpShares) + plan.minted;
+  // The caller wants "what fraction of the pool do I now hold", which needs
+  // totalShares. minted/shares is 1 for a first-time depositor and reads as
+  // owning the whole pool.
+  return {
+    ok: true,
+    required: plan.required,
+    minted: plan.minted,
+    shares: player.lpShares,
+    share: pool.totalShares > 0 ? player.lpShares / pool.totalShares : 0,
+  };
+}
+
+/** What burning `shares` would return. Pure. */
+function planPoolWithdraw(world, player, island, shares) {
+  const pool = world && world.pool;
+  if (!pool) return { error: 'err.poolClosed' };
+  if (island.buildings.harbor < 1) {
+    return { error: 'err.buildFirst', errorParams: { building: '@building.harbor.name' } };
+  }
+  const held = poolAmount(player.lpShares);
+  const burn = Math.min(poolAmount(shares), held);
+  if (!(burn > 0)) return { error: 'err.poolNoShares' };
+
+  const res = poolRemoveLiquidity(pool.reserves, pool.totalShares, burn);
+  const total = RESOURCES.reduce((n, r) => n + res.out[r], 0);
+  if (!(total > 0)) return { error: 'err.poolNoShares' };
+
+  const shipCap = tradeCapacity(island.buildings.harbor);
+  if (total > shipCap) return { error: 'err.tradeCapacity', errorParams: { cap: shipCap } };
+
+  return { burn, out: res.out, reserves: res.reserves, totalShares: res.totalShares };
+}
+
+/**
+ * Withdraw liquidity. Shares burn now; the goods sail home like any other
+ * shipment, so the storehouse is checked at ARRIVAL — production and anything
+ * already inbound included — for the same reason a swap is.
+ */
+function sendPoolWithdraw(world, player, island, shares, now) {
+  resolveIsland(island, now);
+  const plan = planPoolWithdraw(world, player, island, shares);
+  if (plan.error) return plan;
+
+  const arrive = now + Math.max(5000, Math.round((POOL_TRAVEL_MIN * 60000) / SPEED));
+  const cap = storageCapacity(island.buildings.storehouse);
+  const hours = (arrive - now) / 3600000;
+  const rates = islandRates(island);
+  // One pass over the movement list, not one per resource. A withdrawal
+  // touches all three legs, so scanning separately made it
+  // O(movements x resources) and repeated the same filter three times.
+  const inbound = { wood: 0, stone: 0, gold: 0 };
+  for (const m of world.movements) {
+    if (m.toId !== island.id || !m.loot || m.arrive > arrive) continue;
+    for (const r of RESOURCES) inbound[r] += m.loot[r] || 0;
+  }
+  for (const r of RESOURCES) {
+    if (!(plan.out[r] > 0)) continue;
+    const atArrival = Math.min(cap, island.resources[r] + rates[r] * hours + inbound[r]);
+    if (plan.out[r] > cap - atArrival) {
+      return { error: 'err.poolStorage', errorParams: { room: Math.max(0, Math.floor(cap - atArrival)) } };
+    }
+  }
+
+  const pool = world.pool;
+  pool.reserves = plan.reserves;
+  pool.totalShares = plan.totalShares;
+  player.lpShares = poolAmount(player.lpShares) - plan.burn;
+  world.movements.push({
+    id: world.nextId++, type: 'trade', ownerId: player.id,
+    fromId: island.id, toId: island.id, units: zeroUnits(),
+    loot: { wood: plan.out.wood, stone: plan.out.stone, gold: plan.out.gold },
+    depart: now, arrive,
+  });
+  return { ok: true, arrive, burned: plan.burn, out: plan.out, shares: player.lpShares };
+}
+
 // ---- swapping against the pool
 //
 // Flat travel time. The pool has no place on the map, so every island trades
@@ -2108,6 +2260,7 @@ export {
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
   newPool, poolOpts, poolAmount,
   POOL_TRAVEL_MIN, sendPoolSwap, openPool, closePool,
+  planPoolDeposit, sendPoolDeposit, planPoolWithdraw, sendPoolWithdraw,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };

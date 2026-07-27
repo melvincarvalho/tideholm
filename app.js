@@ -37,7 +37,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const PREGAME_BLOCKED = new Set([
   '/api/build', '/api/train', '/api/attack', '/api/support', '/api/withdraw',
   '/api/scout', '/api/trade', '/api/colonize', '/api/market/create',
-  '/api/pool/swap',
+  '/api/pool/swap', '/api/pool/deposit', '/api/pool/withdraw',
 ]);
 const BACKUP_KEEP = 24;
 
@@ -956,6 +956,36 @@ export function createApp(opts = {}) {
           capped: q.capped, cappedBy: q.cappedBy, maxIn: fin(q.maxIn),
         };
       }
+      // ?deposit=1000 / ?withdraw=<shares> — previews, computed by the very
+      // functions the POST handlers call. Two paths that merely agree by
+      // inspection is how the quote and the swap drifted apart over fractional
+      // amounts in step 7a; there is only one path here.
+      const depositLeg = query.get('deposit');
+      if (depositLeg !== null && depositLeg !== '') {
+        const dIsland = myIsland(player, query.get('islandId'));
+        // Resolve first. The POST actions resolveIsland() before planning, so a
+        // preview reading the stored object sees pre-accrual resources and a
+        // pre-upgrade harbour — and refuses deposits the action would accept.
+        game.resolveIsland(dIsland, Date.now());
+        const plan = game.planPoolDeposit(world, dIsland, Number(depositLeg));
+        // errorParams travel with the error. err.tradeCapacity carries {cap},
+        // err.buildFirst {building}, err.noResources {need}/{res} — drop them
+        // and the client renders the placeholder literally.
+        body.depositPlan = plan.error
+          ? { error: plan.error, errorParams: plan.errorParams || null }
+          : { required: finAll(plan.required), minted: fin(plan.minted), share: fin(plan.share) };
+      }
+      const burnShares = query.get('withdraw');
+      if (burnShares !== null && burnShares !== '') {
+        const wIsland = myIsland(player, query.get('islandId'));
+        game.resolveIsland(wIsland, Date.now());
+        // Number() at the boundary: query params are strings, and poolAmount
+        // deliberately refuses those. HTTP is where the coercion belongs.
+        const plan = game.planPoolWithdraw(world, player, wIsland, Number(burnShares));
+        body.withdrawPlan = plan.error
+          ? { error: plan.error, errorParams: plan.errorParams || null }
+          : { burn: fin(plan.burn), out: finAll(plan.out) };
+      }
       return sendJson(res, 200, body);
     }
 
@@ -980,6 +1010,47 @@ export function createApp(opts = {}) {
         out: result.out,
         impact: result.impact,
         capped: result.capped,
+      });
+    }
+
+    // Liquidity (#46 step 7b). A deposit takes effect at once — nothing is
+    // being delivered to the island, so there is no return leg to sail.
+    // Withdrawal is the asymmetric half: it ships goods home and travels.
+    if (req.method === 'POST' && pathname === '/api/pool/deposit') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      const result = game.sendPoolDeposit(
+        world, player, island, Number(body.wood), Date.now(),
+        body.minShares === undefined ? null : Number(body.minShares),
+      );
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, {
+        ok: true, required: result.required, minted: result.minted,
+        shares: result.shares, share: result.share,
+      });
+    }
+
+    if (req.method === 'POST' && pathname === '/api/pool/withdraw') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      // Number() here for the same reason the GET preview does it: JSON from
+      // some form layers arrives as strings, poolAmount refuses those, and a
+      // holder would be told they had no stake. Coercing on one side only is
+      // how a preview and its action drift apart.
+      // Validate here, not downstream. Number(undefined) is NaN, poolAmount
+      // turns that into 0, and the player is told "you have no stake to
+      // withdraw" — which is wrong and unactionable when the real problem is
+      // a malformed request. Coercing without validating, which is what last
+      // round's fix did, just moved the misleading error rather than removing it.
+      const shares = Number(body.shares);
+      if (!Number.isFinite(shares) || shares <= 0) return sendErr(res, 400, lang, 'err.badRequest');
+      const result = game.sendPoolWithdraw(world, player, island, shares, Date.now());
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, {
+        ok: true, arrive: result.arrive, burned: result.burned,
+        out: result.out, shares: result.shares,
       });
     }
 
