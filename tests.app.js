@@ -488,6 +488,34 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   check('the next quote is strictly worse than the fill just received',
     nextOut > 0 && nextOut < swapOut, `now ${nextOut} vs just filled ${swapOut}`);
 
+  // Fractional amounts. The swap floors, so the quote must floor identically
+  // or minOut derived from the quote is unreachable and the swap fails with
+  // "the price moved" when nothing moved — 1.9 quoted as 1.9 but swapped as 1.
+  r = await req(oa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500.7', { cookie: ocookie });
+  const fracQuote = r.data.quote;
+  check('a fractional quote is floored', fracQuote?.amountIn === 500,
+    `amountIn ${fracQuote?.amountIn}`);
+  r = await req(oa.port, 'GET', '/api/pool?from=wood&to=gold&amount=500', { cookie: ocookie });
+  check('and matches the whole-number quote exactly',
+    Math.abs(fracQuote.out - r.data.quote.out) < 1e-12,
+    `${fracQuote.out} vs ${r.data.quote.out}`);
+
+  // The end-to-end case that was broken: quote a fractional amount, derive
+  // minOut from it, swap. Small amounts are where flooring bites hardest.
+  for (const amt of [500.7, 1.9]) {
+    r = await req(oa.port, 'GET', `/api/pool?from=wood&to=gold&amount=${amt}`, { cookie: ocookie });
+    const q = r.data.quote;
+    if (!(q?.out > 0)) { check(`quote for ${amt} is usable`, false, JSON.stringify(q)); continue; }
+    r = await req(oa.port, 'POST', '/api/pool/swap', {
+      body: { islandId: isl.id, from: 'wood', to: 'gold', amount: amt, minOut: q.out * 0.99 },
+      cookie: ocookie,
+    });
+    check(`quote-then-swap at ${amt} is not a spurious slippage failure`,
+      r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
+    check(`and delivers at least the quoted minus tolerance at ${amt}`,
+      r.data.out >= q.out * 0.99, `got ${r.data.out} vs quoted ${q.out}`);
+  }
+
   // Which island did it actually swap from? myIsland() falls back to your
   // FIRST island when the id is not one of yours — the convention every
   // handler uses — so a bad id can never touch someone else's island, but it

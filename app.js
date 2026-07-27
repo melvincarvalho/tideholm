@@ -942,7 +942,11 @@ export function createApp(opts = {}) {
       const from = query.get('from');
       const to = query.get('to');
       const rawAmount = query.get('amount');
-      const amount = Number(rawAmount);
+      // Floor it, because sendPoolSwap does. Quoting the raw value made the
+      // two endpoints disagree: a request for 1.9 was quoted as 1.9 but swapped
+      // as 1, so minOut derived from the quote was unreachable and the swap
+      // failed with "the price moved" when nothing had moved at all.
+      const amount = Math.floor(Number(rawAmount));
       if (from && to && rawAmount !== null && rawAmount !== '' && Number.isFinite(amount)) {
         const q = game.poolQuote(pool.reserves, from, to, amount, opts);
         body.quote = {
