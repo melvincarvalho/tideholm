@@ -1006,10 +1006,23 @@ function planPoolDeposit(world, island, woodLeg) {
       return { error: 'err.noResources', errorParams: { need: Math.ceil(res.required[r]), res: r } };
     }
   }
-  // Shipping it out is a harbour job, capped like any other shipment.
+  // Shipping it out is a harbour job, capped like any other shipment. A
+  // deposit ships ALL THREE legs, so the total is several times the wood leg
+  // the player typed — the plain "shipment too heavy" message read as
+  // nonsense next to a request for 200 against a limit of 563. Say what the
+  // total actually is, and what would fit.
   const total = RESOURCES.reduce((n, r) => n + res.required[r], 0);
   const shipCap = tradeCapacity(island.buildings.harbor);
-  if (total > shipCap) return { error: 'err.tradeCapacity', errorParams: { cap: shipCap } };
+  if (total > shipCap) {
+    return {
+      error: 'err.poolDepositCapacity',
+      errorParams: {
+        total: Math.ceil(total),
+        cap: shipCap,
+        max: Math.max(0, Math.floor((want * shipCap) / total)),
+      },
+    };
+  }
 
   return {
     required: res.required,
