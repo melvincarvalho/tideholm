@@ -710,8 +710,11 @@ const poolNoQuote = () => ({
 
 /** Spot price: how much `from` one unit of `to` costs, ignoring slippage. */
 function poolSpot(reserves, from, to) {
-  if (from === to) return 1;
+  // Unknown keys are checked first: poolSpot('iron', 'iron') has no price to
+  // report, and answering 1 would leak a bogus 1:1 rate for a resource the
+  // pool does not hold.
   if (!RESOURCES.includes(from) || !RESOURCES.includes(to)) return 0;
+  if (from === to) return 1;
   return reserves[from] / reserves[to];
 }
 
@@ -826,12 +829,16 @@ function poolAddLiquidity(reserves, totalShares, desired) {
       required: { ...desired },
     };
   }
-  // Scale to the tightest resource so nothing is left stranded.
+  // Scale to the tightest resource so nothing is left stranded. Amounts go
+  // through poolAmount for the same reason as everywhere else: the global
+  // isFinite() used here before would coerce, so a numeric string from a
+  // request body was silently accepted while every other entry point rejected
+  // one.
   let scale = Infinity;
   for (const r of RESOURCES) {
-    if (reserves[r] > 0) scale = Math.min(scale, desired[r] / reserves[r]);
+    if (reserves[r] > 0) scale = Math.min(scale, poolAmount(desired[r]) / reserves[r]);
   }
-  if (!isFinite(scale) || scale <= 0) scale = 0;
+  if (!Number.isFinite(scale) || scale <= 0) scale = 0;
   const required = {};
   const next = {};
   for (const r of RESOURCES) {

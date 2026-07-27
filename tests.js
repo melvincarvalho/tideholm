@@ -723,8 +723,10 @@ console.log('resource pool');
   const seed = { wood: 4000, stone: 3600, gold: 6800 };
   const empty = { wood: 0, stone: 0, gold: 0 };
 
-  // A floor object missing the leg being sold must mean "no floor here", not
-  // NaN. Unguarded it zeroed every quote and blamed the drain cap.
+  // A floor protects the reserve being BOUGHT — the `to` leg, the one being
+  // paid out. So a floor object carrying only `wood` says nothing about a
+  // wood-for-gold swap, and must read as "no floor on gold" rather than NaN.
+  // Unguarded it zeroed every quote and blamed the drain cap.
   const partial = g.poolQuote(seed, 'wood', 'gold', 500, { floor: { wood: 1000 } });
   const full = g.poolQuote(seed, 'wood', 'gold', 500);
   check('a floor missing this leg is ignored, not NaN', close(partial.out, full.out),
@@ -773,6 +775,15 @@ console.log('resource pool');
   check('and does not add a NaN reserve',
     g.RESOURCES.every((r) => Number.isFinite(alien.reserves[r])) && alien.reserves.iron === undefined);
   check('spot price of an unknown pair is 0, not NaN', g.poolSpot(seed, 'wood', 'iron') === 0);
+  check('an unknown resource against itself has no price either',
+    g.poolSpot(seed, 'iron', 'iron') === 0);
+
+  // Amounts are validated the same way at every entry point, so a numeric
+  // string from a request body is refused here as it is everywhere else.
+  const strDeposit = g.poolAddLiquidity(seed, 100, { wood: '100', stone: '100', gold: '100' });
+  check('a numeric string deposit is refused, not coerced', strDeposit.minted === 0);
+  check('and takes nothing from the depositor',
+    g.RESOURCES.every((r) => strDeposit.required[r] === 0));
 
   // Options are season config, so they get clamped rather than trusted.
   const honest = g.poolQuote(seed, 'wood', 'gold', 500).out;
