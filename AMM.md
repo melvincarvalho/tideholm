@@ -292,6 +292,14 @@ The preview and the action were made to **share one pure function**
 > guarantees nothing about the state each side feeds in.** Test the seam, not
 > just the shared function.
 
+The same shape recurs wherever a value enters the system from outside. The
+pool clamps `feeBps` and `maxOutFrac` because an unvalidated negative fee pays
+traders to trade; a later feature added a building-level cap read from an
+environment variable and did **not** validate it, so `MAX_BUILDING_LEVEL=abc`
+gave `NaN` and `target > NaN` silently disabled the cap entirely, while `0`
+blocked every upgrade in the game. Same lesson, third occurrence: **validate at
+every entry point, not at the one you happened to think of.**
+
 ### Family C: assertions that passed for the wrong reason
 
 Eight, all in tests written by the same author as the code. Every one was
@@ -384,11 +392,18 @@ them **unreachable in production when merged**:
 | 6 | admin open/close | admin only |
 | 7a / 7b | swap endpoint; LP deposit/withdraw | **yes** |
 
-**Across those steps, review found sixteen defects — every one in code that
+**Across steps 1–6, review found sixteen defects — every one in code that
 could not yet touch a player's stockpile.** Three resource printers, two
 destroyers, a pool-poisoner, a permanently-bricking deposit, a reopen that
 stranded LP positions, and assorted payload and seam bugs. Shipped as a single
 "add a pool" PR, all of them would have gone live behind an endpoint.
+
+Steps 7a and 7b — the reachable ones — added six more, all seams rather than
+maths (§7, family B). **Twenty-two in review overall.** Two further defects
+surfaced only once real players used it: loot printed at full float precision
+(`107.20775939008854 wood`), and a capacity refusal that was arithmetically
+correct but unexplainable from the screen. Neither was reachable by any test
+that existed, which is the honest limit of this approach.
 
 If you port this, port the build order too. It is the highest-leverage thing in
 this document.
@@ -397,7 +412,7 @@ this document.
 
 ## 10. Test surface
 
-**451 engine + 153 app checks**, of which **251 engine checks are
+**502 engine + 153 app checks**, of which **255 engine checks are
 pool-specific**, split across five blocks:
 
 | Block | Checks | Covers |
@@ -405,7 +420,7 @@ pool-specific**, split across five blocks:
 | `resource pool` | 87 | layer 1 maths and its guards |
 | `pool state` | 25 | `world.pool`, migration, `poolOpts` |
 | `pool opening` | 34 | seeding, closing, resuming |
-| `pool liquidity` | 52 | deposit and withdraw |
+| `pool liquidity` | 56 | deposit and withdraw |
 | `pool swaps` | 53 | swapping and its refusals |
 
 The tests are weighted toward **invariants over worked examples**, because a
