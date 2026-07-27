@@ -866,6 +866,46 @@ function poolRemoveLiquidity(reserves, totalShares, burn) {
   return { reserves: next, totalShares: totalShares - burned, out };
 }
 
+// ---- stored pool state
+//
+// The pool's parameters live in the world, not in env (#23). A season's
+// economy is then reproducible from its archived world.json alone, and the
+// pool can be opened on a running season without the env edit that a restart
+// would need — the hazard that took the site down once already.
+//
+// A world always has a pool object and it always starts CLOSED: zero
+// reserves, zero shares. Seeding is a deliberate act, never a side effect of
+// creating or loading a world. That is the #36 scar — land respawn fired from
+// inside migrateWorld, so a client-only release restarted the process and
+// conjured 30 islands mid-season. Nothing here may conjure resources.
+const POOL_FLOOR_FRAC = 0.25;
+
+function newPool() {
+  return {
+    open: false,
+    reserves: { wood: 0, stone: 0, gold: 0 },
+    // The floor is measured against what was seeded, not against what is
+    // left, which is the only reason it can hold at all.
+    seeded: { wood: 0, stone: 0, gold: 0 },
+    totalShares: 0,
+    feeBps: POOL_FEE_BPS,
+    maxOutFrac: POOL_MAX_OUT_FRAC,
+    floorFrac: POOL_FLOOR_FRAC,
+  };
+}
+
+/** Turn stored pool config into the opts the pure functions above take. */
+function poolOpts(pool) {
+  const frac = poolClamp(pool && pool.floorFrac, 0, 1, 0);
+  return {
+    feeBps: pool ? pool.feeBps : POOL_FEE_BPS,
+    maxOutFrac: pool ? pool.maxOutFrac : POOL_MAX_OUT_FRAC,
+    floor: frac > 0 && pool
+      ? Object.fromEntries(RESOURCES.map((r) => [r, poolAmount(pool.seeded[r]) * frac]))
+      : undefined,
+  };
+}
+
 /** What a share balance is currently worth, resource by resource. */
 function poolShareValue(reserves, totalShares, shares) {
   // Same family as the guard in poolRemoveLiquidity: a negative or NaN share
@@ -1747,7 +1787,7 @@ function createPlayer(world, name, password, isBot, lang) {
   const start = Math.max(Date.now(), world.startAt || 0);
   const player = {
     id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang,
-    questIndex: 0, stats: {}, joinedAt: start,
+    questIndex: 0, stats: {}, joinedAt: start, lpShares: 0,
   };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
@@ -1814,6 +1854,7 @@ function createWorld() {
     messages: [],
     alliances: [],
     offers: [],
+    pool: newPool(), // closed until deliberately seeded (#46)
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -1826,6 +1867,13 @@ function migrateWorld(world) {
   if (!world.messages) world.messages = [];
   if (!world.alliances) world.alliances = [];
   if (!world.offers) world.offers = [];
+  // Backfill the pool CLOSED, and never touch one that already exists. A
+  // migration must not be able to seed, reprice or reopen a live season's
+  // pool just because the process restarted (#36).
+  if (!world.pool) world.pool = newPool();
+  for (const [k, v] of Object.entries(newPool())) {
+    if (world.pool[k] == null) world.pool[k] = v;
+  }
   if (!world.boards) world.boards = {};
   if (!world.theme) world.theme = 'generated';
   if (!world.mapSeed) world.mapSeed = (world.createdAt % 2147483645) + 1;
@@ -1838,6 +1886,7 @@ function migrateWorld(world) {
     if (p.joinedAt == null) p.joinedAt = world.createdAt || 0;
     if (p.questIndex == null) p.questIndex = 0;
     if (!p.stats) p.stats = {};
+    if (p.lpShares == null) p.lpShares = 0; // liquidity position in world.pool (#46)
   }
   for (const island of world.islands) {
     for (const key of Object.keys(BUILDINGS)) {
@@ -1908,9 +1957,10 @@ export {
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
   leaveAlliance, sendMessage,
   createOffer, cancelOffer, acceptOffer,
-  POOL_FEE_BPS, POOL_MAX_OUT_FRAC,
+  POOL_FEE_BPS, POOL_MAX_OUT_FRAC, POOL_FLOOR_FRAC,
   poolSpot, poolQuote, poolApplySwap,
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
+  newPool, poolOpts,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
 };
