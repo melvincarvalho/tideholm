@@ -465,10 +465,16 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   // A good swap, checked for conservation across the API boundary.
   const poolWoodBefore = openApp.world.pool.reserves.wood;
   const poolGoldBefore = openApp.world.pool.reserves.gold;
+  const movementsBefore = openApp.world.movements.length;
+  // Captured BEFORE the request: travel time has a 5s floor, so comparing
+  // `arrive` against Date.now() *after* the round trip races the handler and
+  // flaps on a slow machine.
+  const sentAt = Date.now();
   r = await req(oa.port, 'POST', '/api/pool/swap',
     { body: { islandId: isl.id, from: 'wood', to: 'gold', amount: 500 }, cookie: ocookie });
   check('a good swap succeeds', r.status === 200 && r.data.ok === true, JSON.stringify(r.data));
-  check('and reports what it did', r.data.out > 500 && r.data.used === 500 && r.data.arrive > Date.now(),
+  check('and reports what it did',
+    r.data.out > 500 && r.data.used === 500 && r.data.arrive >= sentAt + 5000,
     JSON.stringify(r.data));
   const swapOut = r.data.out;
   check('the island paid exactly `used`', Math.abs(isl.resources.wood - (5000 - r.data.used)) < 1e-9);
@@ -477,8 +483,19 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   check('the pool gave up exactly `out`',
     Math.abs(openApp.world.pool.reserves.gold - (poolGoldBefore - r.data.out)) < 1e-9);
   check('nothing is credited before the ship lands', isl.resources.gold === 5000);
-  check('a shipment is in flight',
-    openApp.world.movements.some((m) => m.type === 'trade' && m.toId === isl.id));
+  check('exactly one new shipment was created',
+    openApp.world.movements.length === movementsBefore + 1,
+    `${movementsBefore} -> ${openApp.world.movements.length}`);
+  // Match on everything that identifies THIS swap. Any `trade` movement to
+  // this island satisfied the old check, and the suite reuses one world across
+  // blocks, so a leftover from an earlier block would have passed it.
+  const mine = openApp.world.movements.find((m) => m.type === 'trade'
+    && m.ownerId === swapper.id && m.fromId === isl.id && m.toId === isl.id
+    && m.arrive === r.data.arrive);
+  check('and it is this swap: right owner, island, arrival and cargo',
+    !!mine && Math.abs(mine.loot.gold - r.data.out) < 1e-9
+    && mine.loot.wood === 0 && mine.loot.stone === 0,
+    JSON.stringify(mine && mine.loot));
 
   // A quote taken now must reflect the swap that just happened. Compared
   // against the actual fill, not a loose bound — `out < 1000` passed even when
