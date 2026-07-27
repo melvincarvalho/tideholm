@@ -346,7 +346,15 @@ function renderMovements() {
     // One key per movement type — including 'trade', which the old ternary
     // chain had no branch for, so every shipment rendered as "Returning to".
     const what = T('ui.move.' + out.type, { target: out.target })
-      + (out.loot ? ` ${T('ui.move.withLoot')} 🪵${out.loot.wood} 🪨${out.loot.stone} 🪙${out.loot.gold}` : '');
+      // Floor for display. Pool swaps and withdrawals are the first source of
+      // fractional loot in the game — combat floors it, sendTrade floors it, and
+      // offers are integers — so this printed 107.20775939008854 at a player.
+      // The stored value stays fractional: the pool debited exactly `out`, and
+      // rounding here changes only what is shown, not what arrives.
+      + (out.loot
+        ? ` ${T('ui.move.withLoot')} 🪵${fmtNum(Math.floor(out.loot.wood))}`
+          + ` 🪨${fmtNum(Math.floor(out.loot.stone))} 🪙${fmtNum(Math.floor(out.loot.gold))}`
+        : '');
     div.innerHTML = `${what} — <span class="countdown" data-finish="${out.arrive}"></span>`;
     box.appendChild(div);
   }
