@@ -14,6 +14,50 @@ who never heard about the keyboard shortcuts will never find them.
 
 ---
 
+## Season 4 — DRAFTS, not yet sent
+
+Three rule changes that take effect **when season 4 opens**, not before. All
+three are inert on season 3 by construction, so none of this has been
+announced yet. Send at the boundary; the text below is what to send.
+
+### Support costs your home island's population (#40)
+
+> Troops you station on another player's island now keep using the population
+> of the island that trained them, from the moment they sail until you recall
+> them. Helping an ally is a real cost: sending troops away no longer frees
+> room to train more at home. Attacks are unaffected. Moving troops to your
+> OWN island was always a transfer — they join that garrison and use its
+> population, as before.
+
+The rule the reference games have had all along: Tribal Wars and Travian both
+tie reinforcements to their home village. Without it, population capped how
+fast you could train but not how much you could hold — train to cap, ship out,
+train again, forever.
+
+### Merchant slots (#30)
+
+> Your Harbor now provides merchants — one per level. Each shipment takes one
+> merchant and keeps it until they sail **home**, so a delivery across the map
+> ties one up for twice the travel time. How much you can move at once is
+> finite now. Market trades take a merchant from both buyer and seller. The
+> Tidepool does not use merchants.
+
+Distance used to cost patience only. It costs throughput now, which is what
+makes supplying a distant island a decision rather than a formality.
+
+### Colony Ships get dearer as you spread (#27)
+
+> Each Colony Ship now costs more than the last: 1.3× per step along your
+> expansion. The 10th is about 29,000 all-in instead of 2,700; the 15th about
+> 106,000. Your position counts islands you hold **plus** every ship already
+> paid for, so ordering one at a time costs exactly the same as ordering a
+> batch. The train screen shows the real price for the number you type.
+
+Going wide was the strongest play in season 3 by a distance. This does not
+stop it — it prices it.
+
+---
+
 ## Season 3 — opened 2026-07-20
 
 ### 2026-07-27 · Mail: link a Nostr identity
