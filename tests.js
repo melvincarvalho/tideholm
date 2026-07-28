@@ -2522,5 +2522,155 @@ console.log('combat characterisation');
     off.o5.one.wood === 1200 && off.o5.three.wood === 3600, JSON.stringify(off.o5));
 }
 
+// ------------------------------------------------- support costs home population (#40)
+
+{
+  // Stationed troops keep consuming the farm space of the island that raised
+  // them, so "train to cap → ship out → train again" no longer repeats forever.
+  const { w, a, ia, ib } = freshWorld();
+  ia.buildings.farm = 5;
+  ia.units.sentinel = 20;
+  const cap = g.popCap(ia.buildings.farm);
+  const before = g.popUsed(ia);
+
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 20 }, t0);
+  check('#40 support departs', !rs.error);
+  check('#40 the garrison really emptied', g.popUsed(ia) === before - 20);
+  check('#40 in-flight support still costs the sender', g.popAbroad(w, ia) === 20);
+
+  g.resolveWorld(w, rs.arrive + 1);
+  check('#40 it actually arrived', (ib.support || []).length === 1);
+  check('#40 stationed support still costs the sender', g.popAbroad(w, ia) === 20);
+  check('#40 the host pays nothing', g.popAbroad(w, ib) === 0 && g.popUsed(ib) === 0);
+
+  // The whole point: the sender's cap did not free up.
+  ia.resources = { wood: 9e6, stone: 9e6, gold: 9e6 };
+  ia.buildings.storehouse = 20;
+  ia.buildings.barracks = 1;
+  const room = cap - g.popUsed(ia) - g.popAbroad(w, ia);
+  check('#40 there is genuine room left, so the next check means something', room > 1);
+  check('#40 training up to the remaining room is allowed',
+    !g.tryTrain(w, ia, 'sentinel', room, rs.arrive + 1).error);
+  check('#40 training past it is refused',
+    g.tryTrain(w, ia, 'sentinel', 1, rs.arrive + 1).error === 'err.noPop');
+
+  const rw = g.withdrawSupport(w, a, ib, rs.arrive + 2);
+  check('#40 withdraw accepted', !rw.error);
+  check('#40 recall releases the commitment', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // Two of your islands supporting the SAME host must be charged separately.
+  // Contingents used to merge on ownerId alone and keep the first fromId, so
+  // one token sentinel from a throwaway island absorbed the cost of every
+  // island that sent afterwards — which defeated the whole rule.
+  const { w, a, b, ia, ib } = freshWorld();
+  const second = JSON.parse(JSON.stringify(ia));
+  second.id = w.nextId++; second.x = 0; second.y = 1;
+  second.units = g.zeroUnits(); second.support = []; second.trainQueue = []; second.queue = [];
+  second.buildings.farm = 8;
+  w.islands.push(second);
+
+  ia.buildings.farm = 8; ia.units.sentinel = 10; second.units.sentinel = 40;
+  const r1 = g.sendSupport(w, a, ia, ib, { sentinel: 10 }, t0);
+  g.resolveWorld(w, r1.arrive + 1);
+  const r2 = g.sendSupport(w, a, second, ib, { sentinel: 40 }, r1.arrive + 1);
+  g.resolveWorld(w, r2.arrive + 1);
+
+  check('#40 each origin keeps its own contingent', ib.support.length === 2);
+  check('#40 the first island is charged only for what it sent',
+    g.popAbroad(w, ia) === 10, `got ${g.popAbroad(w, ia)}, want 10`);
+  check('#40 the second island is charged for its own',
+    g.popAbroad(w, second) === 40, `got ${g.popAbroad(w, second)}, want 40`);
+
+  // The same merge sent troops home to the wrong island on withdrawal.
+  g.withdrawSupport(w, a, ib, r2.arrive + 2);
+  const homes = w.movements.filter((m) => m.type === 'return');
+  check('#40 each contingent sails back to its own origin',
+    homes.length === 2
+    && homes.some((m) => m.toId === ia.id && m.units.sentinel === 10)
+    && homes.some((m) => m.toId === second.id && m.units.sentinel === 40));
+}
+
+{
+  // Supporting your OWN island is a transfer, not a contingent: the troops
+  // join the garrison and cost population there like any other unit. Only
+  // another player's island can hold troops that cost their host nothing.
+  const { w, a, ia } = freshWorld();
+  const mine2 = JSON.parse(JSON.stringify(ia));
+  mine2.id = w.nextId++; mine2.x = 0; mine2.y = 2;
+  mine2.units = g.zeroUnits(); mine2.support = []; mine2.trainQueue = []; mine2.queue = [];
+  mine2.buildings.farm = 8;
+  w.islands.push(mine2);
+  ia.buildings.farm = 8; ia.units.sentinel = 20;
+
+  const r = g.sendSupport(w, a, ia, mine2, { sentinel: 20 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('#40 own-island support lands in the garrison, not as support',
+    mine2.units.sentinel === 20 && mine2.support.length === 0);
+  check('#40 and therefore costs population at the destination',
+    g.popUsed(mine2) === 20);
+  check('#40 so the sender is not also charged', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // Attacks were always free and stay free — only support was unbounded.
+  const { w, a, ia, ib } = freshWorld();
+  ia.buildings.farm = 5;
+  ia.units.raider = 10;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  check('#40 attack departs', !r.error);
+  check('#40 an attack in flight costs the sender nothing', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // `fromId` outlives a change of ownership, so without the ownerId guard a
+  // captured island would be charged for its previous owner's troops.
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.buildings.farm = 5;
+  ia.units.sentinel = 6;
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 6 }, t0);
+  g.resolveWorld(w, rs.arrive + 1);
+  check('#40 charged to the sender before capture', g.popAbroad(w, ia) === 6);
+  ia.ownerId = b.id; // ia changes hands; the contingent is still A's
+  check('#40 a captured island is not charged for the old owner', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // A live season must keep the old rule. migrateWorld backfills the flag OFF
+  // precisely so a pm2 restart cannot nerf players mid-season.
+  const w = g.createWorld();
+  check('#40 new worlds get the rule', g.supportCostsPop(w) === true && w.supportCostsPop === true);
+
+  const old = g.createWorld();
+  delete old.supportCostsPop; // a save written before this change
+  g.migrateWorld(old);
+  check('#40 migrate backfills OFF, not ON', old.supportCostsPop === false);
+  check('#40 and so the old rule still applies', g.supportCostsPop(old) === false);
+
+  const set = g.createWorld();
+  set.supportCostsPop = true;
+  g.migrateWorld(set);
+  check('#40 a deliberate ON survives migration', set.supportCostsPop === true);
+}
+
+{
+  // With the flag off, the loophole is intact — which is what the current
+  // season relies on, and proves popAbroad is genuinely gated rather than
+  // accidentally inert.
+  const { w, a, ia, ib } = freshWorld();
+  w.supportCostsPop = false;
+  ia.buildings.farm = 5;
+  ia.units.sentinel = 20;
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 20 }, t0);
+  g.resolveWorld(w, rs.arrive + 1);
+  check('#40 flag off: stationed troops cost nothing', g.popAbroad(w, ia) === 0);
+  ia.resources = { wood: 9e6, stone: 9e6, gold: 9e6 };
+  ia.buildings.storehouse = 20;
+  ia.buildings.barracks = 1;
+  check('#40 flag off: the sender can refill to the cap',
+    !g.tryTrain(w, ia, 'sentinel', g.popCap(5) - g.popUsed(ia), rs.arrive + 1).error);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);

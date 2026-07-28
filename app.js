@@ -428,11 +428,18 @@ export function createApp(opts = {}) {
         loyaltyMax: game.LOYALTY_MAX,
         tradeCap: game.tradeCapacity(island.buildings.harbor),
         popUsed: game.popUsed(island),
+        popAbroad: game.popAbroad(world, island),
         popCap: game.popCap(island.buildings.farm),
-        support: (island.support || []).map((c) => {
+        // Contingents are stored per origin island so each returns to the
+        // right home, but a defender only cares who is helping — fold them
+        // back together by owner so one ally is still one row.
+        support: Object.values((island.support || []).reduce((acc, c) => {
           const owner = world.players.find((p) => p.id === c.ownerId);
-          return { owner: owner ? owner.name : '?', units: c.units };
-        }),
+          const row = acc[c.ownerId]
+            || (acc[c.ownerId] = { owner: owner ? owner.name : '?', units: {} });
+          for (const [k, n] of Object.entries(c.units)) row.units[k] = (row.units[k] || 0) + n;
+          return acc;
+        }, {})),
         units: island.units,
         trainQueue: island.trainQueue.map((q) => ({
           unit: t(lang, `unit.${q.unit}.name`),

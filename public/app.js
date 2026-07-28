@@ -250,7 +250,8 @@ function renderState() {
   $('island-title').textContent =
     `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}` +
     ` · ⚜️ ${T('ui.loyalty')} ${isl.loyalty}/${isl.loyaltyMax}` +
-    ` · 👥 ${T('ui.pop')} ${isl.popUsed}/${isl.popCap}`;
+    ` · 👥 ${T('ui.pop')} ${isl.popUsed + (isl.popAbroad || 0)}/${isl.popCap}` +
+    (isl.popAbroad ? ` (${T('ui.popAbroad', { n: isl.popAbroad })})` : '');
 
   // Island switcher (visible once you hold more than one island)
   const sel = $('island-select');

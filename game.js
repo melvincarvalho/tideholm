@@ -276,11 +276,68 @@ function popCap(farmLevel) {
 }
 
 // Population in use: units at home plus everything still in training.
-// Troops abroad don't count — a soft cap, checked at training time.
+// Troops abroad are counted separately by popAbroad, and only on worlds where
+// supportCostsPop is on — see below.
 function popUsed(island) {
   let used = 0;
   for (const [k, n] of Object.entries(island.units)) used += UNITS[k].pop * n;
   for (const item of island.trainQueue) used += UNITS[item.unit].pop * item.count;
+  return used;
+}
+
+/**
+ * Whether stationed troops still cost their home island population (#40).
+ *
+ * Per-world rather than an env read, and — unlike `maxBuildingLevel`, which
+ * backfills its default on migrate — this one backfills OFF. Turning it on is
+ * a live nerf to anyone relying on stacked support, so a `pm2 restart` must
+ * never be able to switch it on under a season already in progress. New worlds
+ * get it from `createWorld`; existing saves keep the old rule until a season
+ * boundary. Do not "fix" the asymmetry with the knob above it.
+ */
+function supportCostsPop(world) {
+  return !!(world && world.supportCostsPop);
+}
+
+/**
+ * Population an island is still paying for while its troops are stationed
+ * elsewhere (#40).
+ *
+ * Without this, population caps training rate but not standing army size: each
+ * sender's farm frees the moment its troops sail, so train → support → train
+ * repeats without limit and one island can hold unbounded defence. Tribal Wars
+ * and Travian both keep reinforcements tied to their home village for exactly
+ * this reason.
+ *
+ * Counted:
+ *   - contingents stationed on any island whose `fromId` is this island
+ *   - support movements still in flight that departed from this island
+ *
+ * NOT counted: `return` movements. Troops coming home are about to re-enter
+ * `units`, and a withdrawal can therefore land an island over its cap. That is
+ * deliberate — over-cap is a tolerated state that drains naturally, and the
+ * alternative would charge attack returns too, whose outbound leg has never
+ * cost anything. Attacks stay free; this fixes the loophole that is unbounded.
+ *
+ * The `ownerId` guard matters: `fromId` outlives a change of ownership, so
+ * without it a captured island would be charged for its previous owner's
+ * troops.
+ */
+function popAbroad(world, island) {
+  if (!world || !island || island.ownerId == null) return 0;
+  if (!supportCostsPop(world)) return 0;
+  let used = 0;
+  const own = (u) => {
+    for (const [k, n] of Object.entries(u || {})) used += (UNITS[k] ? UNITS[k].pop : 0) * (n || 0);
+  };
+  for (const other of world.islands || []) {
+    for (const c of other.support || []) {
+      if (c.fromId === island.id && c.ownerId === island.ownerId) own(c.units);
+    }
+  }
+  for (const m of world.movements || []) {
+    if (m.type === 'support' && m.fromId === island.id && m.ownerId === island.ownerId) own(m.units);
+  }
   return used;
 }
 
@@ -533,7 +590,8 @@ function tryTrain(world, island, key, count, now) {
     return { error: 'err.buildFirst', errorParams: { building: `@building.${need}.name` } };
   }
   if (island.trainQueue.length >= TRAIN_QUEUE_MAX) return { error: 'err.trainQueueFull' };
-  if (popUsed(island) + UNITS[key].pop * count > popCap(island.buildings.farm)) {
+  if (popUsed(island) + popAbroad(world, island) + UNITS[key].pop * count
+      > popCap(island.buildings.farm)) {
     return { error: 'err.noPop' };
   }
   const cost = trainCost(world, island, key, count);
@@ -1658,7 +1716,15 @@ function applyMovement(world, m) {
       for (const [k, n] of Object.entries(m.units)) dest.units[k] += n;
     } else {
       dest.support = dest.support || [];
-      const mine = dest.support.find((c) => c.ownerId === m.ownerId);
+      // Keyed by origin as well as owner. Merging on ownerId alone kept the
+      // FIRST fromId, so a second island's troops were attributed to the
+      // first: popAbroad charged one island for another's army, and a single
+      // token sentinel from a throwaway island would absorb the cost of
+      // everything sent afterwards. withdrawSupport already returns each
+      // contingent to its own fromId, so the merge was also sending troops
+      // home to the wrong island.
+      const mine = dest.support.find(
+        (c) => c.ownerId === m.ownerId && c.fromId === m.fromId);
       if (mine) {
         for (const [k, n] of Object.entries(m.units)) mine.units[k] = (mine.units[k] || 0) + n;
       } else {
@@ -2291,6 +2357,7 @@ function createWorld() {
     offers: [],
     pool: newPool(), // closed until deliberately seeded (#46)
     maxBuildingLevel: MAX_BUILDING_LEVEL_DEFAULT,
+    supportCostsPop: true, // #40 — new seasons only; see supportCostsPop()
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -2309,6 +2376,9 @@ function migrateWorld(world) {
   // Backfilled only when absent, so a value set deliberately on a live world
   // survives every later load.
   if (world.maxBuildingLevel == null) world.maxBuildingLevel = MAX_BUILDING_LEVEL_DEFAULT;
+  // Deliberately backfills OFF, unlike the line above: a restart must not be
+  // able to nerf a live season's stacked support (#40).
+  if (world.supportCostsPop == null) world.supportCostsPop = false;
   if (!world.pool) world.pool = newPool();
   for (const [k, v] of Object.entries(newPool())) {
     if (world.pool[k] == null) world.pool[k] = v;
@@ -2388,7 +2458,7 @@ export {
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, colonyPosition, tryTrain,
-  popCap, popUsed, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
+  popCap, popUsed, popAbroad, supportCostsPop, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
