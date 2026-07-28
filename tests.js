@@ -2522,5 +2522,101 @@ console.log('combat characterisation');
     off.o5.one.wood === 1200 && off.o5.three.wood === 3600, JSON.stringify(off.o5));
 }
 
+// ------------------------------------------------- support costs home population (#40)
+
+{
+  // Stationed troops keep consuming the farm space of the island that raised
+  // them, so "train to cap → ship out → train again" no longer repeats forever.
+  const { w, a, ia, ib } = freshWorld();
+  ia.buildings.farm = 5;
+  ia.units.sentinel = 20;
+  const cap = g.popCap(ia.buildings.farm);
+  const before = g.popUsed(ia);
+
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 20 }, t0);
+  check('#40 support departs', !rs.error);
+  check('#40 the garrison really emptied', g.popUsed(ia) === before - 20);
+  check('#40 in-flight support still costs the sender', g.popAbroad(w, ia) === 20);
+
+  g.resolveWorld(w, rs.arrive + 1);
+  check('#40 it actually arrived', (ib.support || []).length === 1);
+  check('#40 stationed support still costs the sender', g.popAbroad(w, ia) === 20);
+  check('#40 the host pays nothing', g.popAbroad(w, ib) === 0 && g.popUsed(ib) === 0);
+
+  // The whole point: the sender's cap did not free up.
+  ia.resources = { wood: 9e6, stone: 9e6, gold: 9e6 };
+  ia.buildings.storehouse = 20;
+  ia.buildings.barracks = 1;
+  const room = cap - g.popUsed(ia) - g.popAbroad(w, ia);
+  check('#40 there is genuine room left, so the next check means something', room > 1);
+  check('#40 training up to the remaining room is allowed',
+    !g.tryTrain(w, ia, 'sentinel', room, rs.arrive + 1).error);
+  check('#40 training past it is refused',
+    g.tryTrain(w, ia, 'sentinel', 1, rs.arrive + 1).error === 'err.noPop');
+
+  const rw = g.withdrawSupport(w, a, ib, rs.arrive + 2);
+  check('#40 withdraw accepted', !rw.error);
+  check('#40 recall releases the commitment', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // Attacks were always free and stay free — only support was unbounded.
+  const { w, a, ia, ib } = freshWorld();
+  ia.buildings.farm = 5;
+  ia.units.raider = 10;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  check('#40 attack departs', !r.error);
+  check('#40 an attack in flight costs the sender nothing', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // `fromId` outlives a change of ownership, so without the ownerId guard a
+  // captured island would be charged for its previous owner's troops.
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.buildings.farm = 5;
+  ia.units.sentinel = 6;
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 6 }, t0);
+  g.resolveWorld(w, rs.arrive + 1);
+  check('#40 charged to the sender before capture', g.popAbroad(w, ia) === 6);
+  ia.ownerId = b.id; // ia changes hands; the contingent is still A's
+  check('#40 a captured island is not charged for the old owner', g.popAbroad(w, ia) === 0);
+}
+
+{
+  // A live season must keep the old rule. migrateWorld backfills the flag OFF
+  // precisely so a pm2 restart cannot nerf players mid-season.
+  const w = g.createWorld();
+  check('#40 new worlds get the rule', g.supportCostsPop(w) === true && w.supportCostsPop === true);
+
+  const old = g.createWorld();
+  delete old.supportCostsPop; // a save written before this change
+  g.migrateWorld(old);
+  check('#40 migrate backfills OFF, not ON', old.supportCostsPop === false);
+  check('#40 and so the old rule still applies', g.supportCostsPop(old) === false);
+
+  const set = g.createWorld();
+  set.supportCostsPop = true;
+  g.migrateWorld(set);
+  check('#40 a deliberate ON survives migration', set.supportCostsPop === true);
+}
+
+{
+  // With the flag off, the loophole is intact — which is what the current
+  // season relies on, and proves popAbroad is genuinely gated rather than
+  // accidentally inert.
+  const { w, a, ia, ib } = freshWorld();
+  w.supportCostsPop = false;
+  ia.buildings.farm = 5;
+  ia.units.sentinel = 20;
+  const rs = g.sendSupport(w, a, ia, ib, { sentinel: 20 }, t0);
+  g.resolveWorld(w, rs.arrive + 1);
+  check('#40 flag off: stationed troops cost nothing', g.popAbroad(w, ia) === 0);
+  ia.resources = { wood: 9e6, stone: 9e6, gold: 9e6 };
+  ia.buildings.storehouse = 20;
+  ia.buildings.barracks = 1;
+  check('#40 flag off: the sender can refill to the cap',
+    !g.tryTrain(w, ia, 'sentinel', g.popCap(5) - g.popUsed(ia), rs.arrive + 1).error);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);

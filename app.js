@@ -428,6 +428,7 @@ export function createApp(opts = {}) {
         loyaltyMax: game.LOYALTY_MAX,
         tradeCap: game.tradeCapacity(island.buildings.harbor),
         popUsed: game.popUsed(island),
+        popAbroad: game.popAbroad(world, island),
         popCap: game.popCap(island.buildings.farm),
         support: (island.support || []).map((c) => {
           const owner = world.players.find((p) => p.id === c.ownerId);
