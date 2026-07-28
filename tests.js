@@ -2801,6 +2801,26 @@ console.log('combat characterisation');
 }
 
 {
+  // The seller's island is resolved before its slots are counted: a Harbor
+  // upgrade that finished since lastUpdate must count, or the seller is
+  // refused on a slot they already have.
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.buildings.harbor = 1; ib.buildings.harbor = 2;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  ib.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  g.createOffer(w, a, ia, { res: 'wood', amount: 100 }, { res: 'stone', amount: 100 }, t0);
+  g.sendTrade(w, a, ia, ib, { wood: 50 }, t0); // seller's only slot, at harbor 1
+  check('#30 seller is out of slots at harbor 1', g.tradeSlotsFree(w, ia) === 0);
+
+  // ...but harbor 2 lands before the accept, unresolved on the island.
+  ia.queue = [{ building: 'harbor', level: 2, finish: t0 + 1000 }];
+  const acc = g.acceptOffer(w, b, ib, w.offers[0].id, t0 + 2000);
+  check('#30 a finished Harbor upgrade counts toward the seller\'s slots',
+    !acc.error, `got ${acc.error}`);
+  check('#30 and the upgrade really was pending', ia.buildings.harbor === 2);
+}
+
+{
   // Season gating, same shape as #40: on for new worlds, unlimited for a
   // season that began before the rule existed.
   const w = g.createWorld();

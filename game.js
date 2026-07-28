@@ -897,6 +897,11 @@ function acceptOffer(world, player, island, offerId, now) {
   // leave a hole in the same brake this closes: post an offer, have an ally
   // accept it, and goods move with no slot spent (#30). The seller's exposure
   // is bounded by OFFER_LIMIT.
+  // Resolved first: an unresolved island still carries its pre-upgrade Harbor
+  // level, so a seller whose upgrade finished since lastUpdate would be
+  // refused on a slot count they no longer have. Same preview/action seam the
+  // pool kept hitting.
+  if (origin) resolveIsland(origin, now);
   if (origin && tradeSlotsFree(world, origin) < 1) {
     return { error: 'err.offerNoMerchants' };
   }
