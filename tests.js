@@ -2560,6 +2560,60 @@ console.log('combat characterisation');
 }
 
 {
+  // Two of your islands supporting the SAME host must be charged separately.
+  // Contingents used to merge on ownerId alone and keep the first fromId, so
+  // one token sentinel from a throwaway island absorbed the cost of every
+  // island that sent afterwards — which defeated the whole rule.
+  const { w, a, b, ia, ib } = freshWorld();
+  const second = JSON.parse(JSON.stringify(ia));
+  second.id = w.nextId++; second.x = 0; second.y = 1;
+  second.units = g.zeroUnits(); second.support = []; second.trainQueue = []; second.queue = [];
+  second.buildings.farm = 8;
+  w.islands.push(second);
+
+  ia.buildings.farm = 8; ia.units.sentinel = 10; second.units.sentinel = 40;
+  const r1 = g.sendSupport(w, a, ia, ib, { sentinel: 10 }, t0);
+  g.resolveWorld(w, r1.arrive + 1);
+  const r2 = g.sendSupport(w, a, second, ib, { sentinel: 40 }, r1.arrive + 1);
+  g.resolveWorld(w, r2.arrive + 1);
+
+  check('#40 each origin keeps its own contingent', ib.support.length === 2);
+  check('#40 the first island is charged only for what it sent',
+    g.popAbroad(w, ia) === 10, `got ${g.popAbroad(w, ia)}, want 10`);
+  check('#40 the second island is charged for its own',
+    g.popAbroad(w, second) === 40, `got ${g.popAbroad(w, second)}, want 40`);
+
+  // The same merge sent troops home to the wrong island on withdrawal.
+  g.withdrawSupport(w, a, ib, r2.arrive + 2);
+  const homes = w.movements.filter((m) => m.type === 'return');
+  check('#40 each contingent sails back to its own origin',
+    homes.length === 2
+    && homes.some((m) => m.toId === ia.id && m.units.sentinel === 10)
+    && homes.some((m) => m.toId === second.id && m.units.sentinel === 40));
+}
+
+{
+  // Supporting your OWN island is a transfer, not a contingent: the troops
+  // join the garrison and cost population there like any other unit. Only
+  // another player's island can hold troops that cost their host nothing.
+  const { w, a, ia } = freshWorld();
+  const mine2 = JSON.parse(JSON.stringify(ia));
+  mine2.id = w.nextId++; mine2.x = 0; mine2.y = 2;
+  mine2.units = g.zeroUnits(); mine2.support = []; mine2.trainQueue = []; mine2.queue = [];
+  mine2.buildings.farm = 8;
+  w.islands.push(mine2);
+  ia.buildings.farm = 8; ia.units.sentinel = 20;
+
+  const r = g.sendSupport(w, a, ia, mine2, { sentinel: 20 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('#40 own-island support lands in the garrison, not as support',
+    mine2.units.sentinel === 20 && mine2.support.length === 0);
+  check('#40 and therefore costs population at the destination',
+    g.popUsed(mine2) === 20);
+  check('#40 so the sender is not also charged', g.popAbroad(w, ia) === 0);
+}
+
+{
   // Attacks were always free and stay free — only support was unbounded.
   const { w, a, ia, ib } = freshWorld();
   ia.buildings.farm = 5;

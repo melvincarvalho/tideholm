@@ -102,12 +102,14 @@ ADMIN_TOKEN=... node server.js
 - Support: station troops on any inhabited island as defenders (allies, or
   your own islands as transfers), recall them anytime. Stationed troops
   fight and die with the garrison; their owner gets battle reports. They
-  also keep consuming the **population of the island that raised them**, so
-  helping an ally costs you the farm space at home — sending troops away
-  never frees room to train more. Attacks are exempt; only stationed support
-  is charged. Per-world (`supportCostsPop`): on for new seasons, off for
-  seasons that began before the rule existed, so a restart cannot change the
-  terms mid-season.
+  also keep consuming the **population of the island that raised them**, from
+  the moment they sail until they are recalled — so helping an ally costs you
+  the farm space at home, and sending troops away never frees room to train
+  more. Attacks are exempt. (Supporting *your own* island is a transfer: the
+  troops join that island's garrison and cost population there instead.)
+  Per-world (`supportCostsPop`): on for new seasons, off for seasons that
+  began before the rule existed, so a restart cannot change the terms
+  mid-season.
 - Scouts spy out garrisons, stores, loyalty and buildings — contested by
   the defender's own scouts (counter-espionage).
 - Wall strengthens all defenders and takes damage when the island is

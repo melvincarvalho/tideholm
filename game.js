@@ -1716,7 +1716,15 @@ function applyMovement(world, m) {
       for (const [k, n] of Object.entries(m.units)) dest.units[k] += n;
     } else {
       dest.support = dest.support || [];
-      const mine = dest.support.find((c) => c.ownerId === m.ownerId);
+      // Keyed by origin as well as owner. Merging on ownerId alone kept the
+      // FIRST fromId, so a second island's troops were attributed to the
+      // first: popAbroad charged one island for another's army, and a single
+      // token sentinel from a throwaway island would absorb the cost of
+      // everything sent afterwards. withdrawSupport already returns each
+      // contingent to its own fromId, so the merge was also sending troops
+      // home to the wrong island.
+      const mine = dest.support.find(
+        (c) => c.ownerId === m.ownerId && c.fromId === m.fromId);
       if (mine) {
         for (const [k, n] of Object.entries(m.units)) mine.units[k] = (mine.units[k] || 0) + n;
       } else {
