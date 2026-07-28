@@ -15,7 +15,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
 process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
 process.env.HALL_FILE = path.join(os.tmpdir(), `tideholm-hall-test-${process.pid}.json`);
-const g = await import('./game.js'); // dynamic: after the env above is set
+const g = await import('./game.js');
+const RESOURCES_ALL = ['wood', 'stone', 'gold']; // dynamic: after the env above is set
 process.on('exit', () => {
   try { fs.rmSync(process.env.HALL_FILE, { force: true }); } catch { /* gone */ }
 });
@@ -2860,6 +2861,63 @@ console.log('combat characterisation');
   const { w, ia } = freshWorld();
   ia.buildings.harbor = 0;
   check('#30 no harbor, no slots', g.tradeSlotsTotal(w, ia) === 0);
+}
+
+// ------------------------------------------ COLONY_COST_GROWTH is clamped (#61)
+
+{
+  // The knob is read at module load, so the band has to be probed in a child.
+  const probe = `
+    import * as g from './game.js';
+    console.log(JSON.stringify({ growth: g.COLONY_COST_GROWTH, max: g.COLONY_COST_GROWTH_MAX }));
+  `;
+  const at = (v) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, COLONY_COST_GROWTH: String(v) }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+
+  check('#61 a sane value is kept', at(1.3).growth === 1.3);
+  check('#61 the ceiling itself is allowed', at(3).growth === 3);
+  check('#61 above the ceiling falls back to flat', at(3.1).growth === 1);
+  check('#61 Infinity falls back to flat', at('Infinity').growth === 1);
+  // 1000 is finite and correctly typed, and equally unbuildable — a non-finite
+  // check alone would not have caught it.
+  check('#61 an absurd finite value falls back to flat', at(1000).growth === 1);
+  check('#61 junk falls back to flat', at('abc').growth === 1);
+  check('#61 zero falls back to flat', at(0).growth === 1);
+  check('#61 negative falls back to flat', at(-5).growth === 1);
+  check('#61 the ceiling is 3', at(1).max === 3);
+}
+
+{
+  // Belt and braces: a cost must never be non-finite, because Infinity
+  // serialises to null and reaches the player as "not enough resources" for
+  // something no wealth can buy.
+  //
+  // Reachable even inside the clamped band: at the ceiling of 3, a position
+  // around 200 with a 500-ship batch overflows a double. Absurd as a game
+  // state, but the guard is only worth having if it is exercised.
+  const probe = `
+    import * as g from './game.js';
+    const w = g.createWorld();
+    const p = g.createPlayer(w, 'A', 'pw', false).player;
+    const i = g.playerIsland(w, p.id);
+    i.units.colonyship = 220;              // colonyPosition counts ships in hand
+    const raw = 1200 * Array.from({length: 500}, (_, k) =>
+      Math.pow(3, g.colonyPosition(w, p.id) - 1 + k)).reduce((a, b) => a + b, 0);
+    const cost = g.trainCost(w, i, 'colonyship', 500);
+    console.log(JSON.stringify({ raw, cost, growth: g.COLONY_COST_GROWTH }));
+  `;
+  const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, COLONY_COST_GROWTH: '3' }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+
+  check('#61 the knob really is at the ceiling for this probe', out.growth === 3);
+  check('#61 the unguarded arithmetic really does overflow', out.raw === null,
+    `raw serialised as ${out.raw}`);
+  check('#61 but trainCost still returns finite numbers',
+    RESOURCES_ALL.every((r) => Number.isFinite(out.cost[r])), JSON.stringify(out.cost));
+  check('#61 so nothing reaches the client as null',
+    RESOURCES_ALL.every((r) => out.cost[r] !== null), JSON.stringify(out.cost));
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

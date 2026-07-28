@@ -376,12 +376,20 @@ function renderTroops() {
     tr.innerHTML = `
       <td><b>${u.name}</b><br><small>${u.desc}</small></td>
       <td>${u.count}</td><td>${u.atk}</td><td>${u.def}</td><td>${u.carry}</td>
-      <td class="cost">🪵${u.cost.wood} 🪨${u.cost.stone} 🪙${u.cost.gold}</td>
+      <td class="cost" id="cost-${key}">🪵${u.cost.wood} 🪨${u.cost.stone} 🪙${u.cost.gold}</td>
       <td class="train-cell">${trainCell}</td>`;
     ubody.appendChild(tr);
   }
   for (const btn of ubody.querySelectorAll('button[data-train]')) {
     btn.addEventListener('click', () => train(btn.dataset.train));
+  }
+  // The catalog price is for ONE unit, but the Colony Ship steps per ship along
+  // the expansion curve, so cost x count under-quotes badly (#62). Ask the
+  // server for the real batch total whenever the count changes — that keeps the
+  // stepped formula in exactly one place.
+  for (const box of ubody.querySelectorAll('input[id^="train-n-"]')) {
+    const key = box.id.slice('train-n-'.length);
+    box.addEventListener('input', () => quoteTrain(key, box.value));
   }
 
   const tbody = $('train-queue').querySelector('tbody');
@@ -394,6 +402,28 @@ function renderTroops() {
   }
 
   renderSupport();
+}
+
+// Batch price for whatever is in the count box. Debounced because it fires on
+// every keystroke, and sequence-guarded so a slow reply cannot overwrite a
+// newer one with a stale figure.
+const trainQuoteTimers = {};
+const trainQuoteSeq = {};
+function quoteTrain(key, raw) {
+  clearTimeout(trainQuoteTimers[key]);
+  trainQuoteTimers[key] = setTimeout(async () => {
+    const cell = $(`cost-${key}`);
+    if (!cell) return;
+    const n = Math.floor(Number(raw));
+    if (!(n >= 1 && n <= 500)) return; // out of range: leave the last good figure
+    const seq = (trainQuoteSeq[key] = (trainQuoteSeq[key] || 0) + 1);
+    try {
+      const r = await api(`/api/train/quote?islandId=${state.island.id}`
+        + `&unit=${encodeURIComponent(key)}&count=${n}`);
+      if (seq !== trainQuoteSeq[key] || !r || r.error || !r.cost) return;
+      cell.textContent = `\u{1FAB5}${r.cost.wood} \u{1FAA8}${r.cost.stone} \u{1FA99}${r.cost.gold}`;
+    } catch { /* transient — the figure on screen stays as it was */ }
+  }, 200);
 }
 
 function unitListText(units) {

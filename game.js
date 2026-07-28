@@ -234,7 +234,29 @@ const LAND_RESPAWN = Math.max(0, Number(process.env.LAND_RESPAWN ?? 0) || 0);
 // rather than pricing it. Only meaningful from a fresh world; applying it
 // mid-season would retroactively price an established empire out of its next
 // island.
-const COLONY_COST_GROWTH = Math.max(1, Number(process.env.COLONY_COST_GROWTH ?? 1) || 1);
+/**
+ * Colony Ship price escalation per step along the expansion curve (#27, #43).
+ *
+ * Clamped at BOTH ends (#61). The old guard caught junk, zero and negatives but
+ * nothing at the top, so `Infinity` produced a cost of `{wood: null}` on the
+ * wire and `err.noResources` for a player holding a trillion of everything —
+ * a knob that reads as a price control behaving as a ban. No `Infinity` was
+ * needed either: `1000` puts the 11th step at 1.2e33, finite and equally
+ * unreachable, so a non-finite check alone would not have been enough.
+ *
+ * 3 is the ceiling because 1.6 already puts the 15th step at 1.9M all-in.
+ * Anything above ~2 is a configuration mistake rather than a choice.
+ */
+const COLONY_COST_GROWTH_MAX = 3;
+
+function parseColonyGrowth(raw, fallback = 1) {
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1 || n > COLONY_COST_GROWTH_MAX) return fallback;
+  return n;
+}
+
+const COLONY_COST_GROWTH = parseColonyGrowth(process.env.COLONY_COST_GROWTH);
 
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
@@ -576,7 +598,13 @@ function trainCost(world, island, key, count) {
   for (let i = 0; i < count; i++) {
     mult += Math.pow(COLONY_COST_GROWTH, Math.max(0, owned - 1 + i));
   }
-  for (const r of RESOURCES) cost[r] = Math.round(unit.cost[r] * mult);
+  for (const r of RESOURCES) {
+    const n = Math.round(unit.cost[r] * mult);
+    // A non-finite cost serialises to null and surfaces as "not enough
+    // resources" for something unbuildable at any wealth (#61). Falling back
+    // to the flat price keeps the unit buildable and the payload well-typed.
+    cost[r] = Number.isFinite(n) ? n : unit.cost[r] * count;
+  }
   return cost;
 }
 
@@ -2575,6 +2603,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
+  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

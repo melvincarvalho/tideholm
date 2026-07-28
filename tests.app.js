@@ -735,6 +735,52 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   oa.srv.close();
   openApp.stop();
 
+  // ------------------------------------- the train quote is the real total (#62)
+  //
+  // The catalog can only carry a single-unit price, and the Colony Ship steps
+  // per ship, so cost x count under-quotes by 4.3x at ten ships. The endpoint
+  // must agree with what tryTrain actually charges, and refuse exactly what it
+  // refuses — a preview that accepts more than the action is how the pool's
+  // seams kept reopening.
+  console.log('\ntrain quote (#62)');
+  const qApp = createApp({ botCount: 0, freeIsles: 6, log: silent });
+  const qa = await serve(qApp);
+  r = await req(qa.port, 'POST', '/api/register',
+    { body: { name: 'Quoter', password: 'sekrit', lang: 'en' } });
+  const qcookie = (r.headers.get('set-cookie') || '').split(';')[0];
+  const qw = qApp.world;
+  const qp = qw.players.find((p) => p.name === 'Quoter');
+  const qi = qw.islands.find((i) => i.ownerId === qp.id);
+
+  r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=colonyship&count=3`,
+    { cookie: qcookie });
+  check('#62 the endpoint answers', r.status === 200, JSON.stringify(r.data));
+  check('#62 it echoes what was asked', r.data.unit === 'colonyship' && r.data.count === 3);
+  check('#62 and it matches what training would charge',
+    JSON.stringify(r.data.cost) === JSON.stringify(game.trainCost(qw, qi, 'colonyship', 3)),
+    JSON.stringify(r.data.cost));
+  check('#62 every leg is finite, never null on the wire',
+    ['wood', 'stone', 'gold'].every((k) => Number.isFinite(r.data.cost[k])));
+
+  for (const [count, why] of [[0, 'zero'], [501, 'over the cap'], ['abc', 'junk'], [-1, 'negative']]) {
+    r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=colonyship&count=${count}`,
+      { cookie: qcookie });
+    check(`#62 a ${why} count is refused`, r.status === 400, `${count} -> ${r.status}`);
+  }
+  r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=nope&count=1`,
+    { cookie: qcookie });
+  check('#62 an unknown unit is refused', r.status === 400);
+  r = await req(qa.port, 'GET', '/api/train/quote?islandId=1&unit=spearman&count=2');
+  check('#62 it needs a session', r.status === 401);
+  // 2.5 floors to 2, exactly as tryTrain does.
+  r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=spearman&count=2.5`,
+    { cookie: qcookie });
+  check('#62 a fractional count floors rather than refusing',
+    r.status === 200 && r.data.count === 2, JSON.stringify(r.data));
+
+  qa.srv.close();
+  qApp.stop();
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

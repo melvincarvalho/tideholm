@@ -918,6 +918,29 @@ export function createApp(opts = {}) {
     // no swap, no deposit, no seeding. It reports state and, given query
     // params, quotes a hypothetical swap — so the client never has to carry a
     // second copy of the curve maths and drift from the server's answer.
+    // What a batch of this size will ACTUALLY cost (#62). The catalog can only
+    // carry a single-ship price, and with COLONY_COST_GROWTH the price steps
+    // per ship, so cost x count under-quotes by 4.3x at ten ships. Asked over
+    // the wire rather than recomputed client-side so the stepped formula has
+    // exactly one implementation — every preview/action seam in the pool was
+    // two copies that drifted.
+    if (req.method === 'GET' && pathname === '/api/train/quote') {
+      const island = myIsland(player, query.get('islandId'));
+      if (!island) return sendErr(res, 404, player.lang || 'en', 'err.noIsland');
+      // Resolve first, like tryTrain does: colonyPosition counts ships in the
+      // training queue, and an unresolved queue still holds finished ones.
+      game.resolveIsland(island, Date.now());
+      const unit = String(query.get('unit') || '');
+      if (!game.UNITS[unit]) return sendErr(res, 400, player.lang || 'en', 'err.unknownUnit');
+      // Floored and range-checked exactly as tryTrain does, so the quote cannot
+      // describe an order the action would refuse.
+      const count = Math.floor(Number(query.get('count')));
+      if (!(count >= 1 && count <= 500)) return sendErr(res, 400, player.lang || 'en', 'err.count');
+      return sendJson(res, 200, {
+        unit, count, cost: game.trainCost(world, island, unit, count),
+      });
+    }
+
     if (req.method === 'GET' && pathname === '/api/pool') {
       const pool = world.pool;
       const opts = game.poolOpts(pool);
