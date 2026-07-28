@@ -208,6 +208,31 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   r = await req(pg.port, 'POST', '/api/build', { cookie: preCookie, body: { building: 'wall', islandId: r.data.island.id } });
   check('world-mutating actions are blocked during pregame (409)', r.status === 409, JSON.stringify(r.data));
 
+  // PREGAME_BLOCKED only guards POSTs, so every GET that resolves an island
+  // must clamp to startAt itself. resolveIsland assigns lastUpdate = now
+  // unconditionally, so an unclamped GET rewinds the clock into the past and
+  // the next state poll accrues the whole pregame gap again — repeatably.
+  // Four endpoints resolved at a raw Date.now(); /api/map resolved EVERY
+  // island in the world that way.
+  {
+    const frozenAt = pre.world.startAt;
+    const woodBefore = ebIsland.resources.wood;
+    for (const path of [
+      `/api/train/quote?islandId=${ebIsland.id}&unit=spearman&count=1`,
+      '/api/map',
+      `/api/pool?islandId=${ebIsland.id}&deposit=100`,
+      `/api/pool?islandId=${ebIsland.id}&withdraw=1`,
+    ]) {
+      await req(pg.port, 'GET', path, { cookie: preCookie });
+      check(`pregame GET does not rewind the island clock: ${path.split('?')[0]}`,
+        ebIsland.lastUpdate === frozenAt, `${ebIsland.lastUpdate} vs ${frozenAt}`);
+    }
+    await req(pg.port, 'GET', '/api/state', { cookie: preCookie });
+    check('and no pregame production was farmed by cycling them',
+      ebIsland.resources.wood === woodBefore,
+      `${ebIsland.resources.wood} vs ${woodBefore}`);
+  }
+
   pg.srv.close();
   pre.stop();
 

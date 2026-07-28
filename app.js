@@ -381,6 +381,23 @@ export function createApp(opts = {}) {
     return mine.find((i) => i.id === Number(islandId)) || mine[0];
   }
 
+  /**
+   * The clock every endpoint must resolve islands against.
+   *
+   * Clamped FORWARD to startAt, because `resolveIsland` assigns
+   * `lastUpdate = now` unconditionally. During pregame `/api/state` resolves to
+   * startAt to freeze production, so any endpoint resolving at the raw
+   * `Date.now()` rewinds `lastUpdate` into the past — and the next state poll
+   * then accrues the whole pregame gap again. Alternating the two calls farmed
+   * production before the season had opened, repeatably.
+   *
+   * A helper rather than the clamp written out at each call site: it was
+   * written out once and three other endpoints did not copy it.
+   */
+  function resolveClock() {
+    return Math.max(Date.now(), world.startAt || 0);
+  }
+
   function stateFor(player, islandId) {
     const now = Date.now();
     const lang = player.lang || 'en';
@@ -391,7 +408,7 @@ export function createApp(opts = {}) {
     // lastUpdate to whatever time it's given, so passing the real `now` would
     // let production accrue poll-by-poll before launch. Clamping to startAt
     // keeps every island frozen until the season actually begins (#8).
-    game.resolveIsland(island, Math.max(now, world.startAt || 0));
+    game.resolveIsland(island, resolveClock());
     return {
       serverNow: now,
       speed: game.SPEED,
@@ -929,7 +946,7 @@ export function createApp(opts = {}) {
       if (!island) return sendErr(res, 404, player.lang || 'en', 'err.noIsland');
       // Resolve first, like tryTrain does: colonyPosition counts ships in the
       // training queue, and an unresolved queue still holds finished ones.
-      game.resolveIsland(island, Date.now());
+      game.resolveIsland(island, resolveClock());
       const unit = String(query.get('unit') || '');
       if (!game.UNITS[unit]) return sendErr(res, 400, player.lang || 'en', 'err.unknownUnit');
       // Floored and range-checked exactly as tryTrain does, so the quote cannot
@@ -1006,7 +1023,7 @@ export function createApp(opts = {}) {
         // Resolve first. The POST actions resolveIsland() before planning, so a
         // preview reading the stored object sees pre-accrual resources and a
         // pre-upgrade harbour — and refuses deposits the action would accept.
-        game.resolveIsland(dIsland, Date.now());
+        game.resolveIsland(dIsland, resolveClock());
         const plan = game.planPoolDeposit(world, dIsland, Number(depositLeg));
         // errorParams travel with the error. err.tradeCapacity carries {cap},
         // err.buildFirst {building}, err.noResources {need}/{res} — drop them
@@ -1018,7 +1035,7 @@ export function createApp(opts = {}) {
       const burnShares = query.get('withdraw');
       if (burnShares !== null && burnShares !== '') {
         const wIsland = myIsland(player, query.get('islandId'));
-        game.resolveIsland(wIsland, Date.now());
+        game.resolveIsland(wIsland, resolveClock());
         // Number() at the boundary: query params are strings, and poolAmount
         // deliberately refuses those. HTTP is where the coercion belongs.
         const plan = game.planPoolWithdraw(world, player, wIsland, Number(burnShares));
@@ -1171,7 +1188,7 @@ export function createApp(opts = {}) {
     }
 
     if (req.method === 'GET' && pathname === '/api/map') {
-      const now = Date.now();
+      const now = resolveClock();
       // Intel pool: mine plus my alliance-mates', freshest wins, 24h shelf life.
       const myAlliance = game.allianceOf(world, player.id);
       const intelSources = myAlliance
