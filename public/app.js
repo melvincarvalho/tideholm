@@ -766,8 +766,12 @@ function openAttackPanel(target) {
   } else {
     // Trade form for any inhabited island (own islands included).
     $('trade-form').classList.remove('hidden');
-    $('trade-cap').textContent = T('ui.trade.cap', { cap: state.island.tradeCap });
-    $('trade-send').disabled = state.island.tradeCap < 1;
+    // Slots are null on worlds without the rule, so this reads exactly as it
+    // did before on a season that predates it.
+    const slots = state.island.tradeSlots;
+    $('trade-cap').textContent = T('ui.trade.cap', { cap: state.island.tradeCap })
+      + (slots ? ` · ${T('ui.merchants')} ${slots.free}/${slots.total}` : '');
+    $('trade-send').disabled = state.island.tradeCap < 1 || (slots ? slots.free < 1 : false);
 
     const supportOnly = target.isYou;
     $('attack-title').textContent = supportOnly

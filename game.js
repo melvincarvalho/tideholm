@@ -716,6 +716,76 @@ function tradeCapacity(harborLevel) {
   return harborLevel < 1 ? 0 : Math.round(250 * Math.pow(1.5, harborLevel - 1));
 }
 
+/**
+ * Merchant slots (#30).
+ *
+ * Trade had no carrier: nothing was reserved and nothing had to come home, so
+ * any number of shipments could be in flight at once and distance cost latency
+ * but never throughput. Feeding one island for a Beacon push was a clicking
+ * exercise rather than a logistics problem.
+ *
+ * A shipment now occupies a slot for the **round trip**. That is the part that
+ * bites: distance costs throughput, so supplying a distant island is genuinely
+ * expensive, exactly as in Tribal Wars and Travian.
+ *
+ * `tradeCapacity` is deliberately left alone. The proposal in #30 wanted slots
+ * to replace payload growth; that would re-balance the Tidepool as a side
+ * effect, since the pool sizes its shipments the same way. Slots alone already
+ * make the observed burst impossible. Re-pricing the Harbor is a separate call.
+ */
+const TRADE_SLOTS_FALLBACK = 1;
+
+function parseTradeSlots(raw, fallback = TRADE_SLOTS_FALLBACK) {
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  // Unvalidated knobs are how a cap silently stops existing: `abc` would make
+  // every comparison false, and a negative would refuse every shipment.
+  if (!Number.isFinite(n) || n < 0 || n > 100) return fallback;
+  return Math.floor(n);
+}
+
+const TRADE_SLOTS_DEFAULT = parseTradeSlots(process.env.TRADE_SLOTS_PER_HARBOR);
+
+/**
+ * Slots per Harbor level on this world, or `null` for the old unlimited rule.
+ *
+ * Per-world and backfilled `null` by `migrateWorld`, for the same reason as
+ * `supportCostsPop`: tightening logistics mid-season strands plans already in
+ * motion, so a `pm2 restart` must not be able to impose it on a running world.
+ */
+function tradeSlotsPerHarbor(world) {
+  const v = world && world.tradeSlots;
+  return v == null ? null : parseTradeSlots(v);
+}
+
+function tradeSlotsTotal(world, island) {
+  const per = tradeSlotsPerHarbor(world);
+  if (per == null) return Infinity;
+  return island.buildings.harbor * per;
+}
+
+/**
+ * Slots currently tied up: shipments still outbound, plus the empty merchant
+ * legs sailing home. Derived from `world.movements` rather than stored, so
+ * there is no new state to migrate and no counter that can drift.
+ *
+ * Only movements marked `slot` are counted. The Tidepool's self-addressed
+ * shipments are exempt (see #30) and never carry the mark.
+ */
+function tradeSlotsBusy(world, island) {
+  let busy = 0;
+  for (const m of world.movements || []) {
+    if (!m.slot) continue;
+    if (m.type === 'trade' && m.fromId === island.id) busy++;
+    else if (m.type === 'merchant' && m.toId === island.id) busy++;
+  }
+  return busy;
+}
+
+function tradeSlotsFree(world, island) {
+  return tradeSlotsTotal(world, island) - tradeSlotsBusy(world, island);
+}
+
 function sendTrade(world, player, island, target, resources, now) {
   resolveIsland(island, now);
   if (island.buildings.harbor < 1) {
@@ -735,13 +805,16 @@ function sendTrade(world, player, island, target, resources, now) {
   if (total > cap) return { error: 'err.tradeCapacity', errorParams: { cap } };
   if (target.ownerId == null) return { error: 'err.uninhabited' };
   if (target.id === island.id) return { error: 'err.ownIsland' };
+  if (tradeSlotsFree(world, island) < 1) {
+    return { error: 'err.noMerchants', errorParams: { total: tradeSlotsTotal(world, island) } };
+  }
   for (const r of RESOURCES) island.resources[r] -= load[r];
   const dist = Math.hypot(island.x - target.x, island.y - target.y);
   const arrive = now + Math.max(5000, Math.round((dist * TRADE_SPEED * 60000) / SPEED));
   world.movements.push({
     id: world.nextId++, type: 'trade', ownerId: player.id,
     fromId: island.id, toId: target.id, units: zeroUnits(), loot: load,
-    depart: now, arrive,
+    depart: now, arrive, slot: tradeSlotsPerHarbor(world) != null,
   });
   return { ok: true, arrive };
 }
@@ -813,13 +886,32 @@ function acceptOffer(world, player, island, offerId, now) {
   if (island.resources[offer.want.res] < offer.want.amount) {
     return { error: 'err.noResources' };
   }
-  island.resources[offer.want.res] -= offer.want.amount;
-  world.offers = world.offers.filter((o) => o.id !== offer.id);
-
+  // Resolved before any mutation: both legs consume a merchant slot, and a
+  // refusal after the escrow was released would destroy the offer and the
+  // buyer's payment together.
   const origin = world.islands.find((i) => i.id === offer.islandId)
     || playerIsland(world, offer.playerId);
   const ownerHome = (origin && origin.ownerId === offer.playerId)
     ? origin : playerIsland(world, offer.playerId);
+  // Both legs are charged, not just the buyer's. Exempting the seller would
+  // leave a hole in the same brake this closes: post an offer, have an ally
+  // accept it, and goods move with no slot spent (#30). The seller's exposure
+  // is bounded by OFFER_LIMIT.
+  // Resolved first: an unresolved island still carries its pre-upgrade Harbor
+  // level, so a seller whose upgrade finished since lastUpdate would be
+  // refused on a slot count they no longer have. Same preview/action seam the
+  // pool kept hitting.
+  if (origin) resolveIsland(origin, now);
+  if (origin && tradeSlotsFree(world, origin) < 1) {
+    return { error: 'err.offerNoMerchants' };
+  }
+  if (ownerHome && tradeSlotsFree(world, island) < 1) {
+    return { error: 'err.noMerchants', errorParams: { total: tradeSlotsTotal(world, island) } };
+  }
+
+  island.resources[offer.want.res] -= offer.want.amount;
+  world.offers = world.offers.filter((o) => o.id !== offer.id);
+
   const dist = Math.hypot(origin.x - island.x, origin.y - island.y);
   const duration = Math.max(5000, Math.round((dist * TRADE_SPEED * 60000) / SPEED));
   // The escrowed goods sail to the buyer...
@@ -827,7 +919,7 @@ function acceptOffer(world, player, island, offerId, now) {
     id: world.nextId++, type: 'trade', ownerId: offer.playerId,
     fromId: origin.id, toId: island.id, units: zeroUnits(),
     loot: fullLoad(offer.give.res, offer.give.amount),
-    depart: now, arrive: now + duration,
+    depart: now, arrive: now + duration, slot: tradeSlotsPerHarbor(world) != null,
   });
   // ...and the payment sails to the seller.
   if (ownerHome) {
@@ -837,7 +929,7 @@ function acceptOffer(world, player, island, offerId, now) {
       id: world.nextId++, type: 'trade', ownerId: player.id,
       fromId: island.id, toId: ownerHome.id, units: zeroUnits(),
       loot: fullLoad(offer.want.res, offer.want.amount),
-      depart: now, arrive: now + duration2,
+      depart: now, arrive: now + duration2, slot: tradeSlotsPerHarbor(world) != null,
     });
   }
   return { ok: true };
@@ -1646,6 +1738,10 @@ function applyMovement(world, m) {
     return;
   }
 
+  // Merchants coming home carry nothing and report nothing — the movement
+  // exists so the slot stays busy for the round trip. Arriving frees it.
+  if (m.type === 'merchant') return;
+
   if (m.type === 'colonize') {
     const settler = world.players.find((p) => p.id === m.ownerId);
     const coords = `(${dest.x}:${dest.y})`;
@@ -1691,6 +1787,18 @@ function applyMovement(world, m) {
   const attackerNameFor = (lang) => (attacker ? attacker.name : t(lang, 'player.unknown'));
 
   if (m.type === 'trade') {
+    // The merchants sail home empty, and the slot they hold is freed only when
+    // they get there (#30). Round-trip occupancy is what makes distance cost
+    // throughput rather than just patience. Derived occupancy cannot do this:
+    // resolveWorld shifts a movement off the list on arrival, so without a
+    // homeward leg there is nothing left to count.
+    if (m.slot) {
+      world.movements.push({
+        id: world.nextId++, type: 'merchant', ownerId: m.ownerId,
+        fromId: m.toId, toId: m.fromId, units: zeroUnits(), loot: null,
+        depart: m.arrive, arrive: m.arrive + (m.arrive - m.depart), slot: true,
+      });
+    }
     const cap = storageCapacity(dest.buildings.storehouse);
     for (const r of RESOURCES) {
       dest.resources[r] = Math.min(cap, dest.resources[r] + m.loot[r]);
@@ -2358,6 +2466,7 @@ function createWorld() {
     pool: newPool(), // closed until deliberately seeded (#46)
     maxBuildingLevel: MAX_BUILDING_LEVEL_DEFAULT,
     supportCostsPop: true, // #40 — new seasons only; see supportCostsPop()
+    tradeSlots: TRADE_SLOTS_DEFAULT, // #30 — new seasons only; null = unlimited
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -2379,6 +2488,9 @@ function migrateWorld(world) {
   // Deliberately backfills OFF, unlike the line above: a restart must not be
   // able to nerf a live season's stacked support (#40).
   if (world.supportCostsPop == null) world.supportCostsPop = false;
+  // Backfilled null (= unlimited), NOT the env default: tightening logistics
+  // mid-season strands shipments and plans already in motion (#30).
+  if (world.tradeSlots === undefined) world.tradeSlots = null;
   if (!world.pool) world.pool = newPool();
   for (const [k, v] of Object.entries(newPool())) {
     if (world.pool[k] == null) world.pool[k] = v;
@@ -2462,6 +2574,7 @@ export {
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
+  tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   loadHall, WONDER_WIN_LEVEL,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

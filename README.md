@@ -65,6 +65,7 @@ shutdown. Delete that file to start a fresh world.
 | `MORALE_FLOOR` | 0.3 | Min attack-power multiplier when outweighing the defender |
 | `BOT_MORALE_FLOOR` | = `MORALE_FLOOR` | Same, but vs **bot** defenders. Set `1` so the leader can fight bots at full power while human newcomers stay protected. |
 | `BOT_GARRISON_RATIO` | ∞ | Cap a bot's standing defence to `islandPoints × ratio` (raiders exempt). Set e.g. `12` to stop bots turtling into unbeatable fortresses. |
+| `TRADE_SLOTS_PER_HARBOR` | 1 | Merchant slots granted per Harbor level (#30). A shipment occupies one slot for the **round trip**, so distance costs throughput, not just patience — supplying a distant island is genuinely expensive. Applies to trade and market shipments; the Tidepool is exempt. **New worlds only**: existing seasons load unlimited (`tradeSlots: null`) so a restart cannot tighten logistics under plans already in motion. `0` grants no slots at all. |
 | `COLONY_COST_GROWTH` | 1 (flat) | Colony Ship price multiplier per step along the expansion curve — `cost × growth^(position-1)`, stepped per ship. **Position is islands owned plus every colony ship already paid for** (in a garrison, in a training queue, or sailing to settle), so ordering singly costs exactly the same as ordering a batch — counting islands alone let a player split orders for a 25% discount. `1.3` is the tuned brake on going wide: the 10th step costs ~29k all-in instead of 2.7k, the 15th ~106k. Steeper bites much harder than it looks (`1.6` puts the 15th at 1.9M). Only meaningful from a fresh world. |
 
 **Example — a fair, self-running "casual" world:**
@@ -116,7 +117,11 @@ ADMIN_TOKEN=... node server.js
   sacked. Farm caps population: every unit costs pop, bigger armies need
   bigger farms.
 - Trade: ship resources to any inhabited island (allies or your own) from
-  the Harbor — capacity 250 × 1.5^(level-1) per shipment.
+  the Harbor — capacity 250 × 1.5^(level-1) per shipment. The Harbor also
+  grants **merchant slots** (one per level by default), and a shipment holds
+  one until the merchants sail **home** — so a far-off delivery ties up a
+  merchant for twice the travel time, and how much you can move at once is
+  finite. Market trades charge both sides a slot; Tidepool swaps are exempt.
 - Quality of life: rename your islands, a battle simulator in the attack
   panel, the map centers on your island, and unicode player names.
 - Morale: attacking a much smaller player blunts your attack (down to

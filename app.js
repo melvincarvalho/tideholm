@@ -427,6 +427,10 @@ export function createApp(opts = {}) {
         loyalty: Math.round(island.loyalty),
         loyaltyMax: game.LOYALTY_MAX,
         tradeCap: game.tradeCapacity(island.buildings.harbor),
+        // Infinity does not survive JSON; null is the wire form of "unlimited".
+        tradeSlots: game.tradeSlotsPerHarbor(world) == null
+          ? null
+          : { free: game.tradeSlotsFree(world, island), total: game.tradeSlotsTotal(world, island) },
         popUsed: game.popUsed(island),
         popAbroad: game.popAbroad(world, island),
         popCap: game.popCap(island.buildings.farm),
