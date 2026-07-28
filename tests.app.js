@@ -8,6 +8,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 // Isolated storage: never touch the repo's live world.
 process.env.GAME_SPEED = '1';
@@ -29,6 +31,8 @@ function check(name, cond, detail) {
     console.log('FAIL  ' + name + (detail !== undefined ? ' — ' + detail : ''));
   }
 }
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const silent = { log() {}, error: console.error };
 
@@ -777,6 +781,65 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     { cookie: qcookie });
   check('#62 a fractional count floors rather than refusing',
     r.status === 200 && r.data.count === 2, JSON.stringify(r.data));
+
+  // The checks above all run at the default growth of 1, where per-unit x count
+  // is exact — so a handler that returned `unitCost x count` would pass every
+  // one of them, which is precisely the bug #62 is about. The knob is read at
+  // module load, so the stepped case needs a child process.
+  {
+    const probe = `
+      // Its own data dir: the parent already holds the lock on theirs, and
+      // createApp refuses to start on a directory another pid owns.
+      const fsm = await import('node:fs');
+      const osm = await import('node:os');
+      const pathm = await import('node:path');
+      process.env.DATA_DIR = fsm.mkdtempSync(pathm.join(osm.tmpdir(), 'tideholm-step-'));
+      process.env.HALL_FILE = pathm.join(process.env.DATA_DIR, 'hall.json');
+      const http = await import('node:http');
+      const game = await import('./game.js');
+      const { createApp } = await import('./app.js');
+      const app = createApp({ botCount: 0, freeIsles: 6, log: { log() {}, error() {} } });
+      const srv = http.createServer(app.handle);
+      await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+      const port = srv.address().port;
+      const call = async (m, p, body, cookie) => {
+        const res = await fetch('http://127.0.0.1:' + port + p, {
+          method: m,
+          headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { cookie } : {}) },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        return { status: res.status, data: await res.json().catch(() => null), res };
+      };
+      let r = await call('POST', '/api/register', { name: 'Stepper', password: 'sekrit', lang: 'en' });
+      const cookie = (r.res.headers.get('set-cookie') || '').split(';')[0];
+      const w = app.world;
+      const p = w.players.find((x) => x.name === 'Stepper');
+      const isl = w.islands.find((i) => i.ownerId === p.id);
+      isl.units.colonyship = 4; // position 5, matching the figures in #62
+      const q = await call('GET', '/api/train/quote?islandId=' + isl.id + '&unit=colonyship&count=3', null, cookie);
+      console.log(JSON.stringify({
+        growth: game.COLONY_COST_GROWTH,
+        quoted: q.data && q.data.cost,
+        engine: game.trainCost(w, isl, 'colonyship', 3),
+        naive: game.trainCost(w, isl, 'colonyship', 1).wood * 3,
+      }));
+      srv.close(); app.stop();
+      try { fsm.rmSync(process.env.DATA_DIR, { recursive: true, force: true }); } catch { /* gone */ }
+    `;
+    const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+      env: { ...process.env, COLONY_COST_GROWTH: '1.3' }, encoding: 'utf8', cwd: HERE,
+    }).trim().split('\n').pop());
+
+    check('#62 the child really is running stepped', out.growth === 1.3);
+    check('#62 stepped: the quote matches what training charges',
+      JSON.stringify(out.quoted) === JSON.stringify(out.engine),
+      `${JSON.stringify(out.quoted)} vs ${JSON.stringify(out.engine)}`);
+    check('#62 stepped: and it is NOT single-price x count',
+      out.quoted.wood !== out.naive, `both ${out.quoted.wood}`);
+    check('#62 stepped: the real figures from the issue (13675 vs 10281)',
+      out.quoted.wood === 13675 && out.naive === 10281,
+      `${out.quoted.wood} / ${out.naive}`);
+  }
 
   qa.srv.close();
   qApp.stop();

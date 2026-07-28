@@ -15,8 +15,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
 process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
 process.env.HALL_FILE = path.join(os.tmpdir(), `tideholm-hall-test-${process.pid}.json`);
-const g = await import('./game.js');
-const RESOURCES_ALL = ['wood', 'stone', 'gold']; // dynamic: after the env above is set
+const g = await import('./game.js'); // dynamic: after the env above is set
 process.on('exit', () => {
   try { fs.rmSync(process.env.HALL_FILE, { force: true }); } catch { /* gone */ }
 });
@@ -2905,19 +2904,26 @@ console.log('combat characterisation');
     const raw = 1200 * Array.from({length: 500}, (_, k) =>
       Math.pow(3, g.colonyPosition(w, p.id) - 1 + k)).reduce((a, b) => a + b, 0);
     const cost = g.trainCost(w, i, 'colonyship', 500);
-    console.log(JSON.stringify({ raw, cost, growth: g.COLONY_COST_GROWTH }));
+    // The invariant that matters. Falling back to the flat table price on
+    // overflow made a batch of 499 cost 598,800 while a batch of 100 cost
+    // 2.9e155 — the biggest orders became the cheapest.
+    const ladder = [1, 10, 100, 499, 500].map((n) => g.trainCost(w, i, 'colonyship', n).wood);
+    const mono = ladder.every((v, k) => k === 0 || v >= ladder[k - 1]);
+    console.log(JSON.stringify({ raw, cost, ladder, mono, growth: g.COLONY_COST_GROWTH }));
   `;
   const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
     env: { ...process.env, COLONY_COST_GROWTH: '3' }, encoding: 'utf8', cwd: HERE,
   }).trim().split('\n').pop());
 
   check('#61 the knob really is at the ceiling for this probe', out.growth === 3);
+  check('#61 the price never falls as the batch grows', out.mono,
+    JSON.stringify(out.ladder));
   check('#61 the unguarded arithmetic really does overflow', out.raw === null,
     `raw serialised as ${out.raw}`);
   check('#61 but trainCost still returns finite numbers',
-    RESOURCES_ALL.every((r) => Number.isFinite(out.cost[r])), JSON.stringify(out.cost));
+    g.RESOURCES.every((r) => Number.isFinite(out.cost[r])), JSON.stringify(out.cost));
   check('#61 so nothing reaches the client as null',
-    RESOURCES_ALL.every((r) => out.cost[r] !== null), JSON.stringify(out.cost));
+    g.RESOURCES.every((r) => out.cost[r] !== null), JSON.stringify(out.cost));
 }
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

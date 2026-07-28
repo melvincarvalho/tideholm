@@ -600,10 +600,20 @@ function trainCost(world, island, key, count) {
   }
   for (const r of RESOURCES) {
     const n = Math.round(unit.cost[r] * mult);
-    // A non-finite cost serialises to null and surfaces as "not enough
-    // resources" for something unbuildable at any wealth (#61). Falling back
-    // to the flat price keeps the unit buildable and the payload well-typed.
-    cost[r] = Number.isFinite(n) ? n : unit.cost[r] * count;
+    // A non-finite cost serialises to null and reaches the player as "not
+    // enough resources" for something no wealth can buy (#61). Saturate at the
+    // largest exact integer instead: finite, JSON-safe, and still unaffordable.
+    //
+    // NOT a fallback to the flat price. That inverted the curve — at growth 3
+    // and position 221 a batch of 499 overflowed and was charged 598,800 while
+    // a batch of 100 cost 2.9e155, so the largest orders became the cheapest.
+    // Saturating keeps cost monotonic in count, which is the actual invariant.
+    // Ceiling applied to EVERY value, not only the overflowed ones: 2.9e155 is
+    // finite and still larger than MAX_SAFE_INTEGER, so clamping the overflow
+    // alone left a batch of 499 cheaper than a batch of 100. Anything past this
+    // is unaffordable regardless — no storehouse comes close — so the clamp
+    // costs nothing real and keeps the price non-decreasing in count.
+    cost[r] = Number.isFinite(n) ? Math.min(n, Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
   }
   return cost;
 }
