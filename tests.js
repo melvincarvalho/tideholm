@@ -2672,5 +2672,175 @@ console.log('combat characterisation');
     !g.tryTrain(w, ia, 'sentinel', g.popCap(5) - g.popUsed(ia), rs.arrive + 1).error);
 }
 
+// ---------------------------------------------------------- merchant slots (#30)
+
+{
+  // Harbor level grants slots; a shipment holds one for the round trip.
+  const { w, a, ia, ib } = freshWorld();
+  ia.buildings.harbor = 2;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  check('#30 harbor 2 grants 2 slots', g.tradeSlotsTotal(w, ia) === 2);
+  check('#30 nothing busy to start', g.tradeSlotsBusy(w, ia) === 0);
+
+  const r1 = g.sendTrade(w, a, ia, ib, { wood: 50 }, t0);
+  const r2 = g.sendTrade(w, a, ia, ib, { wood: 50 }, t0);
+  check('#30 two shipments fit', !r1.error && !r2.error);
+  check('#30 both slots busy', g.tradeSlotsBusy(w, ia) === 2 && g.tradeSlotsFree(w, ia) === 0);
+
+  const beforeRefusal = ia.resources.wood;
+  const r3 = g.sendTrade(w, a, ia, ib, { wood: 50 }, t0);
+  check('#30 a third is refused', r3.error === 'err.noMerchants');
+  check('#30 the refusal names the total', r3.errorParams && r3.errorParams.total === 2);
+  check('#30 a refused shipment costs nothing', ia.resources.wood === beforeRefusal);
+
+  // Arrival is NOT enough — the merchants must get home.
+  g.resolveWorld(w, r1.arrive + 1);
+  check('#30 the goods landed', ib.resources.wood > 0);
+  check('#30 the slot is still held on the homeward leg', g.tradeSlotsBusy(w, ia) === 2);
+  const legs = w.movements.filter((m) => m.type === 'merchant');
+  check('#30 two merchant legs are sailing home', legs.length === 2);
+  check('#30 they carry nothing', legs.every((m) => !m.loot && g.totalUnits(m.units) === 0));
+  check('#30 and head back where they came from', legs.every((m) => m.toId === ia.id));
+
+  const home = Math.max(...legs.map((m) => m.arrive));
+  g.resolveWorld(w, home + 1);
+  check('#30 the round trip frees the slots', g.tradeSlotsBusy(w, ia) === 0);
+  check('#30 and the leg leaves no trace', !w.movements.some((m) => m.type === 'merchant'));
+  check('#30 trading is possible again', !g.sendTrade(w, a, ia, ib, { wood: 50 }, home + 1).error);
+}
+
+{
+  // Distance costs throughput, not just patience: a far shipment holds its
+  // slot for twice the travel time. This is the whole point of the round trip.
+  const { w, a, ia, ib } = freshWorld();
+  ib.x = 0; ib.y = 20;
+  ia.buildings.harbor = 1;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  const r = g.sendTrade(w, a, ia, ib, { wood: 50 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  const leg = w.movements.find((m) => m.type === 'merchant');
+  check('#30 the homeward leg takes as long as the outbound',
+    leg.arrive - leg.depart === r.arrive - t0);
+  check('#30 so the slot is held for the full round trip',
+    leg.arrive - t0 === 2 * (r.arrive - t0));
+}
+
+{
+  // The Tidepool is exempt (#30): its shipments are self-addressed and it is
+  // the always-available counterparty, not a way to concentrate resources.
+  const { w, a, ia } = poolWorld();
+  ia.buildings.harbor = 1;
+  const before = g.tradeSlotsBusy(w, ia);
+  const r = g.sendPoolSwap(w, a, ia, 'wood', 'stone', 100, t0);
+  check('#30 a pool swap sails', !r.error);
+  check('#30 a pool swap takes no slot', g.tradeSlotsBusy(w, ia) === before);
+  g.resolveWorld(w, t0 + 40 * 60 * 1000);
+  check('#30 and spawns no merchant leg', !w.movements.some((m) => m.type === 'merchant'));
+  check('#30 so an exhausted harbor can still use the pool',
+    !g.sendPoolSwap(w, a, ia, 'wood', 'stone', 100, t0 + 40 * 60 * 1000).error);
+}
+
+{
+  // Both legs of a market trade are charged. Exempting the seller would leave
+  // the hole open: post an offer, have an ally take it, move goods for free.
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.buildings.harbor = 1; ib.buildings.harbor = 1;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  ib.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  const mo = g.createOffer(w, a, ia, { res: 'wood', amount: 100 }, { res: 'stone', amount: 100 }, t0);
+  check('#30 offer posted', !mo.error);
+  check('#30 posting an offer holds no slot', g.tradeSlotsBusy(w, ia) === 0);
+
+  const acc = g.acceptOffer(w, b, ib, w.offers[0].id, t0);
+  check('#30 the trade goes through', !acc.error);
+  check('#30 the seller pays a slot', g.tradeSlotsBusy(w, ia) === 1);
+  check('#30 and the buyer pays a slot', g.tradeSlotsBusy(w, ib) === 1);
+}
+
+{
+  // A refusal must not consume the escrow. The gate sits before every
+  // mutation, so a blocked accept leaves the offer standing and the buyer paid
+  // nothing.
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.buildings.harbor = 1; ib.buildings.harbor = 1;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  ib.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  g.createOffer(w, a, ia, { res: 'wood', amount: 100 }, { res: 'stone', amount: 100 }, t0);
+  // burn the seller's only slot
+  g.sendTrade(w, a, ia, ib, { wood: 50 }, t0);
+  check('#30 seller has no slot left', g.tradeSlotsFree(w, ia) === 0);
+
+  g.resolveIsland(ib, t0); // production accrues on resolve; settle it before measuring
+  const before = ib.resources.stone;
+  const acc = g.acceptOffer(w, b, ib, w.offers[0].id, t0);
+  check('#30 accept is refused when the seller has no merchant',
+    acc.error === 'err.offerNoMerchants');
+  check('#30 the offer survives the refusal', w.offers.length === 1);
+  check('#30 the buyer paid nothing', ib.resources.stone === before);
+}
+
+{
+  // The other side of the same gate: the BUYER out of merchants. Tested
+  // separately because one check cannot fail for the other's reason.
+  const { w, a, b, ia, ib } = freshWorld();
+  ia.buildings.harbor = 2; ib.buildings.harbor = 1;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  ib.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  g.createOffer(w, a, ia, { res: 'wood', amount: 100 }, { res: 'stone', amount: 100 }, t0);
+  g.sendTrade(w, b, ib, ia, { wood: 50 }, t0); // burn the buyer's only slot
+  check('#30 buyer has no slot left, seller still does',
+    g.tradeSlotsFree(w, ib) === 0 && g.tradeSlotsFree(w, ia) > 0);
+
+  g.resolveIsland(ib, t0);
+  const before = ib.resources.stone;
+  const acc = g.acceptOffer(w, b, ib, w.offers[0].id, t0);
+  check('#30 accept is refused when the buyer has no merchant',
+    acc.error === 'err.noMerchants');
+  check('#30 the offer survives a buyer-side refusal', w.offers.length === 1);
+  check('#30 and the buyer still paid nothing', ib.resources.stone === before);
+}
+
+{
+  // Season gating, same shape as #40: on for new worlds, unlimited for a
+  // season that began before the rule existed.
+  const w = g.createWorld();
+  check('#30 new worlds get slots', g.tradeSlotsPerHarbor(w) === 1);
+
+  const old = g.createWorld();
+  delete old.tradeSlots;
+  g.migrateWorld(old);
+  check('#30 migrate backfills unlimited, not the env default', old.tradeSlots === null);
+  check('#30 and unlimited really is unlimited', g.tradeSlotsPerHarbor(old) === null);
+
+  const keep = g.createWorld();
+  keep.tradeSlots = 3;
+  g.migrateWorld(keep);
+  check('#30 a deliberate value survives migration', keep.tradeSlots === 3);
+}
+
+{
+  // With slots off, trade is unlimited and no merchant legs appear at all —
+  // proof the feature is gated rather than accidentally inert.
+  const { w, a, ia, ib } = freshWorld();
+  w.tradeSlots = null;
+  ia.buildings.harbor = 1;
+  ia.resources = { wood: 9000, stone: 9000, gold: 9000 };
+  check('#30 unlimited: total is Infinity', g.tradeSlotsTotal(w, ia) === Infinity);
+  let sent = 0;
+  for (let i = 0; i < 6; i++) if (!g.sendTrade(w, a, ia, ib, { wood: 50 }, t0).error) sent++;
+  check('#30 unlimited: six concurrent shipments all sail', sent === 6);
+  const arrive = Math.max(...w.movements.map((m) => m.arrive));
+  g.resolveWorld(w, arrive + 1);
+  check('#30 unlimited: no merchant legs are created',
+    !w.movements.some((m) => m.type === 'merchant'));
+}
+
+{
+  // A harbor-less island has no slots, which must not read as "unlimited".
+  const { w, ia } = freshWorld();
+  ia.buildings.harbor = 0;
+  check('#30 no harbor, no slots', g.tradeSlotsTotal(w, ia) === 0);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
