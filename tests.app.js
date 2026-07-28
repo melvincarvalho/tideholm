@@ -8,6 +8,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 // Isolated storage: never touch the repo's live world.
 process.env.GAME_SPEED = '1';
@@ -29,6 +31,8 @@ function check(name, cond, detail) {
     console.log('FAIL  ' + name + (detail !== undefined ? ' — ' + detail : ''));
   }
 }
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const silent = { log() {}, error: console.error };
 
@@ -203,6 +207,31 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
 
   r = await req(pg.port, 'POST', '/api/build', { cookie: preCookie, body: { building: 'wall', islandId: r.data.island.id } });
   check('world-mutating actions are blocked during pregame (409)', r.status === 409, JSON.stringify(r.data));
+
+  // PREGAME_BLOCKED only guards POSTs, so every GET that resolves an island
+  // must clamp to startAt itself. resolveIsland assigns lastUpdate = now
+  // unconditionally, so an unclamped GET rewinds the clock into the past and
+  // the next state poll accrues the whole pregame gap again — repeatably.
+  // Four endpoints resolved at a raw Date.now(); /api/map resolved EVERY
+  // island in the world that way.
+  {
+    const frozenAt = pre.world.startAt;
+    const woodBefore = ebIsland.resources.wood;
+    for (const path of [
+      `/api/train/quote?islandId=${ebIsland.id}&unit=spearman&count=1`,
+      '/api/map',
+      `/api/pool?islandId=${ebIsland.id}&deposit=100`,
+      `/api/pool?islandId=${ebIsland.id}&withdraw=1`,
+    ]) {
+      await req(pg.port, 'GET', path, { cookie: preCookie });
+      check(`pregame GET does not rewind the island clock: ${path.split('?')[0]}`,
+        ebIsland.lastUpdate === frozenAt, `${ebIsland.lastUpdate} vs ${frozenAt}`);
+    }
+    await req(pg.port, 'GET', '/api/state', { cookie: preCookie });
+    check('and no pregame production was farmed by cycling them',
+      ebIsland.resources.wood === woodBefore,
+      `${ebIsland.resources.wood} vs ${woodBefore}`);
+  }
 
   pg.srv.close();
   pre.stop();
@@ -734,6 +763,111 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
 
   oa.srv.close();
   openApp.stop();
+
+  // ------------------------------------- the train quote is the real total (#62)
+  //
+  // The catalog can only carry a single-unit price, and the Colony Ship steps
+  // per ship, so cost x count under-quotes by 4.3x at ten ships. The endpoint
+  // must agree with what tryTrain actually charges, and refuse exactly what it
+  // refuses — a preview that accepts more than the action is how the pool's
+  // seams kept reopening.
+  console.log('\ntrain quote (#62)');
+  const qApp = createApp({ botCount: 0, freeIsles: 6, log: silent });
+  const qa = await serve(qApp);
+  r = await req(qa.port, 'POST', '/api/register',
+    { body: { name: 'Quoter', password: 'sekrit', lang: 'en' } });
+  const qcookie = (r.headers.get('set-cookie') || '').split(';')[0];
+  const qw = qApp.world;
+  const qp = qw.players.find((p) => p.name === 'Quoter');
+  const qi = qw.islands.find((i) => i.ownerId === qp.id);
+
+  r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=colonyship&count=3`,
+    { cookie: qcookie });
+  check('#62 the endpoint answers', r.status === 200, JSON.stringify(r.data));
+  check('#62 it echoes what was asked', r.data.unit === 'colonyship' && r.data.count === 3);
+  check('#62 and it matches what training would charge',
+    JSON.stringify(r.data.cost) === JSON.stringify(game.trainCost(qw, qi, 'colonyship', 3)),
+    JSON.stringify(r.data.cost));
+  check('#62 every leg is finite, never null on the wire',
+    ['wood', 'stone', 'gold'].every((k) => Number.isFinite(r.data.cost[k])));
+
+  for (const [count, why] of [[0, 'zero'], [501, 'over the cap'], ['abc', 'junk'], [-1, 'negative']]) {
+    r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=colonyship&count=${count}`,
+      { cookie: qcookie });
+    check(`#62 a ${why} count is refused`, r.status === 400, `${count} -> ${r.status}`);
+  }
+  r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=nope&count=1`,
+    { cookie: qcookie });
+  check('#62 an unknown unit is refused', r.status === 400);
+  r = await req(qa.port, 'GET', '/api/train/quote?islandId=1&unit=spearman&count=2');
+  check('#62 it needs a session', r.status === 401);
+  // 2.5 floors to 2, exactly as tryTrain does.
+  r = await req(qa.port, 'GET', `/api/train/quote?islandId=${qi.id}&unit=spearman&count=2.5`,
+    { cookie: qcookie });
+  check('#62 a fractional count floors rather than refusing',
+    r.status === 200 && r.data.count === 2, JSON.stringify(r.data));
+
+  // The checks above all run at the default growth of 1, where per-unit x count
+  // is exact — so a handler that returned `unitCost x count` would pass every
+  // one of them, which is precisely the bug #62 is about. The knob is read at
+  // module load, so the stepped case needs a child process.
+  {
+    const probe = `
+      // Its own data dir: the parent already holds the lock on theirs, and
+      // createApp refuses to start on a directory another pid owns.
+      const fsm = await import('node:fs');
+      const osm = await import('node:os');
+      const pathm = await import('node:path');
+      process.env.DATA_DIR = fsm.mkdtempSync(pathm.join(osm.tmpdir(), 'tideholm-step-'));
+      process.env.HALL_FILE = pathm.join(process.env.DATA_DIR, 'hall.json');
+      const http = await import('node:http');
+      const game = await import('./game.js');
+      const { createApp } = await import('./app.js');
+      const app = createApp({ botCount: 0, freeIsles: 6, log: { log() {}, error() {} } });
+      const srv = http.createServer(app.handle);
+      await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+      const port = srv.address().port;
+      const call = async (m, p, body, cookie) => {
+        const res = await fetch('http://127.0.0.1:' + port + p, {
+          method: m,
+          headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(cookie ? { cookie } : {}) },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        return { status: res.status, data: await res.json().catch(() => null), res };
+      };
+      let r = await call('POST', '/api/register', { name: 'Stepper', password: 'sekrit', lang: 'en' });
+      const cookie = (r.res.headers.get('set-cookie') || '').split(';')[0];
+      const w = app.world;
+      const p = w.players.find((x) => x.name === 'Stepper');
+      const isl = w.islands.find((i) => i.ownerId === p.id);
+      isl.units.colonyship = 4; // position 5, matching the figures in #62
+      const q = await call('GET', '/api/train/quote?islandId=' + isl.id + '&unit=colonyship&count=3', null, cookie);
+      console.log(JSON.stringify({
+        growth: game.COLONY_COST_GROWTH,
+        quoted: q.data && q.data.cost,
+        engine: game.trainCost(w, isl, 'colonyship', 3),
+        naive: game.trainCost(w, isl, 'colonyship', 1).wood * 3,
+      }));
+      srv.close(); app.stop();
+      try { fsm.rmSync(process.env.DATA_DIR, { recursive: true, force: true }); } catch { /* gone */ }
+    `;
+    const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+      env: { ...process.env, COLONY_COST_GROWTH: '1.3' }, encoding: 'utf8', cwd: HERE,
+    }).trim().split('\n').pop());
+
+    check('#62 the child really is running stepped', out.growth === 1.3);
+    check('#62 stepped: the quote matches what training charges',
+      JSON.stringify(out.quoted) === JSON.stringify(out.engine),
+      `${JSON.stringify(out.quoted)} vs ${JSON.stringify(out.engine)}`);
+    check('#62 stepped: and it is NOT single-price x count',
+      out.quoted.wood !== out.naive, `both ${out.quoted.wood}`);
+    check('#62 stepped: the real figures from the issue (13675 vs 10281)',
+      out.quoted.wood === 13675 && out.naive === 10281,
+      `${out.quoted.wood} / ${out.naive}`);
+  }
+
+  qa.srv.close();
+  qApp.stop();
 
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);

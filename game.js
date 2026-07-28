@@ -234,7 +234,29 @@ const LAND_RESPAWN = Math.max(0, Number(process.env.LAND_RESPAWN ?? 0) || 0);
 // rather than pricing it. Only meaningful from a fresh world; applying it
 // mid-season would retroactively price an established empire out of its next
 // island.
-const COLONY_COST_GROWTH = Math.max(1, Number(process.env.COLONY_COST_GROWTH ?? 1) || 1);
+/**
+ * Colony Ship price escalation per step along the expansion curve (#27, #43).
+ *
+ * Clamped at BOTH ends (#61). The old guard caught junk, zero and negatives but
+ * nothing at the top, so `Infinity` produced a cost of `{wood: null}` on the
+ * wire and `err.noResources` for a player holding a trillion of everything —
+ * a knob that reads as a price control behaving as a ban. No `Infinity` was
+ * needed either: `1000` puts the 11th step at 1.2e33, finite and equally
+ * unreachable, so a non-finite check alone would not have been enough.
+ *
+ * 3 is the ceiling because 1.6 already puts the 15th step at 1.9M all-in.
+ * Anything above ~2 is a configuration mistake rather than a choice.
+ */
+const COLONY_COST_GROWTH_MAX = 3;
+
+function parseColonyGrowth(raw, fallback = 1) {
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1 || n > COLONY_COST_GROWTH_MAX) return fallback;
+  return n;
+}
+
+const COLONY_COST_GROWTH = parseColonyGrowth(process.env.COLONY_COST_GROWTH);
 
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
@@ -576,7 +598,23 @@ function trainCost(world, island, key, count) {
   for (let i = 0; i < count; i++) {
     mult += Math.pow(COLONY_COST_GROWTH, Math.max(0, owned - 1 + i));
   }
-  for (const r of RESOURCES) cost[r] = Math.round(unit.cost[r] * mult);
+  for (const r of RESOURCES) {
+    const n = Math.round(unit.cost[r] * mult);
+    // A non-finite cost serialises to null and reaches the player as "not
+    // enough resources" for something no wealth can buy (#61). Saturate at the
+    // largest exact integer instead: finite, JSON-safe, and still unaffordable.
+    //
+    // NOT a fallback to the flat price. That inverted the curve — at growth 3
+    // and position 221 a batch of 499 overflowed and was charged 598,800 while
+    // a batch of 100 cost 2.9e155, so the largest orders became the cheapest.
+    // Saturating keeps cost monotonic in count, which is the actual invariant.
+    // Ceiling applied to EVERY value, not only the overflowed ones: 2.9e155 is
+    // finite and still larger than MAX_SAFE_INTEGER, so clamping the overflow
+    // alone left a batch of 499 cheaper than a batch of 100. Anything past this
+    // is unaffordable regardless — no storehouse comes close — so the clamp
+    // costs nothing real and keeps the price non-decreasing in count.
+    cost[r] = Number.isFinite(n) ? Math.min(n, Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+  }
   return cost;
 }
 
@@ -2575,6 +2613,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
+  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
