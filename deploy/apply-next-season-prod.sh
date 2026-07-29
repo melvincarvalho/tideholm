@@ -65,7 +65,26 @@ echo "   world:       $WORLD"
 echo "   archive to:  $BACKUPS/world-season-end-$STAMP.json"
 echo "   WORLD_START: $START_MS ($(date -u -d @$((START_MS / 1000)) +%FT%TZ))"
 echo "   env file:    $ENV_FILE"
-grep -E '^[A-Z_]+=' "$ENV_FILE" | sed 's/^/     /'
+# Print what will ACTUALLY be sourced, which is the copy after the
+# fast-forward below — not the one currently on disk. The dry run exits before
+# `git pull`, so reading the local file here described the PREVIOUS season's
+# ruleset: on 2026-07-29 it would have shown season 3's knobs and hidden both
+# COLONY_COST_GROWTH and TRADE_SLOTS_PER_HARBOR, at exactly the moment
+# BOUNDARY.md tells you to read the dry run. Fetch is read-only, so this stays
+# safe to run at any time.
+git -C "$ROOT" fetch --quiet origin gh-pages 2>/dev/null || true
+REMOTE_ENV=$(git -C "$ROOT" show origin/gh-pages:deploy/next-season.env 2>/dev/null || true)
+if [ -n "$REMOTE_ENV" ]; then
+  printf '%s\n' "$REMOTE_ENV" | grep -E '^[A-Z_]+=' | sed 's/^/     /'
+  if ! printf '%s\n' "$REMOTE_ENV" | diff -q - "$ENV_FILE" >/dev/null 2>&1; then
+    echo "     ^ from origin/gh-pages — the local copy differs and will be fast-forwarded"
+    echo "       local copy right now:"
+    grep -E '^[A-Z_]+=' "$ENV_FILE" | sed 's/^/         /'
+  fi
+else
+  echo "     (offline — showing the local copy, which the apply would fast-forward first)"
+  grep -E '^[A-Z_]+=' "$ENV_FILE" | sed 's/^/     /'
+fi
 echo
 
 if [ "$CONFIRM" -ne 1 ]; then
