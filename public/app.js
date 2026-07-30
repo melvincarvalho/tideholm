@@ -1334,6 +1334,17 @@ if ($('lp-withdraw')) {
 const POOL_SLIPPAGE = 0.01;
 let lastQuote = null;
 
+// Held after a swap lands. The reserves have moved, so a re-quote prices a
+// DIFFERENT trade from the one just executed — and it renders immediately above
+// the confirmation, so the two read as one statement (#73). At shallow depth the
+// figures diverge sharply: a 100/100/100 pool moves 30% on one swap, so
+// "receive 18" sat directly under "Sent. 30 is sailing home".
+//
+// Held rather than cleared once, because loadMarket() re-quotes on every
+// refresh. Touching an input is the moment the player is asking about a NEW
+// trade rather than reading about the old one, so that is what releases it.
+let quoteHeld = false;
+
 function fillPoolSelects() {
   for (const [sel, dflt] of [[$('pool-from'), 'wood'], [$('pool-to'), 'gold']]) {
     if (sel.options.length) continue;
@@ -1354,6 +1365,7 @@ async function quotePool() {
   const amount = Number($('pool-amount').value);
   const out = $('pool-quote');
   lastQuote = null;
+  if (quoteHeld) { out.textContent = ''; return; }
   if (from === to) { out.textContent = T('ui.pool.samePair'); return; }
   if (!(amount > 0)) { out.textContent = ''; return; }
   try {
@@ -1381,6 +1393,7 @@ for (const id of ['pool-from', 'pool-to', 'pool-amount']) {
   el.addEventListener(id === 'pool-amount' ? 'input' : 'change', () => {
     const sent = $('pool-sent');
     if (sent) sent.textContent = '';
+    quoteHeld = false;
     quotePool();
   });
 }
@@ -1412,9 +1425,14 @@ if (poolSwapBtn) {
       $('pool-sent').textContent = T('ui.pool.sent', {
         get: `${RES_EMOJI[$('pool-to').value]}${fmtNum(Math.floor(r.out))}`,
       });
+      // Set BEFORE loadMarket(), which re-quotes against the reserves this
+      // swap just moved (#73).
+      quoteHeld = true;
       loadMarket();
       refresh();
     } catch (err) {
+      // No hold: a refused swap moved nothing, so the standing quote still
+      // describes the trade the player is looking at.
       $('market-error').textContent = err.message;
     }
   });
