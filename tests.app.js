@@ -869,6 +869,30 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   qa.srv.close();
   qApp.stop();
 
+  // ------------------------------- every movement type has a label (#66 gap)
+  //
+  // The merchant leg shipped in #30 with no i18n key, so the movements list
+  // rendered the literal string "ui.move.merchant". Engine mutation testing
+  // could never catch it: the type was correct, it just had nothing to render
+  // with. This asserts the two lists agree, in every language.
+  console.log('\nmovement labels');
+  {
+    const src = fs.readFileSync(new URL('./game.js', import.meta.url), 'utf8');
+    const types = [...new Set([...src.matchAll(/type: '([a-z]+)'/g)].map((m) => m[1]))].sort();
+    const i18nSrc = fs.readFileSync(new URL('./public/i18n.js', import.meta.url), 'utf8');
+    check('found the movement types in game.js', types.length >= 6, types.join(','));
+    // One check per type: the count IS the existence check, and a weaker
+    // "does it exist anywhere" passed while the key was missing from English.
+    for (const ty of types) {
+      const n = (i18nSrc.match(new RegExp(`'ui\\.move\\.${ty}':`, 'g')) || []).length;
+      check(`ui.move.${ty} is translated in all 3 languages`, n === 3, `${n} of 3`);
+    }
+    // and the reverse: no orphan label for a type the engine cannot emit
+    const labels = [...new Set([...i18nSrc.matchAll(/'ui\.move\.([a-z]+)':/g)].map((m) => m[1]))];
+    const orphans = labels.filter((l) => !types.includes(l) && l !== 'incoming' && l !== 'withLoot');
+    check('no label for a type the engine never emits', orphans.length === 0, orphans.join(','));
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {
