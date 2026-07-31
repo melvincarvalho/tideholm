@@ -14,47 +14,89 @@ who never heard about the keyboard shortcuts will never find them.
 
 ---
 
-## Season 4 — DRAFTS, not yet sent
+## Season 4 — opened 2026-07-29 16:30 UTC
 
-Three rule changes that take effect **when season 4 opens**, not before. All
-three are inert on season 3 by construction, so none of this has been
-announced yet. Send at the boundary; the text below is what to send.
+Four announcements, all sent. Text below is what players actually received,
+which differs from the drafts: the endpoint caps at 500 characters and reports
+are plain text, so markdown emphasis and `×` became prose and `x`.
 
-### Support costs your home island's population (#40)
+### 2026-07-31 04:29 · Colony Ships get dearer as you spread
+
+> Each Colony Ship now costs more than the last: 1.3x per step along your
+> expansion. The 10th is about 29,000 all-in instead of 2,700; the 15th about
+> 106,000. Your position counts islands you hold PLUS every ship already paid
+> for, so ordering one at a time costs exactly the same as ordering a batch.
+> The train screen shows the real price for the number you type. Going wide is
+> not stopped — it is priced.
+
+Position counting ships as well as islands is the fix for a real hole: counting
+islands alone let a player split orders for a 25% discount, and the in-code
+comment claimed the opposite. Two blockers had to clear first — the knob had no
+upper bound (#61), and the train form quoted a single-ship price for a batch
+that charges stepped, under-quoting by 4.3× at ten ships (#62).
+
+Shipped in #43. Enabled by #68. Tracking: #27.
+
+### 2026-07-31 04:29 · Support costs your home island's population
 
 > Troops you station on another player's island now keep using the population
 > of the island that trained them, from the moment they sail until you recall
 > them. Helping an ally is a real cost: sending troops away no longer frees
-> room to train more at home. Attacks are unaffected. Moving troops to your
-> OWN island was always a transfer — they join that garrison and use its
+> room to train more at home. Attacks are unaffected. Moving troops to your OWN
+> island was always a transfer — they join that garrison and use its
 > population, as before.
 
-The rule the reference games have had all along: Tribal Wars and Travian both
-tie reinforcements to their home village. Without it, population capped how
-fast you could train but not how much you could hold — train to cap, ship out,
-train again, forever.
+The rule Tribal Wars and Travian have always had. Without it, population capped
+how fast you could train but not how much you could hold: train to cap, ship
+out, train again, forever.
 
-### Merchant slots (#30)
+One correction to the issue that prompted it: supporting your **own** island was
+never the loophole — those troops land in the garrison and consume its
+population. The exploit needed two players supporting each other.
+
+Shipped in #65. Tracking: #40.
+
+### 2026-07-31 04:09 · Merchant slots
 
 > Your Harbor now provides merchants — one per level. Each shipment takes one
-> merchant and keeps it until they sail **home**, so a delivery across the map
-> ties one up for twice the travel time. How much you can move at once is
-> finite now. Market trades take a merchant from both buyer and seller. The
-> Tidepool does not use merchants.
+> and keeps it until they sail HOME, so a delivery across the map ties a
+> merchant up for twice the travel time. Watch for "Merchants returning to..."
+> in your movements: that line is the reason a slot is still busy after your
+> goods have landed. (It was showing as ui.move.merchant until just now —
+> fixed.) Market trades take a merchant from both sides. The Tidepool does not
+> use merchants at all.
 
-Distance used to cost patience only. It costs throughput now, which is what
-makes supplying a distant island a decision rather than a formality.
+Season 3 made the case better than any argument: 83 concurrent shipments were
+used to funnel resources into a Great Beacon, because distance cost latency but
+never throughput.
 
-### Colony Ships get dearer as you spread (#27)
+The parenthesis owns a bug players had already seen. The merchant return leg
+shipped with no translation, so the movements list rendered the literal string
+`ui.move.merchant`. Engine mutation testing could not have caught it — the
+movement was emitted correctly, it just had nothing to render with.
 
-> Each Colony Ship now costs more than the last: 1.3× per step along your
-> expansion. The 10th is about 29,000 all-in instead of 2,700; the 15th about
-> 106,000. Your position counts islands you hold **plus** every ship already
-> paid for, so ordering one at a time costs exactly the same as ordering a
-> batch. The train screen shows the real price for the number you type.
+Shipped in #66. Label fixed in #75. Tracking: #30.
 
-Going wide was the strongest play in season 3 by a distance. This does not
-stop it — it prices it.
+### 2026-07-30 19:29 · The Tidepool opens
+
+> The Tidepool is open in the Market tab. Swap wood, stone and gold at a live
+> price, with no trading partner needed. It needs a Harbor — but unlike an
+> ordinary shipment it does NOT use one of your merchants, so it still works
+> when they are all at sea. Seeded small at 100/100/100, so large swaps will be
+> capped until it deepens: deposit to become a provider and earn a share of the
+> 0.3% fee. Swaps and withdrawals sail from your Harbor and take 30 minutes;
+> deposits settle at once.
+
+Seeded deliberately shallow — a tenth of season 3's opening depth relative to
+the economy — so players deepen it rather than inheriting it. The consequence is
+visible immediately: at 100-unit depth a 50-stone swap carries a 35% price
+impact, and anything over ~43 gets capped.
+
+Two corrections to season 3's wording. That one said "goods sail and take 30
+minutes", which is wrong for deposits — they settle instantly (#67). And the
+merchant exemption is new and worth leading with now that slots exist.
+
+Shipped in #47–#55. Tracking: #46.
 
 ---
 
