@@ -1167,6 +1167,42 @@ console.log('pool opening');
     `${ia.resources.gold} vs ${goldBefore + r2.out}`);
 }
 
+// ---------------------------------------------------------------- pool settlement (#67)
+// The timing rule the pool implements: what you send leaves at once; what you
+// receive sails home. A deposit returns shares — a ledger entry, not cargo —
+// so nothing sails and it settles instantly. This block makes the invariant
+// deliberate rather than incidental: exactly which actions create a movement,
+// and that the outbound leg never waits for one.
+console.log('pool settlement (#67)');
+{
+  const { w, a, ia } = freshWorld();
+  ia.buildings.harbor = 5;
+  ia.buildings.storehouse = 12;
+  ia.buildings.lumberyard = 0; ia.buildings.quarry = 0; ia.buildings.goldmine = 0;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 5000, stone: 5000, gold: 5000 };
+  g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+
+  const before = w.movements.length;
+  const dep = g.sendPoolDeposit(w, a, ia, 200, t0);
+  check('#67 a deposit creates no movement', !dep.error && w.movements.length === before,
+    JSON.stringify(dep));
+  check('#67 and its shares exist immediately, nothing in flight',
+    a.lpShares === dep.minted && dep.minted > 0);
+
+  const woodBefore = ia.resources.wood;
+  const swap = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('#67 a swap creates exactly one movement', w.movements.length === before + 1);
+  check('#67 what you send leaves instantly, before the ship lands',
+    close(ia.resources.wood, woodBefore - swap.used, 1e-9) && swap.arrive > t0,
+    `${ia.resources.wood} vs ${woodBefore - swap.used}`);
+
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('#67 a withdrawal creates exactly one movement', w.movements.length === before + 2);
+  check('#67 its shares burn instantly while the goods sail',
+    a.lpShares === 0 && wd.arrive > t0);
+}
+
 // ---------------------------------------------------------------- pool travel (#76)
 // Flat pool travel made the pool a distance-free courier: deposit at A,
 // withdraw at B, any distance, one flat hour, no merchant slot. On new worlds

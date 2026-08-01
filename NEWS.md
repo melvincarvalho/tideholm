@@ -124,6 +124,13 @@ Shipped in #35, #38, #41, #45. Tracking: #34.
 > provider and earn a share of the 0.3% fee. Goods sail from your Harbor and
 > take 30 minutes.
 
+**Correction (2026-08-01, #67):** the last sentence of that announcement was
+inaccurate in two directions. Nothing sails *from* your Harbor — what you send
+leaves at once, and it is what you **receive** that takes 30 minutes to sail
+home. And a **deposit** involves no sailing at all: it returns shares, which
+are a ledger entry rather than cargo, so it settles immediately. The original
+text is kept above as sent.
+
 Seeded at 10,000 / 9,200 / 16,000 — a ratio derived from the season's own
 demand and supply, which prices gold **below** wood despite gold being the
 scarcer thing to produce. Two protections not mentioned in the announcement: no
