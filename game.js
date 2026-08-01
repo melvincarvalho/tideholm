@@ -790,6 +790,9 @@ function parseTradeSlots(raw, fallback = TRADE_SLOTS_FALLBACK) {
 }
 
 const TRADE_SLOTS_DEFAULT = parseTradeSlots(process.env.TRADE_SLOTS_PER_HARBOR);
+// #76 — pool travel gains a distance term on NEW worlds. POOL_DISTANCE=0 at
+// world creation keeps the old flat travel; existing worlds are never changed.
+const POOL_DISTANCE_DEFAULT = !/^(0|false|no|off)$/i.test(process.env.POOL_DISTANCE || 'on');
 
 /**
  * Slots per Harbor level on this world, or `null` for the old unlimited rule.
@@ -1122,7 +1125,7 @@ function sendPoolWithdraw(world, player, island, shares, now) {
   const plan = planPoolWithdraw(world, player, island, shares);
   if (plan.error) return plan;
 
-  const arrive = now + Math.max(5000, Math.round((POOL_TRAVEL_MIN * 60000) / SPEED));
+  const arrive = now + poolTravelMs(world, island);
   const cap = storageCapacity(island.buildings.storehouse);
   const hours = (arrive - now) / 3600000;
   const rates = islandRates(island);
@@ -1157,15 +1160,36 @@ function sendPoolWithdraw(world, player, island, shares, now) {
 
 // ---- swapping against the pool
 //
-// Flat travel time. The pool has no place on the map, so every island trades
-// with it on the same terms (#46). Distance pricing would hand coastal and
-// central islands a permanent edge — a second balance problem nobody asked
-// for, easy to add later and hard to take away.
+// Travel. Originally flat 30 minutes for every island — the pool has no place
+// on the map, and distance pricing looked like a balance problem nobody asked
+// for (#46). Live play then showed what flat travel actually is: deposit at A,
+// withdraw at B relocates resources over any distance in a flat hour with no
+// merchant slot — a courier that beats real shipping past four fields and is
+// not close by fifteen, defeating exactly the brake #30 exists to apply (#76).
+//
+// So on worlds stamped with `poolDistance`, the market sits at the centre of
+// the map and goods sail the real distance at TRADE_SPEED — floored at the
+// old flat time, so the fix can only ever slow the pool down, never hand
+// central islands a faster one. Existing worlds keep flat travel: retuning
+// live logistics mid-season strands plans already in flight (#40 set that
+// precedent), so the stamp is createWorld-only, like supportCostsPop and
+// tradeSlots.
 //
 // Delivery goes out as an ordinary `trade` movement, which means this adds no
 // branch to applyMovement: arrival already credits the island and clamps to
 // the storehouse. The riskiest function in the codebase is untouched.
 const POOL_TRAVEL_MIN = 30; // minutes at game speed 1
+
+/** Milliseconds for pool goods to reach `island`. See the note above. */
+function poolTravelMs(world, island) {
+  let minutes = POOL_TRAVEL_MIN;
+  if (world && world.poolDistance && island) {
+    const c = MAP_SIZE / 2;
+    const dist = Math.hypot(island.x - c, island.y - c);
+    minutes = Math.max(POOL_TRAVEL_MIN, dist * TRADE_SPEED);
+  }
+  return Math.max(5000, Math.round((minutes * 60000) / SPEED));
+}
 
 /**
  * Swap `amount` of `from` for `to` against the world pool, shipping the
@@ -1205,7 +1229,7 @@ function sendPoolSwap(world, player, island, from, to, amount, now, minOut) {
   if (!(q.out > 0) || !(q.used > 0)) return { error: 'err.poolDry' };
   if (floorOut != null && q.out < floorOut) return { error: 'err.poolSlippage' };
 
-  const arrive = now + Math.max(5000, Math.round((POOL_TRAVEL_MIN * 60000) / SPEED));
+  const arrive = now + poolTravelMs(world, island);
 
   // Refuse rather than deliver into a full storehouse: arrival clamps to
   // capacity, which is fair enough for a gift but not for goods already paid
@@ -2210,6 +2234,7 @@ function createWorld() {
     maxBuildingLevel: MAX_BUILDING_LEVEL_DEFAULT,
     supportCostsPop: true, // #40 — new seasons only; see supportCostsPop()
     tradeSlots: TRADE_SLOTS_DEFAULT, // #30 — new seasons only; null = unlimited
+    poolDistance: POOL_DISTANCE_DEFAULT, // #76 — new seasons only; see poolTravelMs()
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -2234,6 +2259,9 @@ function migrateWorld(world) {
   // Backfilled null (= unlimited), NOT the env default: tightening logistics
   // mid-season strands shipments and plans already in motion (#30).
   if (world.tradeSlots === undefined) world.tradeSlots = null;
+  // #76's distance term is new-seasons-only for the same reason as the two
+  // above: a world that started under flat pool travel keeps it.
+  if (world.poolDistance == null) world.poolDistance = false;
   if (!world.pool) world.pool = newPool();
   for (const [k, v] of Object.entries(newPool())) {
     if (world.pool[k] == null) world.pool[k] = v;
@@ -2329,7 +2357,7 @@ export {
   poolSpot, poolQuote, poolApplySwap,
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
   newPool, poolOpts, poolAmount,
-  POOL_TRAVEL_MIN, sendPoolSwap, openPool, closePool,
+  POOL_TRAVEL_MIN, poolTravelMs, sendPoolSwap, openPool, closePool,
   planPoolDeposit, sendPoolDeposit, planPoolWithdraw, sendPoolWithdraw,
   allianceRelation, setStance, postBoard,
   hashPassword, loadWorld, saveWorld,
