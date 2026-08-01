@@ -410,8 +410,11 @@ export function createApp(opts = {}) {
     // whatever time it is given, so a raw `now` would let production accrue
     // poll-by-poll before launch. Clamping to startAt keeps every island
     // frozen until the season actually begins (#8, #69) — and this loop makes
-    // that matter more, since it now touches the whole holding.
-    for (const i of mine) game.resolveIsland(i, resolveClock());
+    // that matter more, since it now touches the whole holding. One clock for
+    // the whole loop, so the table is a snapshot of a single instant rather
+    // than of N instants a few microseconds apart.
+    const at = resolveClock();
+    for (const i of mine) game.resolveIsland(i, at);
     return {
       serverNow: now,
       speed: game.SPEED,

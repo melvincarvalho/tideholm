@@ -966,6 +966,43 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('no label for a type the engine never emits', orphans.length === 0, orphans.join(','));
   }
 
+  // ------------------------------------- the islands table is translated (#77)
+  // Same lesson as #75: my first version of these headers carried
+  // title="wood" — hardcoded English, invisible to a screen reader, and the
+  // only untranslated string in index.html. Assert every header in this table
+  // is labelled through i18n, and that every key resolves in all 3 languages.
+  {
+    console.log('\nislands table headers');
+    const html = fs.readFileSync(path.join(HERE, 'public/index.html'), 'utf8');
+    const pane = html.slice(html.indexOf('id="view-islands"'), html.indexOf('id="view-map"'));
+    const ths = [...pane.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => m[0]);
+    check('found the islands table headers', ths.length === 9, ths.length);
+
+    const i18n = await import('./public/i18n.js');
+    for (const th of ths) {
+      const key = (th.match(/data-i18n="([^"]+)"/) || [])[1];
+      const label = th.replace(/<[^>]*>/g, '').trim();
+      check(`header is labelled through i18n: ${key || label || th}`, !!key, th);
+      if (!key) continue;
+      const missing = i18n.LANGS.filter((l) => i18n.t(l, key) === key);
+      check(`  ${key} resolves in all 3 languages`, missing.length === 0, missing.join(','));
+    }
+    // No hardcoded English left in the pane. title= is how it got in last time.
+    check('no hardcoded title= attribute in the islands pane',
+      !/\stitle="/.test(pane), (pane.match(/\stitle="[^"]*"/g) || []).join(' '));
+    // An emoji header must still say something to a screen reader — checked
+    // per header, not by counting: equal counts across the pane would pass
+    // even if one <th> had both and another had neither.
+    const hidden = ths.filter((th) => th.includes('aria-hidden="true"'));
+    check('the emoji headers are the three resource columns', hidden.length === 3, hidden.length);
+    for (const th of hidden) {
+      check(`  its emoji is paired with an sr-only label: ${th.replace(/<[^>]*>/g, '').trim()}`,
+        th.includes('class="sr-only"'), th);
+    }
+    const css = fs.readFileSync(path.join(HERE, 'public/style.css'), 'utf8');
+    check('and .sr-only actually hides it', /\.sr-only\s*\{[^}]*clip-path/.test(css));
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {
