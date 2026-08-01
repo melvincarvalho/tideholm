@@ -167,7 +167,10 @@ function poolAddLiquidity(reserves, totalShares, desired) {
     // cannot price at all. Refusing beats the old `|| 1` fallback, which
     // minted a share against nothing: reserves stayed at zero, so `scale`
     // was zero for every later deposit and the pool could never be revived.
-    if (!legs.length || !legs.every((r) => Number.isFinite(desired[r]) && desired[r] > 0)) {
+    // And there must be at least two: the mint scale below is the geometric
+    // mean of the first two legs, so a one-leg pool would mint sqrt(x *
+    // undefined) — NaN into totalShares, poisoning every quote after it.
+    if (legs.length < 2 || !legs.every((r) => Number.isFinite(desired[r]) && desired[r] > 0)) {
       return {
         reserves: { ...reserves },
         totalShares,
@@ -305,6 +308,10 @@ function openPool(world, reserves, now) {
   }
 
   const legs = Object.keys(pool.reserves);
+  // A pool needs at least two legs to price anything, and the share mint
+  // below multiplies the first two — one leg would put NaN in totalShares.
+  // Unreachable through newPool, but this object comes off disk.
+  if (legs.length < 2) return { error: 'err.badRequest' };
   const seed = {};
   for (const r of legs) {
     seed[r] = Math.floor(poolAmount(reserves && reserves[r]));

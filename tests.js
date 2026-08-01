@@ -881,6 +881,17 @@ console.log('resource pool');
   // function, and arithmetic on it is NaN into the pool.
   check('a prototype key is not a reserve leg', g.poolSpot(seed, 'toString', 'gold') === 0);
   check('nor can one be quoted', g.poolQuote(seed, 'constructor', 'gold', 100).out === 0);
+  // The mint scale is the geometric mean of the first two legs, so a pool
+  // with fewer than two must refuse to mint rather than put NaN in
+  // totalShares. Unreachable through newPool(); reachable through the
+  // resource list it accepts, and through a corrupted save.
+  check('a one-leg pool refuses the first deposit',
+    g.poolAddLiquidity({ gold: 0 }, 0, { gold: 100 }).minted === 0);
+  check('and opening a corrupted one-leg pool is refused', (() => {
+    const w1 = { pool: g.newPool(['gold']) };
+    return g.openPool(w1, { gold: 100 }, t0).error === 'err.badRequest'
+      && w1.pool.open === false && !Number.isNaN(w1.pool.totalShares);
+  })());
 
   // Amounts are validated the same way at every entry point, so a numeric
   // string from a request body is refused here as it is everywhere else.
