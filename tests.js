@@ -876,6 +876,11 @@ console.log('resource pool');
   check('spot price of an unknown pair is 0, not NaN', g.poolSpot(seed, 'wood', 'iron') === 0);
   check('an unknown resource against itself has no price either',
     g.poolSpot(seed, 'iron', 'iron') === 0);
+  // pool.js validates legs against the reserves object itself (#58). A naive
+  // `in` check would accept prototype keys — reserves['toString'] is a
+  // function, and arithmetic on it is NaN into the pool.
+  check('a prototype key is not a reserve leg', g.poolSpot(seed, 'toString', 'gold') === 0);
+  check('nor can one be quoted', g.poolQuote(seed, 'constructor', 'gold', 100).out === 0);
 
   // Amounts are validated the same way at every entry point, so a numeric
   // string from a request body is refused here as it is everywhere else.
