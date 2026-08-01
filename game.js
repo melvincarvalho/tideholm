@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import {
   POOL_FEE_BPS, POOL_MAX_OUT_FRAC, POOL_FLOOR_FRAC,
-  poolAmount, poolClamp,
+  poolAmount,
   poolSpot, poolQuote, poolApplySwap,
   poolAddLiquidity, poolRemoveLiquidity, poolShareValue,
   newPool, poolOpts, openPool, closePool,
@@ -1184,7 +1184,9 @@ const POOL_TRAVEL_MIN = 30; // minutes at game speed 1
 function poolTravelMs(world, island) {
   let minutes = POOL_TRAVEL_MIN;
   if (world && world.poolDistance && island) {
-    const c = MAP_SIZE / 2;
+    // Geometric centre of a 0..MAP_SIZE-1 grid is (MAP_SIZE-1)/2, not
+    // MAP_SIZE/2 — the off-by-half biased opposite corners by ~11 minutes.
+    const c = (MAP_SIZE - 1) / 2;
     const dist = Math.hypot(island.x - c, island.y - c);
     minutes = Math.max(POOL_TRAVEL_MIN, dist * TRADE_SPEED);
   }

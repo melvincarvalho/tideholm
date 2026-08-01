@@ -1240,7 +1240,11 @@ console.log('pool travel (#76)');
     g.poolTravelMs(w, { x: 20, y: 23 }) === FLAT);
   const corner = g.poolTravelMs(w, { x: 0, y: 0 });
   check('#76 the far corner pays the real distance',
-    corner === Math.round(Math.hypot(20, 20) * 8 * 60000), corner);
+    corner === Math.round(Math.hypot(19.5, 19.5) * 8 * 60000), corner);
+  // The centre is the geometric one — (MAP_SIZE-1)/2 on a 0..39 grid — so
+  // opposite corners pay the same, not 11 minutes apart.
+  check('#76 opposite corners pay the same',
+    g.poolTravelMs(w, { x: 0, y: 0 }) === g.poolTravelMs(w, { x: 39, y: 39 }));
   check('#76 farther is never faster',
     g.poolTravelMs(w, { x: 0, y: 0 }) > g.poolTravelMs(w, { x: 10, y: 10 })
     && g.poolTravelMs(w, { x: 10, y: 10 }) > FLAT);
