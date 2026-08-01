@@ -222,6 +222,19 @@ function renderIslands() {
     });
     tbody.appendChild(tr);
   }
+
+  // Totals — only for the columns where a sum is honest. Resources, pop,
+  // merchants and points add up; defence and wall stay a dash in the markup,
+  // because an attacker meets one island's defence, never the fleet's.
+  const sum = (f) => rows.reduce((n, i) => n + f(i), 0);
+  $('isl-t-wood').textContent = fmtNum(sum((i) => i.resources.wood));
+  $('isl-t-stone').textContent = fmtNum(sum((i) => i.resources.stone));
+  $('isl-t-gold').textContent = fmtNum(sum((i) => i.resources.gold));
+  $('isl-t-pop').textContent = `${sum((i) => i.popUsed + (i.popAbroad || 0))}/${sum((i) => i.popCap)}`;
+  $('isl-t-merch').textContent = rows.some((i) => !i.tradeSlots)
+    ? '∞'
+    : `${sum((i) => i.tradeSlots.free)}/${sum((i) => i.tradeSlots.total)}`;
+  $('isl-t-points').textContent = String(sum((i) => i.points));
 }
 
 // ---------------------------------------------------------------- rendering
