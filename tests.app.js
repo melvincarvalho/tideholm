@@ -761,6 +761,79 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
   check('and it burned the whole holding', swapper.lpShares === 0);
 
+  // ------------------------------------- the islands table payload (#77)
+  // The table's value is that you can trust it without clicking through. So
+  // every figure is checked against game.js for EVERY island, not just the
+  // active one — a payload that silently reported the active island's numbers
+  // on all rows would look perfectly fine on screen.
+  {
+    console.log('\nislands payload (#77)');
+    // Make the two islands genuinely differ, so a copied row cannot pass.
+    second.buildings.wall = 4;
+    second.units = { spearman: 30, sentinel: 10 };
+    isl.buildings.wall = 0;
+    isl.units = {};
+    // Rewind the NON-active island's clock. stateFor used to resolve only the
+    // active island, so its row would report an hour-stale resources column
+    // while looking perfectly plausible. Only a clock that has moved proves
+    // the poll resolved it.
+    second.buildings.lumberyard = 5;   // an earlier block zeroed it; it must produce
+    const staleAt = Date.now() - 3600_000;
+    second.lastUpdate = staleAt;
+    second.resources = { wood: 100, stone: 100, gold: 100 };
+
+    r = await req(oa.port, 'GET', '/api/state', { cookie: ocookie });
+    const rows = r.data.islands;
+    check('state carries a row for every island held',
+      rows.length === 2 && rows.some((x) => x.id === isl.id) && rows.some((x) => x.id === second.id),
+      JSON.stringify(rows.map((x) => x.id)));
+
+    for (const row of rows) {
+      const src = openApp.world.islands.find((i) => i.id === row.id);
+      const where = `island ${row.id}`;
+      check(`${where}: points match game.js`,
+        row.points === gameMod.islandPoints(src), `${row.points} vs ${gameMod.islandPoints(src)}`);
+      check(`${where}: pop matches game.js`,
+        row.popUsed === Math.round(gameMod.popUsed(src)) && row.popCap === gameMod.popCap(src.buildings.farm),
+        `${row.popUsed}/${row.popCap}`);
+      check(`${where}: wall level matches game.js`, row.wall === src.buildings.wall, row.wall);
+      // Defence is the number combat uses — units plus the wall's flat
+      // contribution, times the wall's multiplier. Not the raw unit total: a
+      // level-4 wall on an empty island is not zero defence.
+      const want = Math.round(
+        (gameMod.unitPower(src.units, 'def') + gameMod.WALL_FLAT_DEF * src.buildings.wall)
+        * (1 + gameMod.WALL_DEF_BONUS * src.buildings.wall));
+      check(`${where}: defence matches the combat formula`, row.defence === want, `${row.defence} vs ${want}`);
+      check(`${where}: resources match the resolved island`,
+        row.resources.wood === Math.floor(src.resources.wood)
+        && row.resources.stone === Math.floor(src.resources.stone)
+        && row.resources.gold === Math.floor(src.resources.gold),
+        JSON.stringify(row.resources));
+      check(`${where}: capacity matches game.js`,
+        row.capacity === gameMod.storageCapacity(src.buildings.storehouse), row.capacity);
+    }
+
+    // The two rows must actually differ, or every check above could pass
+    // against one island reported twice.
+    const [ra, rb] = rows;
+    check('the rows are per-island, not the active island repeated',
+      ra.defence !== rb.defence && ra.id !== rb.id, `${ra.defence} vs ${rb.defence}`);
+
+    // A row for an island you do not hold would be an information leak.
+    const mineIds = new Set(openApp.world.islands.filter((i) => i.ownerId === swapper.id).map((i) => i.id));
+    check('no row for an island the player does not hold',
+      rows.every((x) => mineIds.has(x.id)));
+
+    // The poll must have moved the non-active island's clock forward, and its
+    // row must carry the production that resolve earned — not the stale 100.
+    check('the state poll resolved the non-active island too',
+      second.lastUpdate > staleAt, `${second.lastUpdate} vs ${staleAt}`);
+    const secondRow = rows.find((x) => x.id === second.id);
+    check('and its row reports the resolved figures, not the stale ones',
+      secondRow.resources.wood > 100 || secondRow.resources.stone > 100,
+      JSON.stringify(secondRow.resources));
+  }
+
   oa.srv.close();
   openApp.stop();
 
@@ -891,6 +964,43 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     const labels = [...new Set([...i18nSrc.matchAll(/'ui\.move\.([a-z]+)':/g)].map((m) => m[1]))];
     const orphans = labels.filter((l) => !types.includes(l) && l !== 'incoming' && l !== 'withLoot');
     check('no label for a type the engine never emits', orphans.length === 0, orphans.join(','));
+  }
+
+  // ------------------------------------- the islands table is translated (#77)
+  // Same lesson as #75: my first version of these headers carried
+  // title="wood" — hardcoded English, invisible to a screen reader, and the
+  // only untranslated string in index.html. Assert every header in this table
+  // is labelled through i18n, and that every key resolves in all 3 languages.
+  {
+    console.log('\nislands table headers');
+    const html = fs.readFileSync(path.join(HERE, 'public/index.html'), 'utf8');
+    const pane = html.slice(html.indexOf('id="view-islands"'), html.indexOf('id="view-map"'));
+    const ths = [...pane.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => m[0]);
+    check('found the islands table headers', ths.length === 9, ths.length);
+
+    const i18n = await import('./public/i18n.js');
+    for (const th of ths) {
+      const key = (th.match(/data-i18n="([^"]+)"/) || [])[1];
+      const label = th.replace(/<[^>]*>/g, '').trim();
+      check(`header is labelled through i18n: ${key || label || th}`, !!key, th);
+      if (!key) continue;
+      const missing = i18n.LANGS.filter((l) => i18n.t(l, key) === key);
+      check(`  ${key} resolves in all 3 languages`, missing.length === 0, missing.join(','));
+    }
+    // No hardcoded English left in the pane. title= is how it got in last time.
+    check('no hardcoded title= attribute in the islands pane',
+      !/\stitle="/.test(pane), (pane.match(/\stitle="[^"]*"/g) || []).join(' '));
+    // An emoji header must still say something to a screen reader — checked
+    // per header, not by counting: equal counts across the pane would pass
+    // even if one <th> had both and another had neither.
+    const hidden = ths.filter((th) => th.includes('aria-hidden="true"'));
+    check('the emoji headers are the three resource columns', hidden.length === 3, hidden.length);
+    for (const th of hidden) {
+      check(`  its emoji is paired with an sr-only label: ${th.replace(/<[^>]*>/g, '').trim()}`,
+        th.includes('class="sr-only"'), th);
+    }
+    const css = fs.readFileSync(path.join(HERE, 'public/style.css'), 'utf8');
+    check('and .sr-only actually hides it', /\.sr-only\s*\{[^}]*clip-path/.test(css));
   }
 
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

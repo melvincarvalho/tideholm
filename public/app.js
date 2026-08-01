@@ -169,6 +169,7 @@ $('logout').addEventListener('click', async () => {
 // ---------------------------------------------------------------- tabs
 
 $('tab-island').addEventListener('click', () => showTab('island'));
+$('tab-islands').addEventListener('click', () => { showTab('islands'); renderIslands(); });
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
@@ -177,9 +178,49 @@ $('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAll
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
 function showTab(which) {
-  for (const t of ['island', 'map', 'reports', 'rankings', 'market', 'alliance', 'messages']) {
+  for (const t of ['island', 'islands', 'map', 'reports', 'rankings', 'market', 'alliance', 'messages']) {
     $(`view-${t}`).classList.toggle('hidden', t !== which);
     $(`tab-${t}`).classList.toggle('active', t === which);
+  }
+}
+
+// ---------------------------------------------------------------- islands
+
+// The islands table (#77). No fetch of its own: /api/state already carries a
+// row per island, so this renders whatever the last refresh brought back.
+// Sorted by defence ascending, because the question it exists to answer is
+// "which of mine is undefended" — that answer belongs at the top.
+function renderIslands() {
+  const tbody = $('islands-table').querySelector('tbody');
+  tbody.innerHTML = '';
+  if (!state) return;
+  const rows = [...state.islands].sort((a, b) => a.defence - b.defence || a.points - b.points);
+  for (const i of rows) {
+    const tr = document.createElement('tr');
+    tr.className = 'clickable' + (i.id === state.island.id ? ' active' : '');
+    const pop = i.popUsed + (i.popAbroad || 0);
+    const slots = i.tradeSlots ? `${i.tradeSlots.free}/${i.tradeSlots.total}` : '∞';
+    const cell = (text, cls) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (cls) td.className = cls;
+      return td;
+    };
+    tr.appendChild(cell(`${i.name} (${i.x}:${i.y})`));
+    tr.appendChild(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''));
+    tr.appendChild(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''));
+    tr.appendChild(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''));
+    tr.appendChild(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''));
+    tr.appendChild(cell(fmtNum(i.defence), i.defence === 0 ? 'warn' : ''));
+    tr.appendChild(cell(String(i.wall)));
+    tr.appendChild(cell(slots, i.tradeSlots && i.tradeSlots.free === 0 ? 'warn' : ''));
+    tr.appendChild(cell(String(i.points)));
+    tr.addEventListener('click', () => {
+      activeIslandId = i.id;
+      showTab('island');
+      refresh();
+    });
+    tbody.appendChild(tr);
   }
 }
 
@@ -264,6 +305,9 @@ function renderState() {
     opt.selected = i.id === isl.id;
     sel.appendChild(opt);
   }
+
+  // Keep the islands table live while it is the tab on screen (#77).
+  if (!$('view-islands').classList.contains('hidden')) renderIslands();
 
   // Unread badges
   const badge = $('report-badge');
