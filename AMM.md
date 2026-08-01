@@ -14,9 +14,12 @@ Written for a reader who has not seen the codebase. Tracking issue: #46.
 Three resources — wood, stone, gold — share one pool. Players swap between
 them at a price set by a constant-product curve rather than a fixed table, and
 may deposit resources to become liquidity providers, earning a share of the
-0.30% fee. A swap ships its proceeds home from the player's harbour and takes
-30 minutes to arrive. A per-swap drain cap and a reserve floor stop one trader
-or one sustained flow from emptying a side.
+0.30% fee. The timing rule, everywhere in the pool: **what you send leaves at
+once; what you receive sails home** — 30 minutes flat on worlds created before
+season 5, the real map distance (floored at 30) after #76. A deposit returns
+shares, which are a ledger entry rather than cargo, so it settles instantly
+(#67). A per-swap drain cap and a reserve floor stop one trader or one
+sustained flow from emptying a side.
 
 The reason it exists: Tideholm already had a player-to-player offer book, and
 it recorded **zero offers and zero trades across an entire season**. An order
@@ -207,14 +210,22 @@ sides or state plainly that you have only one.
 These are the choices a different system would remake. Each is recorded with
 its reasoning because the reasoning ports even when the decision does not.
 
-**Swaps ship home; deposits do not.** A swap and a withdrawal deliver goods to
-an island, so they create a `trade` movement and take 30 minutes. A deposit
-delivers nothing to the player, so it settles instantly. The asymmetry is not
-an oversight.
+**Swaps ship home; deposits do not.** The rule the code implements: what you
+send leaves at once; what you receive sails. A swap and a withdrawal deliver
+goods to an island, so they create a `trade` movement and travel. A deposit
+delivers nothing to the player — shares are a ledger entry, not cargo — so
+there is nothing to sail and it settles instantly. The asymmetry is not an
+oversight, and it is pinned by a test that counts the movements each action
+creates (#67).
 
-**Flat travel time, not distance-based.** The pool has no location on the map.
-Distance pricing would hand coastal and central islands a permanent advantage —
-a second balance problem, easy to add later and hard to remove.
+**Travel: flat originally, distance on new worlds (#76).** The pool has no
+location on the map, and flat travel treated every island the same — until
+live play showed that deposit-at-A, withdraw-at-B relocates resources over any
+distance in a flat hour with no merchant slot, defeating the brake merchant
+slots exist to apply. New worlds place the market at the map centre and pool
+goods sail the real distance, floored at the old flat time so the change can
+only slow the pool down. Worlds created before the change keep flat travel to
+the end of their season.
 
 **The pool moves at send time, not on arrival.** If the price only moved when
 goods landed, a player could fire a dozen swaps at the same opening rate and

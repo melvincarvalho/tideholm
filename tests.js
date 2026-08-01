@@ -876,6 +876,22 @@ console.log('resource pool');
   check('spot price of an unknown pair is 0, not NaN', g.poolSpot(seed, 'wood', 'iron') === 0);
   check('an unknown resource against itself has no price either',
     g.poolSpot(seed, 'iron', 'iron') === 0);
+  // pool.js validates legs against the reserves object itself (#58). A naive
+  // `in` check would accept prototype keys — reserves['toString'] is a
+  // function, and arithmetic on it is NaN into the pool.
+  check('a prototype key is not a reserve leg', g.poolSpot(seed, 'toString', 'gold') === 0);
+  check('nor can one be quoted', g.poolQuote(seed, 'constructor', 'gold', 100).out === 0);
+  // The mint scale is the geometric mean of the first two legs, so a pool
+  // with fewer than two must refuse to mint rather than put NaN in
+  // totalShares. Unreachable through newPool(); reachable through the
+  // resource list it accepts, and through a corrupted save.
+  check('a one-leg pool refuses the first deposit',
+    g.poolAddLiquidity({ gold: 0 }, 0, { gold: 100 }).minted === 0);
+  check('and opening a corrupted one-leg pool is refused', (() => {
+    const w1 = { pool: g.newPool(['gold']) };
+    return g.openPool(w1, { gold: 100 }, t0).error === 'err.badRequest'
+      && w1.pool.open === false && !Number.isNaN(w1.pool.totalShares);
+  })());
 
   // Amounts are validated the same way at every entry point, so a numeric
   // string from a request body is refused here as it is everywhere else.
@@ -1160,6 +1176,117 @@ console.log('pool opening');
   check('closing the pool does not strand a shipment in flight',
     close(ia.resources.gold, goldBefore + r2.out, 1e-9),
     `${ia.resources.gold} vs ${goldBefore + r2.out}`);
+}
+
+// ---------------------------------------------------------------- pool settlement (#67)
+// The timing rule the pool implements: what you send leaves at once; what you
+// receive sails home. A deposit returns shares — a ledger entry, not cargo —
+// so nothing sails and it settles instantly. This block makes the invariant
+// deliberate rather than incidental: exactly which actions create a movement,
+// and that the outbound leg never waits for one.
+console.log('pool settlement (#67)');
+{
+  const { w, a, ia } = freshWorld();
+  ia.buildings.harbor = 5;
+  ia.buildings.storehouse = 12;
+  ia.buildings.lumberyard = 0; ia.buildings.quarry = 0; ia.buildings.goldmine = 0;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 5000, stone: 5000, gold: 5000 };
+  g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+
+  const before = w.movements.length;
+  const dep = g.sendPoolDeposit(w, a, ia, 200, t0);
+  check('#67 a deposit creates no movement', !dep.error && w.movements.length === before,
+    JSON.stringify(dep));
+  check('#67 and its shares exist immediately, nothing in flight',
+    a.lpShares === dep.minted && dep.minted > 0);
+
+  const woodBefore = ia.resources.wood;
+  const swap = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('#67 a swap creates exactly one movement', w.movements.length === before + 1);
+  check('#67 what you send leaves instantly, before the ship lands',
+    close(ia.resources.wood, woodBefore - swap.used, 1e-9) && swap.arrive > t0,
+    `${ia.resources.wood} vs ${woodBefore - swap.used}`);
+
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('#67 a withdrawal creates exactly one movement', w.movements.length === before + 2);
+  check('#67 its shares burn instantly while the goods sail',
+    a.lpShares === 0 && wd.arrive > t0);
+}
+
+// ---------------------------------------------------------------- pool travel (#76)
+// Flat pool travel made the pool a distance-free courier: deposit at A,
+// withdraw at B, any distance, one flat hour, no merchant slot. On new worlds
+// the market sits at the map centre and goods sail the real distance at
+// TRADE_SPEED, floored at the old flat time. Existing worlds are stamped
+// flat and stay flat.
+console.log('pool travel (#76)');
+{
+  const FLAT = Math.round((30 * 60000) / 1); // SPEED is 1 here
+
+  const { w, a, ia } = freshWorld();
+  check('#76 a new world is stamped for distance travel', w.poolDistance === true);
+
+  const w2 = g.createWorld();
+  delete w2.poolDistance;
+  g.migrateWorld(w2);
+  check('#76 a migrated world keeps flat travel', w2.poolDistance === false);
+
+  // The floor: the fix may only ever slow the pool down. An island at the
+  // centre — or within 30/TRADE_SPEED fields of it — keeps the old flat time,
+  // so nobody gets a FASTER pool out of the change.
+  check('#76 centre island keeps the flat time', g.poolTravelMs(w, { x: 20, y: 20 }) === FLAT);
+  check('#76 three fields out is still under the floor',
+    g.poolTravelMs(w, { x: 20, y: 23 }) === FLAT);
+  const corner = g.poolTravelMs(w, { x: 0, y: 0 });
+  check('#76 the far corner pays the real distance',
+    corner === Math.round(Math.hypot(19.5, 19.5) * 8 * 60000), corner);
+  // The centre is the geometric one — (MAP_SIZE-1)/2 on a 0..39 grid — so
+  // opposite corners pay the same, not 11 minutes apart.
+  check('#76 opposite corners pay the same',
+    g.poolTravelMs(w, { x: 0, y: 0 }) === g.poolTravelMs(w, { x: 39, y: 39 }));
+  check('#76 farther is never faster',
+    g.poolTravelMs(w, { x: 0, y: 0 }) > g.poolTravelMs(w, { x: 10, y: 10 })
+    && g.poolTravelMs(w, { x: 10, y: 10 }) > FLAT);
+  check('#76 a flat-stamped world ignores position',
+    g.poolTravelMs(w2, { x: 0, y: 0 }) === FLAT && g.poolTravelMs(w2, { x: 20, y: 20 }) === FLAT);
+
+  // End to end, because the unit above proves nothing if the send functions
+  // never call it: a swap and a withdrawal from the corner island must both
+  // arrive at the distance time, not the flat one.
+  ia.buildings.harbor = 5;
+  ia.buildings.storehouse = 12;
+  ia.buildings.lumberyard = 0; ia.buildings.quarry = 0; ia.buildings.goldmine = 0;
+  g.resolveIsland(ia, t0);
+  ia.resources = { wood: 5000, stone: 5000, gold: 5000 };
+  g.openPool(w, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+
+  const swap = g.sendPoolSwap(w, a, ia, 'wood', 'gold', 500, t0);
+  check('#76 a swap sails the distance', swap.arrive - t0 === g.poolTravelMs(w, ia),
+    `${swap.arrive - t0} vs ${g.poolTravelMs(w, ia)}`);
+  check('#76 which is farther than flat', swap.arrive - t0 > FLAT);
+
+  const dep = g.sendPoolDeposit(w, a, ia, 200, t0);
+  check('#76 deposit still creates no movement (it mints shares, nothing sails)',
+    !dep.error && !w.movements.some((m) => m.type === 'trade' && m.depart === t0 && m.id > swap.id),
+    JSON.stringify(dep));
+  const wd = g.sendPoolWithdraw(w, a, ia, dep.minted, t0);
+  check('#76 a withdrawal sails the distance too', wd.arrive - t0 === g.poolTravelMs(w, ia),
+    `${wd.arrive - t0} vs ${g.poolTravelMs(w, ia)}`);
+
+  // And the same actions on a flat world still take the flat time.
+  const af = g.createPlayer(w2, 'Flat', 'pw', false).player;
+  const iaf = g.playerIsland(w2, af.id);
+  iaf.x = 0; iaf.y = 0;
+  iaf.buildings.harbor = 5;
+  iaf.buildings.storehouse = 12;
+  iaf.buildings.lumberyard = 0; iaf.buildings.quarry = 0; iaf.buildings.goldmine = 0;
+  g.resolveIsland(iaf, t0);
+  iaf.resources = { wood: 5000, stone: 5000, gold: 5000 };
+  g.openPool(w2, { wood: 4000, stone: 3600, gold: 6800 }, t0);
+  const fswap = g.sendPoolSwap(w2, af, iaf, 'wood', 'gold', 500, t0);
+  check('#76 the same corner island on a flat world swaps at the flat time',
+    fswap.arrive - t0 === FLAT, fswap.arrive - t0);
 }
 
 // ---------------------------------------------------------------- liquidity
