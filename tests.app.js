@@ -976,7 +976,7 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     const html = fs.readFileSync(path.join(HERE, 'public/index.html'), 'utf8');
     const pane = html.slice(html.indexOf('id="view-islands"'), html.indexOf('id="view-map"'));
     const ths = [...pane.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => m[0]);
-    check('found the islands table headers', ths.length === 9, ths.length);
+    check('found the islands table headers (9 columns + the totals label)', ths.length === 10, ths.length);
 
     const i18n = await import('./public/i18n.js');
     for (const th of ths) {
@@ -1001,6 +1001,18 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     }
     const css = fs.readFileSync(path.join(HERE, 'public/style.css'), 'utf8');
     check('and .sr-only actually hides it', /\.sr-only\s*\{[^}]*clip-path/.test(css));
+
+    // The totals row (#77 follow-up): sums only where a sum is honest.
+    const tfoot = (pane.match(/<tfoot>[\s\S]*?<\/tfoot>/) || [''])[0];
+    check('the islands table has a totals row', !!tfoot);
+    for (const id of ['isl-t-wood', 'isl-t-stone', 'isl-t-gold', 'isl-t-pop', 'isl-t-merch', 'isl-t-points']) {
+      check(`  totals cell exists: ${id}`, tfoot.includes(`id="${id}"`));
+    }
+    // Defence and wall must NOT total: an attacker meets one island's
+    // defence, never the fleet's. The markup keeps them as dashes.
+    check('  defence and wall stay a dash, not a sum',
+      (tfoot.match(/&mdash;/g) || []).length === 2
+      && !tfoot.includes('isl-t-def') && !tfoot.includes('isl-t-wall'));
   }
 
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

@@ -150,6 +150,8 @@ th { background: #eadfc4; }
 #islands-table th:not(:first-child) { text-align: right; }
 #islands-table tr.active { background: #f7f0dd; font-weight: bold; }
 #islands-table td.warn { color: var(--error); }
+#islands-table tfoot { border-top: 2px solid #b09a6c; }
+#islands-table tfoot th, #islands-table tfoot td { background: #eadfc4; font-weight: bold; }
 
 /* ---------- map ---------- */
 
