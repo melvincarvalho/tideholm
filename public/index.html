@@ -63,6 +63,7 @@
       <span class="brand">Tideholm</span>
       <nav>
         <button id="tab-island" class="tab active" data-i18n="ui.tab.island"></button>
+        <button id="tab-islands" class="tab" data-i18n="ui.tab.islands"></button>
         <button id="tab-map" class="tab" data-i18n="ui.tab.map"></button>
         <button id="tab-reports" class="tab"><span data-i18n="ui.tab.reports"></span> <span id="report-badge" class="badge hidden"></span></button>
         <button id="tab-rankings" class="tab" data-i18n="ui.tab.rankings"></button>
@@ -157,6 +158,25 @@
             <h3 data-i18n="ui.support.abroad"></h3>
             <div id="abroad-list"></div>
           </div>
+        </section>
+
+        <section id="view-islands" class="hidden">
+          <h2 data-i18n="ui.tab.islands"></h2>
+          <p class="hint" data-i18n="ui.islands.hint"></p>
+          <table id="islands-table">
+            <thead>
+              <tr>
+                <th data-i18n="ui.th.island"></th>
+                <th title="wood">🪵</th><th title="stone">🪨</th><th title="gold">🪙</th>
+                <th data-i18n="ui.pop"></th>
+                <th data-i18n="ui.th.def"></th>
+                <th data-i18n="building.wall.name"></th>
+                <th data-i18n="ui.merchants"></th>
+                <th data-i18n="ui.th.points"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </section>
 
         <section id="view-map" class="hidden">

@@ -15,6 +15,7 @@
   // so these are a fixed convention, listed in the ? sheet and the help pages.
   var TABS = [
     ['i', 'tab-island', 'ui.tab.island'],
+    ['o', 'tab-islands', 'ui.tab.islands'],  // overview
     ['m', 'tab-map', 'ui.tab.map'],
     ['r', 'tab-reports', 'ui.tab.reports'],
     ['l', 'tab-rankings', 'ui.tab.rankings'],   // leaderboard

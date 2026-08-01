@@ -404,11 +404,14 @@ export function createApp(opts = {}) {
     game.checkQuests(world, player, now);
     const mine = game.playerIslands(world, player.id);
     const island = myIsland(player, islandId);
-    // Freeze the clock at startAt during pregame: resolveIsland advances
-    // lastUpdate to whatever time it's given, so passing the real `now` would
-    // let production accrue poll-by-poll before launch. Clamping to startAt
-    // keeps every island frozen until the season actually begins (#8).
-    game.resolveIsland(island, resolveClock());
+    // Every island, not just the active one: the islands table (#77) reports
+    // live figures for all of them, so all of them have to be current.
+    // resolveClock(), never Date.now(): resolveIsland advances lastUpdate to
+    // whatever time it is given, so a raw `now` would let production accrue
+    // poll-by-poll before launch. Clamping to startAt keeps every island
+    // frozen until the season actually begins (#8, #69) — and this loop makes
+    // that matter more, since it now touches the whole holding.
+    for (const i of mine) game.resolveIsland(i, resolveClock());
     return {
       serverNow: now,
       speed: game.SPEED,
@@ -421,7 +424,41 @@ export function createApp(opts = {}) {
       // Season phase + launch time for the pregame countdown (#8).
       phase: game.worldPhase(world, Date.now()),
       startAt: world.startAt,
-      islands: mine.map((i) => ({ id: i.id, name: i.name, x: i.x, y: i.y })),
+      // One row per island for the islands table (#77). Every figure here is
+      // already computed for the active island below — this just does it for
+      // all of them, so "which island is undefended" is a glance rather than
+      // a click through every island in turn.
+      islands: mine.map((i) => ({
+        id: i.id,
+        name: i.name,
+        x: i.x,
+        y: i.y,
+        resources: {
+          wood: Math.floor(i.resources.wood),
+          stone: Math.floor(i.resources.stone),
+          gold: Math.floor(i.resources.gold),
+        },
+        capacity: game.storageCapacity(i.buildings.storehouse),
+        rates: game.islandRates(i),
+        points: game.islandPoints(i),
+        popUsed: Math.round(game.popUsed(i)),
+        // Troops posted abroad still eat this island's food, so the table
+        // must count them or its pop column disagrees with the island view.
+        popAbroad: game.popAbroad(world, i),
+        popCap: game.popCap(i.buildings.farm),
+        wall: i.buildings.wall,
+        // The wall multiplies defenders and adds flat defence, so the honest
+        // column is the one combat actually uses, not the raw unit total.
+        // Night bonus is left out: it is a property of when you are hit.
+        defence: Math.round(
+          (game.unitPower(i.units, 'def') + game.WALL_FLAT_DEF * i.buildings.wall)
+          * (1 + game.WALL_DEF_BONUS * i.buildings.wall),
+        ),
+        // Infinity does not survive JSON; null is the wire form of "unlimited".
+        tradeSlots: game.tradeSlotsPerHarbor(world) == null
+          ? null
+          : { free: game.tradeSlotsFree(world, i), total: game.tradeSlotsTotal(world, i) },
+      })),
       island: {
         id: island.id,
         name: island.name,

@@ -135,6 +135,15 @@ th { background: #eadfc4; }
 
 .cost { white-space: nowrap; }
 
+/* ---------- islands table (#77) ---------- */
+
+/* Numbers you compare down a column, so they line up; the row you are stood
+   on is marked, and the figures worth acting on are the ones in red. */
+#islands-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+#islands-table th:not(:first-child) { text-align: right; }
+#islands-table tr.active { background: #f7f0dd; font-weight: bold; }
+#islands-table td.warn { color: var(--error); }
+
 /* ---------- map ---------- */
 
 .map-tools {
