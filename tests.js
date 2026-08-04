@@ -1204,21 +1204,25 @@ console.log('respawn protection (#82)');
   check('#82 a new world is stamped', w.respawnProtection === true);
   a.protectionBroken = true; b.protectionBroken = true;
   ia.units.raider = 60; ia.units.flagship = 1;
-  wipe(w, a, ia, b);
+  // The world has been resolved to the capture's arrival, so every later
+  // action uses times AFTER it — a `now` in the past would rewind lastUpdate,
+  // the same clock hazard #69 guards against in production code.
+  const cap = wipe(w, a, ia, b);
+  const after = cap.arrive + 10;
   const refuge = g.playerIsland(w, b.id);
   check('#82 the victim respawned at a refuge', !!refuge && refuge.id !== ia.id);
   check('#82 protection restored on respawn', b.protectionBroken === false);
   check('#82 the refuge cannot be attacked while under the points shield',
-    g.isProtected(w, b, t0) === true);
+    g.isProtected(w, b, after) === true);
   ia.units.raider = 60; ia.units.flagship = 1;
-  const blocked = g.sendAttack(w, a, ia, refuge, { raider: 10 }, t0 + 1);
+  const blocked = g.sendAttack(w, a, ia, refuge, { raider: 10 }, after);
   check('#82 sendAttack refuses the refuge', !!blocked.error, JSON.stringify(blocked));
 
   // Attacking a HUMAN from the refuge forfeits the shield again — the
   // existing rule, exercised from the new state.
   const refB = g.playerIsland(w, b.id);
   refB.units.raider = 5;
-  g.sendAttack(w, b, refB, ia, { raider: 5 }, t0 + 2);
+  g.sendAttack(w, b, refB, ia, { raider: 5 }, after + 10);
   check('#82 raiding a human from the refuge forfeits it', b.protectionBroken === true);
 
   // Old worlds: byte-identical season-4 behaviour.
@@ -1233,9 +1237,9 @@ console.log('respawn protection (#82)');
   const ib2 = g.playerIsland(w2, b2.id);
   ia2.x = 0; ia2.y = 0; ib2.x = 0; ib2.y = 3;
   ia2.units.raider = 60; ia2.units.flagship = 1;
-  wipe(w2, a2, ia2, b2);
+  const cap2 = wipe(w2, a2, ia2, b2);
   check('#82 on an old world the refuge stays farmable', b2.protectionBroken === true
-    && g.isProtected(w2, b2, t0) === false);
+    && g.isProtected(w2, b2, cap2.arrive + 10) === false);
 }
 
 // ---------------------------------------------------------------- pool settlement (#67)
