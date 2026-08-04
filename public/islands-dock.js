@@ -271,6 +271,14 @@
     if (Math.abs(dx) >= 50 && Math.abs(dy) < Math.abs(dx)) step(dx < 0 ? 1 : -1);
   }, { passive: true });
 
+  // The active highlight reads #island-select, but nothing re-rendered when
+  // the select changed — only the 15s/60s polls did, so a switch made from
+  // the islands table (or anywhere else) left the dock stale for up to a
+  // poll. Listen for the change itself; every switch path dispatches it.
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.id === 'island-select') render();
+  });
+
   // --- polls ---------------------------------------------------------------
   function pollBase() {
     apiGet('/api/state').then(function (s) {

@@ -42,6 +42,29 @@
     return !!g && !g.classList.contains('hidden');
   }
 
+  // In the Islands view, ArrowUp/Down step the selected island in TABLE order
+  // (weakest defence first) — the order the eye is already scanning there.
+  // Distinct from the dock's ArrowLeft/Right, which follow dock order. Same
+  // conventions as the dock's handler: plain keys, never while typing, fail
+  // silent. Driving the select keeps every listener (dock included) in sync.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    if (isTyping(e.target) || !inGame()) return;
+    var view = document.getElementById('view-islands');
+    if (!view || view.classList.contains('hidden')) return;
+    var rows = Array.prototype.slice.call(view.querySelectorAll('#islands-table tbody tr'));
+    if (!rows.length) return;
+    e.preventDefault(); // the page must not scroll out from under the selection
+    var at = -1;
+    for (var i = 0; i < rows.length; i++) if (rows[i].classList.contains('active')) at = i;
+    var next = rows[(at + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length];
+    var sel = document.getElementById('island-select');
+    if (!sel || !next || next.getAttribute('data-island-id') == null) return;
+    sel.value = next.getAttribute('data-island-id');
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
   // Digits follow the DOCK's rendered order, so pinned islands (#28) are 1,2,3.
   // Falls back to the island <select> when the dock isn't on the page.
   function selectIsland(n) {
@@ -88,6 +111,7 @@
     var tbl = document.createElement('table');
     var rows = TABS.map(function (t) { return [t[0], T(t[2], t[1])]; });
     rows.push(['1–9', T('ui.keys.islands', 'Switch island (dock order)')]);
+    rows.push(['↑↓', T('ui.keys.islandsTable', 'Islands view: select by table order')]);
     rows.push(['?', T('ui.keys.title', 'Keyboard shortcuts')]);
     rows.push(['Esc', T('ui.keys.close', 'Close')]);
     rows.forEach(function (r) {

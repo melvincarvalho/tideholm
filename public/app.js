@@ -198,6 +198,7 @@ function renderIslands() {
   for (const i of rows) {
     const tr = document.createElement('tr');
     tr.className = 'clickable' + (i.id === state.island.id ? ' active' : '');
+    tr.dataset.islandId = i.id; // hotkeys.js walks these rows with ArrowUp/Down
     const pop = i.popUsed + (i.popAbroad || 0);
     const slots = i.tradeSlots ? `${i.tradeSlots.free}/${i.tradeSlots.total}` : '∞';
     const cell = (text, cls) => {
@@ -216,9 +217,8 @@ function renderIslands() {
     tr.appendChild(cell(slots, i.tradeSlots && i.tradeSlots.free === 0 ? 'warn' : ''));
     tr.appendChild(cell(String(i.points)));
     tr.addEventListener('click', () => {
-      activeIslandId = i.id;
+      selectIsland(i.id);
       showTab('island');
-      refresh();
     });
     tbody.appendChild(tr);
   }
@@ -590,6 +590,16 @@ $('island-select').addEventListener('change', () => {
   activeIslandId = Number($('island-select').value);
   refresh();
 });
+
+// THE way to switch islands programmatically: drive the select and fire its
+// change event, so every listener — this file's handler, the dock's highlight
+// (which was lagging until its next poll when the select was bypassed) —
+// sees the switch at once. Table rows and hotkeys both come through here.
+function selectIsland(id) {
+  const sel = $('island-select');
+  sel.value = String(id);
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
+}
 
 $('rename-btn').addEventListener('click', async () => {
   const name = prompt(T('ui.rename.prompt'), state ? state.island.name : '');
