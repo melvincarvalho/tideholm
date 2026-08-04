@@ -150,6 +150,9 @@ th { background: #eadfc4; }
 #islands-table th:not(:first-child) { text-align: right; }
 #islands-table tr.active { background: #f7f0dd; font-weight: bold; }
 #islands-table td.warn { color: var(--error); }
+/* production rate under the stock figure — same cell, quieter voice */
+#islands-table .rate { display: block; font-size: 10px; color: #8a8062; font-weight: normal; }
+#islands-table tfoot .rate { color: #6f6748; }
 #islands-table tfoot { border-top: 2px solid #b09a6c; }
 #islands-table tfoot th, #islands-table tfoot td { background: #eadfc4; font-weight: bold; }
 
