@@ -1178,6 +1178,66 @@ console.log('pool opening');
     `${ia.resources.gold} vs ${goldBefore + r2.out}`);
 }
 
+// ---------------------------------------------------------------- respawn protection (#82)
+// A respawn is a fresh start, so it gets the fresh-start shield. Without it,
+// the cheapest island in the game is whichever one a bot just fled to —
+// season 4 farmed four refuges in two days. New worlds only, like every rule
+// change that would strand plans already in flight.
+console.log('respawn protection (#82)');
+{
+  const wipe = (world, atk, atkIsle, victim) => {
+    // Drive the victim to zero islands via a legitimate capture. Resolve to
+    // t0 FIRST: the island's lastUpdate is wall-clock creation time, months
+    // behind the suite's fixed t0, and an unresolved gap would regenerate the
+    // hand-set loyalty back to 100 mid-flight.
+    const isle = g.playerIsland(world, victim.id);
+    g.resolveIsland(isle, t0);
+    isle.units = g.zeroUnits();
+    isle.loyalty = 0;
+    isle.units.sentinel = 1;
+    const r = g.sendAttack(world, atk, atkIsle, isle, { raider: 40, flagship: 1 }, t0);
+    g.resolveWorld(world, r.arrive + 1);
+    return r;
+  };
+
+  const { w, a, b, ia } = freshWorld();
+  check('#82 a new world is stamped', w.respawnProtection === true);
+  a.protectionBroken = true; b.protectionBroken = true;
+  ia.units.raider = 60; ia.units.flagship = 1;
+  wipe(w, a, ia, b);
+  const refuge = g.playerIsland(w, b.id);
+  check('#82 the victim respawned at a refuge', !!refuge && refuge.id !== ia.id);
+  check('#82 protection restored on respawn', b.protectionBroken === false);
+  check('#82 the refuge cannot be attacked while under the points shield',
+    g.isProtected(w, b, t0) === true);
+  ia.units.raider = 60; ia.units.flagship = 1;
+  const blocked = g.sendAttack(w, a, ia, refuge, { raider: 10 }, t0 + 1);
+  check('#82 sendAttack refuses the refuge', !!blocked.error, JSON.stringify(blocked));
+
+  // Attacking a HUMAN from the refuge forfeits the shield again — the
+  // existing rule, exercised from the new state.
+  const refB = g.playerIsland(w, b.id);
+  refB.units.raider = 5;
+  g.sendAttack(w, b, refB, ia, { raider: 5 }, t0 + 2);
+  check('#82 raiding a human from the refuge forfeits it', b.protectionBroken === true);
+
+  // Old worlds: byte-identical season-4 behaviour.
+  const w2 = g.createWorld();
+  delete w2.respawnProtection;
+  g.migrateWorld(w2);
+  check('#82 migrated worlds stay unshielded', w2.respawnProtection === false);
+  const a2 = g.createPlayer(w2, 'A2', 'pw', false).player;
+  const b2 = g.createPlayer(w2, 'B2', 'pw', false).player;
+  a2.protectionBroken = true; b2.protectionBroken = true;
+  const ia2 = g.playerIsland(w2, a2.id);
+  const ib2 = g.playerIsland(w2, b2.id);
+  ia2.x = 0; ia2.y = 0; ib2.x = 0; ib2.y = 3;
+  ia2.units.raider = 60; ia2.units.flagship = 1;
+  wipe(w2, a2, ia2, b2);
+  check('#82 on an old world the refuge stays farmable', b2.protectionBroken === true
+    && g.isProtected(w2, b2, t0) === false);
+}
+
 // ---------------------------------------------------------------- pool settlement (#67)
 // The timing rule the pool implements: what you send leaves at once; what you
 // receive sails home. A deposit returns shares — a ledger entry, not cargo —
