@@ -811,6 +811,14 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
         JSON.stringify(row.resources));
       check(`${where}: capacity matches game.js`,
         row.capacity === gameMod.storageCapacity(src.buildings.storehouse), row.capacity);
+      // The rates the table renders under each stock figure (#77 follow-up):
+      // they must be the island's own, not the active island's — the same
+      // copied-row hazard every other figure in this block guards against.
+      const wantRates = gameMod.islandRates(src);
+      check(`${where}: production rates match game.js`,
+        row.rates && row.rates.wood === wantRates.wood
+        && row.rates.stone === wantRates.stone && row.rates.gold === wantRates.gold,
+        JSON.stringify(row.rates));
     }
 
     // The two rows must actually differ, or every check above could pass

@@ -206,10 +206,22 @@ function renderIslands() {
       if (cls) td.className = cls;
       return td;
     };
+    // Stock and its growth belong in one cell: "416 · +90/h" says poor but
+    // recovering at a glance, without three more columns the phone can't fit.
+    const resCell = (res) => {
+      const td = cell(fmtNum(i.resources[res]), i.resources[res] >= i.capacity ? 'warn' : '');
+      if (i.rates && i.rates[res] != null) {
+        const rate = document.createElement('span');
+        rate.className = 'rate';
+        rate.textContent = `+${fmtNum(i.rates[res])}/h`;
+        td.appendChild(rate);
+      }
+      return td;
+    };
     tr.appendChild(cell(`${i.name} (${i.x}:${i.y})`));
-    tr.appendChild(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''));
-    tr.appendChild(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''));
-    tr.appendChild(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''));
+    tr.appendChild(resCell('wood'));
+    tr.appendChild(resCell('stone'));
+    tr.appendChild(resCell('gold'));
     tr.appendChild(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''));
     tr.appendChild(cell(fmtNum(i.defence), i.defence === 0 ? 'warn' : ''));
     tr.appendChild(cell(String(i.wall)));
@@ -227,9 +239,20 @@ function renderIslands() {
   // merchants and points add up; defence and wall stay a dash in the markup,
   // because an attacker meets one island's defence, never the fleet's.
   const sum = (f) => rows.reduce((n, i) => n + f(i), 0);
-  $('isl-t-wood').textContent = fmtNum(sum((i) => i.resources.wood));
-  $('isl-t-stone').textContent = fmtNum(sum((i) => i.resources.stone));
-  $('isl-t-gold').textContent = fmtNum(sum((i) => i.resources.gold));
+  const totalCell = (id, res) => {
+    const td = $(id);
+    td.textContent = fmtNum(sum((x) => x.resources[res]));
+    const totalRate = sum((x) => (x.rates && x.rates[res]) || 0);
+    if (totalRate > 0) {
+      const rate = document.createElement('span');
+      rate.className = 'rate';
+      rate.textContent = `+${fmtNum(totalRate)}/h`;
+      td.appendChild(rate);
+    }
+  };
+  totalCell('isl-t-wood', 'wood');
+  totalCell('isl-t-stone', 'stone');
+  totalCell('isl-t-gold', 'gold');
   $('isl-t-pop').textContent = `${sum((i) => i.popUsed + (i.popAbroad || 0))}/${sum((i) => i.popCap)}`;
   $('isl-t-merch').textContent = rows.some((i) => !i.tradeSlots)
     ? '∞'
