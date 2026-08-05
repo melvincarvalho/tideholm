@@ -131,6 +131,16 @@ h2 { margin-top: 2px; }
 .did-form input { flex: 1 1 auto; min-width: 0; padding: 4px; border: 1px solid #b0a488; font: inherit; font-size: 11px; }
 /* an <a> styled as a small-btn: keep it on the baseline with the buttons */
 .did-link { text-decoration: none; white-space: nowrap; line-height: 1.6; }
+/* trade form: the ▲ is the fill-max control; native spinners retire (#? QoL) */
+#trade-form input[type=number] { appearance: textfield; -moz-appearance: textfield; width: 5.5em; }
+#trade-form input[type=number]::-webkit-inner-spin-button,
+#trade-form input[type=number]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.res-max {
+  font-size: 11px; padding: 2px 6px; margin: 0 10px 0 2px; cursor: pointer;
+  background: #eadfc4; border: 1px solid #c9b68c; border-radius: 3px;
+}
+.res-max:hover { background: #e0d1a8; }
+
 tr.clickable { cursor: pointer; }
 tr.clickable:hover { background: #f3ecd9; }
 
