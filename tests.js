@@ -330,8 +330,11 @@ console.log('support');
   check('troops made it home', ia.units.spearman === 6);
 }
 {
-  // supporting your own island is a transfer
+  // supporting your own island is a transfer — ON PRE-#84 WORLDS. This pin
+  // guards the legacy path season 4 runs on; the popAtOrigin law has its
+  // own block below.
   const { w, a, ia, ib } = freshWorld();
+  w.popAtOrigin = false;
   ib.ownerId = a.id;
   ia.units.spearman = 4;
   const rs = g.sendSupport(w, a, ia, ib, { spearman: 4 }, t0);
@@ -1258,6 +1261,64 @@ console.log('respawn protection (#82)');
   const cap2 = wipe(w2, a2, ia2, b2);
   check('#82 on an old world the refuge stays farmable', b2.protectionBroken === true
     && g.isProtected(w2, b2, cap2.arrive + 10) === false);
+}
+
+// ---------------------------------------------------------------- pop at origin (#84)
+// Pop is charged where raised. On new worlds an own-island transfer lands as
+// a contingent — stands there, defends there, eats at home — closing the
+// train-to-cap -> ship -> retrain loop that made army size resource-bounded
+// instead of farm-bounded. Season 4's merged garrisons stay legal on their
+// own worlds (the legacy pins above set popAtOrigin = false explicitly).
+console.log('pop at origin (#84)');
+{
+  const { w, a, ia } = freshWorld();
+  check('#84 a new world is stamped', w.popAtOrigin === true);
+  const home = JSON.parse(JSON.stringify(ia));
+  home.id = w.nextId++; home.x = 0; home.y = 2;
+  home.units = g.zeroUnits(); home.support = []; home.trainQueue = []; home.queue = [];
+  home.buildings.farm = 8;
+  w.islands.push(home);
+  ia.buildings.farm = 8; ia.units.sentinel = 20;
+
+  const r = g.sendSupport(w, a, ia, home, { sentinel: 20 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('#84 the transfer lands as a contingent, not a merge',
+    home.units.sentinel === 0 && home.support.length === 1
+    && home.support[0].units.sentinel === 20,
+    JSON.stringify({ units: home.units.sentinel, support: home.support }));
+  check('#84 the host farm is not charged', g.popUsed(home) === 0);
+  check('#84 the origin farm still is', g.popAbroad(w, ia) === 20);
+
+  // The stationed troops DEFEND the host at full strength.
+  const b2 = g.createPlayer(w, 'Bx', 'pw', false).player;
+  b2.protectionBroken = true; a.protectionBroken = true;
+  const ib2 = g.playerIsland(w, b2.id);
+  ib2.x = 0; ib2.y = 4; ib2.units.raider = 20;
+  g.resolveIsland(ib2, r.arrive + 1);
+  const atk = g.sendAttack(w, b2, ib2, home, { raider: 20 }, r.arrive + 2);
+  g.resolveWorld(w, atk.arrive + 1);
+  check('#84 the contingent defends its host (raiders bounce off sentinels)',
+    ib2.units.raider === 0 && home.support.length === 1
+    && home.support[0].units.sentinel > 0,
+    JSON.stringify({ raiders: ib2.units.raider, cont: home.support }));
+
+  // But they cannot ATTACK from the host: garrison-only offensives — the
+  // Tribal Wars rule, and the deliberate consequence of #84.
+  const cannot = g.sendAttack(w, a, home, ib2, { sentinel: 5 }, atk.arrive + 10);
+  check('#84 stationed troops cannot attack from the host', !!cannot.error,
+    JSON.stringify(cannot));
+
+  // Withdrawal sends the SURVIVORS home and the charge follows — the
+  // defence above was won at real cost ((A/D)^1.5 of the contingent died),
+  // so the homecoming counts survivors, not the original twenty.
+  const survivors = home.support[0].units.sentinel;
+  const wd = g.withdrawSupport(w, a, home, atk.arrive + 20);
+  check('#84 withdrawal starts them home', !wd.error);
+  const homecoming = w.movements.find((m) => m.type === 'return' && m.toId === ia.id);
+  if (homecoming) g.resolveWorld(w, homecoming.arrive + 1);
+  check('#84 the charge came home with the survivors',
+    g.popAbroad(w, ia) === 0 && ia.units.sentinel === survivors,
+    JSON.stringify({ abroad: g.popAbroad(w, ia), sent: ia.units.sentinel, survivors }));
 }
 
 // ---------------------------------------------------------------- pool settlement (#67)
@@ -2802,10 +2863,11 @@ console.log('combat characterisation');
 }
 
 {
-  // Supporting your OWN island is a transfer, not a contingent: the troops
-  // join the garrison and cost population there like any other unit. Only
-  // another player's island can hold troops that cost their host nothing.
+  // Supporting your OWN island is a transfer, not a contingent — on
+  // PRE-#84 worlds. The pin keeps season 4's law testable; popAtOrigin
+  // worlds land transfers as contingents, pinned in the #84 block.
   const { w, a, ia } = freshWorld();
+  w.popAtOrigin = false;
   const mine2 = JSON.parse(JSON.stringify(ia));
   mine2.id = w.nextId++; mine2.x = 0; mine2.y = 2;
   mine2.units = g.zeroUnits(); mine2.support = []; mine2.trainQueue = []; mine2.queue = [];
