@@ -102,6 +102,25 @@ Shipped in #47–#55. Tracking: #46.
 
 ## Season 3 — opened 2026-07-20
 
+### 2026-08-05 · Mid-season quality-of-life wave
+
+> Mid-season quality-of-life wave: the new Islands tab (press o) lays out your
+> whole holding — stocks, production, defence, walls, merchants — with honest
+> totals and a production row. Arrow keys walk it weakest-first, and the dock
+> now follows every island switch instantly. On the shipping form, the little
+> arrow fills a one-resource convoy to the maximum in one click. And convoys
+> between your own islands no longer write a report — the reports tab is for
+> news again. Fair winds.
+
+The wave, by the numbers: the Islands tab (#77, PRs #78/#79/#81 — totals only
+where a sum is honest, production as its own row), ArrowUp/Down selection in
+table order with the stale-dock fix underneath, the ▲ fill-max buttons on the
+shipping form, and self-convoy receipts silenced (pool receipts and real trade
+receipts kept — the discriminator is fromId === toId). Not announced because
+they are invisible until the boundary: the pool.js extraction (#58), the pool
+distance term (#76), respawn protection (#82, PR pending) and pop-at-origin
+(#84, PR pending), all world-stamped for season 5.
+
 ### 2026-07-27 · Mail: link a Nostr identity
 
 > The Mail tab now shows your captain's profile, where you can link a Nostr
