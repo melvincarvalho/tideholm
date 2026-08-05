@@ -1594,10 +1594,19 @@ function applyMovement(world, m) {
   }
 
   if (m.type === 'support') {
-    if (dest.ownerId === m.ownerId) {
-      // Supporting your own island is a troop transfer.
+    if (dest.ownerId === m.ownerId && !world.popAtOrigin) {
+      // Supporting your own island is a troop transfer (pre-#84 worlds).
       for (const [k, n] of Object.entries(m.units)) dest.units[k] += n;
     } else {
+      // The contingent path: all support to ANOTHER player's island (every
+      // world), and — on popAtOrigin worlds (#84) — own-island transfers
+      // too. A contingent stands here and defends here but stays on the
+      // ORIGIN island's farm: popAbroad counts it there, and withdrawal
+      // knows the way home. For the #84 case that is the point — pop is
+      // charged where raised — with one deliberate, Tribal-Wars-shaped
+      // consequence: stationed troops cannot ATTACK from their host, so
+      // staging an offensive means the forward island's own farm must
+      // raise the army.
       dest.support = dest.support || [];
       // Keyed by origin as well as owner. Merging on ownerId alone kept the
       // FIRST fromId, so a second island's troops were attributed to the
@@ -2251,6 +2260,7 @@ function createWorld() {
     tradeSlots: TRADE_SLOTS_DEFAULT, // #30 — new seasons only; null = unlimited
     poolDistance: POOL_DISTANCE_DEFAULT, // #76 — new seasons only; see poolTravelMs()
     respawnProtection: true, // #82 — new seasons only; refuges spawn shielded
+    popAtOrigin: true, // #84 — new seasons only; transfers land as contingents
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -2281,6 +2291,8 @@ function migrateWorld(world) {
   // #82 likewise: a season whose refuges were farmable stays that way to its
   // end — there were refuge campaigns in flight when this shipped.
   if (world.respawnProtection == null) world.respawnProtection = false;
+  // #84 likewise: season 4's merged garrisons were raised under the old law.
+  if (world.popAtOrigin == null) world.popAtOrigin = false;
   if (!world.pool) world.pool = newPool();
   for (const [k, v] of Object.entries(newPool())) {
     if (world.pool[k] == null) world.pool[k] = v;
