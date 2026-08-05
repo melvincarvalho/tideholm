@@ -262,7 +262,9 @@ function computeNextChip() {
     if (i.nextFinish) cands.push({ at: i.nextFinish.at, label: `${i.nextFinish.label} · ${i.name}`, islandId: i.id });
   }
   for (const m of (state.movements && state.movements.outgoing) || []) {
-    if (m.arrive > Date.now()) cands.push({ at: m.arrive, label: m.label || T('ui.tab.island'), islandId: null });
+    // Movements carry type+target, not a label — same wording as the
+    // Movements list, or the chip prints a fallback at the player (#66).
+    if (m.arrive > Date.now()) cands.push({ at: m.arrive, label: T('ui.move.' + m.type, { target: m.target }), islandId: null });
   }
   if (!cands.length) return null;
   return cands.reduce((a, b) => (a.at <= b.at ? a : b));
