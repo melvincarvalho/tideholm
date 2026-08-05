@@ -1825,6 +1825,13 @@ function applyMovement(world, m) {
         if (playerIslands(world, oldOwner.id).length === 0) {
           if (M) M.respawns++;
           const refuge = newIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
+          // A respawn is a fresh start, so it gets the fresh-start shield
+          // (#82): protection until PROTECTED_POINTS, exactly as a new player
+          // would. Without this the cheapest island in the game is whichever
+          // one a bot just fled to — season 4 farmed four refuges in two
+          // days. isProtected does the rest, and attacking a human from the
+          // refuge forfeits it again through the existing rule (see above).
+          if (world.respawnProtection) oldOwner.protectionBroken = false;
           addReport(world, oldOwner.id, m.arrive,
             t(defLang, 'report.refuge.title'), [
               t(defLang, 'report.refuge.l1', { coords: `(${refuge.x}:${refuge.y})` }),
@@ -2243,6 +2250,7 @@ function createWorld() {
     supportCostsPop: true, // #40 — new seasons only; see supportCostsPop()
     tradeSlots: TRADE_SLOTS_DEFAULT, // #30 — new seasons only; null = unlimited
     poolDistance: POOL_DISTANCE_DEFAULT, // #76 — new seasons only; see poolTravelMs()
+    respawnProtection: true, // #82 — new seasons only; refuges spawn shielded
     boards: {},
     sessions: {}, // token -> playerId
   };
@@ -2270,6 +2278,9 @@ function migrateWorld(world) {
   // #76's distance term is new-seasons-only for the same reason as the two
   // above: a world that started under flat pool travel keeps it.
   if (world.poolDistance == null) world.poolDistance = false;
+  // #82 likewise: a season whose refuges were farmable stays that way to its
+  // end — there were refuge campaigns in flight when this shipped.
+  if (world.respawnProtection == null) world.respawnProtection = false;
   if (!world.pool) world.pool = newPool();
   for (const [k, v] of Object.entries(newPool())) {
     if (world.pool[k] == null) world.pool[k] = v;
