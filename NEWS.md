@@ -16,9 +16,52 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 4 — opened 2026-07-29 16:30 UTC
 
-Four announcements, all sent. Text below is what players actually received,
+Six announcements, all sent. Text below is what players actually received,
 which differs from the drafts: the endpoint caps at 500 characters and reports
 are plain text, so markdown emphasis and `×` became prose and `x`.
+
+### 2026-08-05 · The hourglass chip
+
+> New in the top bar: the hourglass chip. It watches your whole empire and
+> shows the next thing to finish anywhere - a building, a training batch, or a
+> fleet at sea - with a countdown. Click it and you land on that island, ready
+> to queue the next thing. When the chip disappears, that is information too:
+> nothing is under way anywhere, and idle halls earn nothing. Fair winds.
+
+The one number that answers "why open the tab now" — every mobile 4X converged
+on it independently. Server side each island row carries its soonest queue
+head; the client folds in fleet arrivals and shows the minimum, minute-granular
+until the final minute. Deliberately calm: no colour of its own, no seconds
+until they matter.
+
+It shipped with two gaps, both the same mistake — building the piece in
+isolation instead of checking what neighbouring code already does. Every fleet
+rendered as "My Island" (a `label` field movements never had; the #66 family,
+one field over — fixed in #89 by reusing the Movements list's wording), and the
+chip wore a hardcoded cream pill that punched through the parchment theme's
+wood plate (#90 — the fix was deletion; its siblings inherit the theme, now it
+does too).
+
+Shipped in #88. Fixed in #89, #90. Tracking: #87.
+
+### 2026-08-05 · Mid-season quality-of-life wave
+
+> Mid-season quality-of-life wave: the new Islands tab (press o) lays out your
+> whole holding — stocks, production, defence, walls, merchants — with honest
+> totals and a production row. Arrow keys walk it weakest-first, and the dock
+> now follows every island switch instantly. On the shipping form, the little
+> arrow fills a one-resource convoy to the maximum in one click. And convoys
+> between your own islands no longer write a report — the reports tab is for
+> news again. Fair winds.
+
+The wave, by the numbers: the Islands tab (#77, PRs #78/#79/#81 — totals only
+where a sum is honest, production as its own row), ArrowUp/Down selection in
+table order with the stale-dock fix underneath, the ▲ fill-max buttons on the
+shipping form, and self-convoy receipts silenced (pool receipts and real trade
+receipts kept — the discriminator is fromId === toId). Not announced because
+they are invisible until the boundary: the pool.js extraction (#58), the pool
+distance term (#76), respawn protection (#82, PR pending) and pop-at-origin
+(#84, PR pending), all world-stamped for season 5.
 
 ### 2026-07-31 04:29 · Colony Ships get dearer as you spread
 
@@ -101,25 +144,6 @@ Shipped in #47–#55. Tracking: #46.
 ---
 
 ## Season 3 — opened 2026-07-20
-
-### 2026-08-05 · Mid-season quality-of-life wave
-
-> Mid-season quality-of-life wave: the new Islands tab (press o) lays out your
-> whole holding — stocks, production, defence, walls, merchants — with honest
-> totals and a production row. Arrow keys walk it weakest-first, and the dock
-> now follows every island switch instantly. On the shipping form, the little
-> arrow fills a one-resource convoy to the maximum in one click. And convoys
-> between your own islands no longer write a report — the reports tab is for
-> news again. Fair winds.
-
-The wave, by the numbers: the Islands tab (#77, PRs #78/#79/#81 — totals only
-where a sum is honest, production as its own row), ArrowUp/Down selection in
-table order with the stale-dock fix underneath, the ▲ fill-max buttons on the
-shipping form, and self-convoy receipts silenced (pool receipts and real trade
-receipts kept — the discriminator is fromId === toId). Not announced because
-they are invisible until the boundary: the pool.js extraction (#58), the pool
-distance term (#76), respawn protection (#82, PR pending) and pop-at-origin
-(#84, PR pending), all world-stamped for season 5.
 
 ### 2026-07-27 · Mail: link a Nostr identity
 
