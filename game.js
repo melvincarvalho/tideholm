@@ -1572,11 +1572,17 @@ function applyMovement(world, m) {
     for (const r of RESOURCES) {
       dest.resources[r] = Math.min(cap, dest.resources[r] + m.loot[r]);
     }
-    addReport(world, m.ownerId, m.arrive,
-      t(atkLang, 'report.trade.sent.title', { where }), [
-        t(atkLang, 'report.trade.sent.l1', { res: fmtRes(m.loot, atkLang) }),
-      ]);
-    if (dest.ownerId !== m.ownerId) {
+    // Your own convoy arriving at your own island is not news — you sent it,
+    // the top bar shows it landed, and during a funnel (a wonder build, a
+    // fortress fill) the receipts would bury every report that matters.
+    // Pool deliveries stay: they sail from an island to itself (fromId ===
+    // toId) and their receipt is the swap's actual yield. Real trades keep
+    // their receipts on both sides.
+    if (dest.ownerId !== m.ownerId || m.fromId === m.toId) {
+      addReport(world, m.ownerId, m.arrive,
+        t(atkLang, 'report.trade.sent.title', { where }), [
+          t(atkLang, 'report.trade.sent.l1', { res: fmtRes(m.loot, atkLang) }),
+        ]);
       addReport(world, dest.ownerId, m.arrive,
         t(defLang, 'report.trade.recv.title', { where }), [
           t(defLang, 'report.trade.recv.l1', {

@@ -411,6 +411,24 @@ console.log('trade & rename');
     w.reports.some((x) => x.ownerId === b.id && x.title.startsWith('Shipment arrived')));
 }
 {
+  // A convoy between your OWN islands lands silently — during a funnel the
+  // receipts would bury every report that matters. Pool deliveries (from an
+  // island to itself) keep theirs: that receipt is the swap's yield.
+  const { w, a, ia, ib } = freshWorld();
+  ib.ownerId = a.id;
+  ia.buildings.harbor = 1;
+  ib.buildings.harbor = 1;
+  ia.resources = { wood: 500, stone: 0, gold: 0 };
+  const before = w.reports.filter((x) => x.ownerId === a.id).length;
+  const r = g.sendTrade(w, a, ia, ib, { wood: 100 }, t0);
+  g.resolveIsland(ib, t0);
+  ib.resources = { wood: 0, stone: 0, gold: 0 };
+  g.resolveWorld(w, r.arrive + 1);
+  check('self-convoy delivers', ib.resources.wood >= 100);
+  check('but writes no receipt',
+    w.reports.filter((x) => x.ownerId === a.id).length === before);
+}
+{
   const { w, a, ia } = freshWorld();
   check('rename works', !g.renameIsland(w, a, ia, 'Šťastný Ostrov').error &&
     ia.name === 'Šťastný Ostrov');
