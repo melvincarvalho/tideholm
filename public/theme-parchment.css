@@ -78,6 +78,9 @@ html[data-theme="parchment"] #resbar {
   text-shadow: 0 1px 2px #000;
   font-size: 14.5px;
 }
+/* Pinned, the plate keeps a sliver of air above it instead of kissing the
+   viewport edge; content sliding past its sides is the point of a plate. */
+html[data-theme="parchment"] #resbar { top: 6px; }
 html[data-theme="parchment"] #resbar b { color: #f4e6c4; font-weight: normal; }
 html[data-theme="parchment"] #resbar small { color: #9b8250; }
 
