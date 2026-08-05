@@ -244,6 +244,9 @@ Fame. Shipped in ac5502f.
 
 ### Fixes you may have noticed
 
+- The res bar now survives scrolling — pinned to the top of the viewport, so
+  stocks stay readable while you compare costs deep in a table. Asked for by
+  a player mid-season 4. (#91)
 - Shipments carrying a fractional amount printed the full float — a delivery
   once read `107.20775939008854 wood`. Now floored for display; the exact
   amount still arrives. (#57)
