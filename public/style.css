@@ -141,9 +141,12 @@ h2 { margin-top: 2px; }
 }
 .res-max:hover { background: #e0d1a8; }
 
-.next-chip { cursor: pointer; background: #f7f0dd; border-radius: 4px; padding: 2px 8px; }
-.next-chip:hover { background: #efe3c4; }
-.next-chip b { font-variant-numeric: tabular-nums; font-weight: 600; }
+/* The chip dresses like its siblings — no background of its own, so it
+   inherits whichever plate the theme paints. Only the cursor and a quiet
+   hover underline say "clickable". */
+.next-chip { cursor: pointer; }
+.next-chip:hover b { text-decoration: underline; }
+.next-chip b { font-variant-numeric: tabular-nums; }
 
 tr.clickable { cursor: pointer; }
 tr.clickable:hover { background: #f3ecd9; }
