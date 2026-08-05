@@ -95,6 +95,11 @@ button:disabled { opacity: 0.45; cursor: default; }
   background: var(--paper);
   border-bottom: 2px solid var(--accent);
   padding: 7px 14px;
+  /* Survives scrolling: the numbers you need are needed mid-table, where
+     the costs are. Below the pregame banner's 50. */
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
 #resbar small { color: #6b5d40; }
 
