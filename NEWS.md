@@ -16,9 +16,26 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 4 — opened 2026-07-29 16:30 UTC
 
-Six announcements, all sent. Text below is what players actually received,
+Seven announcements, all sent. Text below is what players actually received,
 which differs from the drafts: the endpoint caps at 500 characters and reports
 are plain text, so markdown emphasis and `×` became prose and `x`.
+
+### 2026-08-05 · The res bar survives scrolling
+
+> By popular demand: the resource bar now stays with you when you scroll.
+> However deep you are in a build table or a long report, your stocks, the
+> capacity, and the hourglass chip ride along at the top of the screen - so
+> you can weigh an upgrade cost against what you actually hold without
+> scrolling back up. A small thing, asked for by a player, shipped the same
+> day. Keep them coming. Fair winds.
+
+Asked for by a player mid-season 4, announced because it was asked for. Three
+lines of CSS under the pregame banner's precedent; the parchment theme's
+floating plate keeps a sliver of air above it when pinned. Only the res bar
+pins — the nav tabs already have keyboard shortcuts, and pinning both would
+double the vertical cost on phones.
+
+Shipped in #91.
 
 ### 2026-08-05 · The hourglass chip
 
@@ -244,9 +261,6 @@ Fame. Shipped in ac5502f.
 
 ### Fixes you may have noticed
 
-- The res bar now survives scrolling — pinned to the top of the viewport, so
-  stocks stay readable while you compare costs deep in a table. Asked for by
-  a player mid-season 4. (#91)
 - Shipments carrying a fractional amount printed the full float — a delivery
   once read `107.20775939008854 wood`. Now floored for display; the exact
   amount still arrives. (#57)
