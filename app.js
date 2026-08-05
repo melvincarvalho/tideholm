@@ -474,6 +474,22 @@ export function createApp(opts = {}) {
         tradeSlots: game.tradeSlotsPerHarbor(world) == null
           ? null
           : { free: game.tradeSlotsFree(world, i), total: game.tradeSlotsTotal(world, i) },
+        // The soonest committed completion on this island (#87): build or
+        // train queue head, whichever lands first. The client folds these
+        // with fleet arrivals into the topbar's next-completion chip.
+        nextFinish: (() => {
+          const cands = [];
+          if (i.queue && i.queue.length) {
+            const q = i.queue[0];
+            cands.push({ at: q.finish, kind: 'build', label: t(lang, `building.${q.building}.name`) + ' → ' + q.level });
+          }
+          if (i.trainQueue && i.trainQueue.length) {
+            const q = i.trainQueue[0];
+            cands.push({ at: q.finish, kind: 'train', label: q.count + '× ' + t(lang, `unit.${q.unit}.name`) });
+          }
+          if (!cands.length) return null;
+          return cands.reduce((a, b) => (a.at <= b.at ? a : b));
+        })(),
       })),
       island: {
         id: island.id,

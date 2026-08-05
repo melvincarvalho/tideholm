@@ -795,6 +795,8 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     // while looking perfectly plausible. Only a clock that has moved proves
     // the poll resolved it.
     second.buildings.lumberyard = 5;   // an earlier block zeroed it; it must produce
+    // #87 positive case: a queued training batch must surface as nextFinish.
+    second.trainQueue = [{ unit: 'spearman', count: 2, finish: Date.now() + 600000 }];
     const staleAt = Date.now() - 3600_000;
     second.lastUpdate = staleAt;
     second.resources = { wood: 100, stone: 100, gold: 100 };
@@ -832,6 +834,18 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       // they must be the island's own, not the active island's — the same
       // copied-row hazard every other figure in this block guards against.
       const wantRates = gameMod.islandRates(src);
+      // #87: the chip's per-island source must be the island's own queue
+      // heads — same copied-row hazard as every other figure here.
+      const wantNext = (() => {
+        const c = [];
+        if (src.queue && src.queue.length) c.push(src.queue[0].finish);
+        if (src.trainQueue && src.trainQueue.length) c.push(src.trainQueue[0].finish);
+        return c.length ? Math.min(...c) : null;
+      })();
+      check(`${where}: nextFinish matches the queue heads`,
+        (wantNext == null && row.nextFinish == null)
+        || (row.nextFinish && row.nextFinish.at === wantNext),
+        JSON.stringify(row.nextFinish));
       check(`${where}: production rates match game.js`,
         row.rates && row.rates.wood === wantRates.wood
         && row.rates.stone === wantRates.stone && row.rates.gold === wantRates.gold,

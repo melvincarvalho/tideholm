@@ -251,6 +251,41 @@ function fmtNum(n) {
   return String(n);
 }
 
+// The next-completion chip (#87): the soonest committed finish across the
+// empire — every island's queue heads (from the payload) plus own fleet
+// arrivals. The one number that answers "why open the tab now".
+let nextChipTarget = null; // { at, label, islandId } — islandId null for fleet
+function computeNextChip() {
+  if (!state) return null;
+  const cands = [];
+  for (const i of state.islands) {
+    if (i.nextFinish) cands.push({ at: i.nextFinish.at, label: `${i.nextFinish.label} · ${i.name}`, islandId: i.id });
+  }
+  for (const m of (state.movements && state.movements.outgoing) || []) {
+    if (m.arrive > Date.now()) cands.push({ at: m.arrive, label: m.label || T('ui.tab.island'), islandId: null });
+  }
+  if (!cands.length) return null;
+  return cands.reduce((a, b) => (a.at <= b.at ? a : b));
+}
+function renderNextChip() {
+  const el = $('next-chip');
+  if (!el) return;
+  if (!nextChipTarget || nextChipTarget.at - Date.now() < -5000) {
+    nextChipTarget = computeNextChip();
+  }
+  if (!nextChipTarget) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const left = Math.max(0, (nextChipTarget.at - Date.now() - clockSkew) / 1000);
+  // Minute granularity until the final minute — a calm chip, not a stopwatch.
+  const mins = Math.ceil(left / 60);
+  const shown = left >= 60
+    ? (mins >= 60 ? `${Math.floor(mins / 60)}h` + (mins % 60 ? ` ${mins % 60}m` : '') : `${mins}m`)
+    : fmtTime(left);
+  $('next-chip-text').textContent = `${nextChipTarget.label} · ${shown}`;
+  el.title = nextChipTarget.label;
+}
+setInterval(renderNextChip, 1000);
+
 function fmtTime(seconds) {
   seconds = Math.max(0, Math.round(seconds));
   const h = Math.floor(seconds / 3600);
@@ -326,6 +361,9 @@ function renderState() {
 
   // Keep the islands table live while it is the tab on screen (#77).
   if (!$('view-islands').classList.contains('hidden')) renderIslands();
+
+  nextChipTarget = computeNextChip();
+  renderNextChip();
 
   // Unread badges
   const badge = $('report-badge');
@@ -587,6 +625,13 @@ async function train(key) {
     $('train-error').textContent = err.message;
   }
 }
+
+$('next-chip').addEventListener('click', () => {
+  if (nextChipTarget && nextChipTarget.islandId != null) {
+    selectIsland(nextChipTarget.islandId);
+    showTab('island');
+  }
+});
 
 $('island-select').addEventListener('change', () => {
   activeIslandId = Number($('island-select').value);
