@@ -951,6 +951,22 @@ $('scout-send').addEventListener('click', async () => {
   }
 });
 
+// The ▲ next to each resource fills a single-resource shipment: that leg to
+// the maximum the harbor and the stores allow, the other two to zero. The
+// native number-spinners were never the tool for moving 500 wood — and
+// nearly every convoy of the live season was single-resource anyway.
+for (const btn of document.querySelectorAll('#trade-form .res-max')) {
+  btn.addEventListener('click', () => {
+    if (!state) return;
+    const res = btn.dataset.res;
+    for (const r of ['wood', 'stone', 'gold']) {
+      $('trade-' + r).value = r === res
+        ? Math.max(0, Math.min(Math.floor(state.island.resources[r]), state.island.tradeCap))
+        : 0;
+    }
+  });
+}
+
 $('trade-send').addEventListener('click', async () => {
   if (!attackTarget) return;
   $('attack-error').textContent = '';

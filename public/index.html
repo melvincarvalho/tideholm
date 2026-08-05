@@ -235,9 +235,12 @@
             <div id="trade-form" class="hidden">
               <h4 data-i18n="ui.trade.title"></h4>
               <div class="sim-row">
-                🪵 <input type="number" id="trade-wood" min="0" value="0">
-                🪨 <input type="number" id="trade-stone" min="0" value="0">
-                🪙 <input type="number" id="trade-gold" min="0" value="0">
+                🪵 <input type="number" id="trade-wood" min="0" value="0"
+                  ><button class="res-max" data-res="wood" title="fill with wood, clear the rest">▲</button>
+                🪨 <input type="number" id="trade-stone" min="0" value="0"
+                  ><button class="res-max" data-res="stone" title="fill with stone, clear the rest">▲</button>
+                🪙 <input type="number" id="trade-gold" min="0" value="0"
+                  ><button class="res-max" data-res="gold" title="fill with gold, clear the rest">▲</button>
               </div>
               <p class="hint" id="trade-cap"></p>
               <button id="trade-send" data-i18n="ui.trade.send"></button>
