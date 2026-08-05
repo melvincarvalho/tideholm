@@ -378,7 +378,9 @@ function renderState() {
       <td>${b.atMax ? '—' : fmtTime(b.time)}</td>
       <td>${b.atMax
         ? `<span class="hint">${T('ui.maxLevel', { max: b.maxLevel })}</span>`
-        : `<button data-build="${key}" ${b.affordable && !queueFull ? '' : 'disabled'}>→ ${b.nextLevel}</button>`
+        : b.needs
+          ? `<span class="hint">${T('ui.needsLevel', { building: b.needs.building, n: b.needs.level })}</span>`
+          : `<button data-build="${key}" ${b.affordable && !queueFull ? '' : 'disabled'}>→ ${b.nextLevel}</button>`
       }</td>`;
     bbody.appendChild(tr);
   }

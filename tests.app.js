@@ -761,6 +761,23 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     r.status === 200, `${r.status} ${JSON.stringify(r.data)}`);
   check('and it burned the whole holding', swapper.lpShares === 0);
 
+  // ------------------------------------- catalog requirements (the beacon-at-hall-9 bug)
+  // tryBuild always enforced building requirements; the catalog never
+  // mentioned them, so the client lit the Beacon whenever it was affordable.
+  {
+    console.log('\ncatalog requirements');
+    r = await req(oa.port, 'GET', '/api/state', { cookie: ocookie });
+    const wonderRow = r.data.buildings && r.data.buildings.wonder;
+    check('the wonder row reports its unmet requirement',
+      wonderRow && wonderRow.needs && wonderRow.needs.level === 10
+      && typeof wonderRow.needs.building === 'string',
+      JSON.stringify(wonderRow && wonderRow.needs));
+    isl.buildings.hall = 10;
+    r = await req(oa.port, 'GET', '/api/state', { cookie: ocookie });
+    check('and clears it at hall 10', !(r.data.buildings.wonder.needs));
+    isl.buildings.hall = 1;
+  }
+
   // ------------------------------------- the islands table payload (#77)
   // The table's value is that you can trust it without clicking through. So
   // every figure is checked against game.js for EVERY island, not just the

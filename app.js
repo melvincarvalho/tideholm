@@ -312,6 +312,19 @@ export function createApp(opts = {}) {
         affordable: game.canAfford(island, cost),
         maxLevel: cap,
         atMax: target > cap,
+        // The first unmet requirement, so the client can say WHY a row is
+        // locked instead of lighting the Beacon at hall 9: tryBuild always
+        // enforced this; the catalog just never said so.
+        ...(function () {
+          const req = game.BUILDINGS[key].requires;
+          if (!req) return {};
+          for (const [nk, nl] of Object.entries(req)) {
+            if ((island.buildings[nk] || 0) < nl) {
+              return { needs: { building: t(lang, `building.${nk}.name`), level: nl } };
+            }
+          }
+          return {};
+        })(),
       };
     }
     return out;
