@@ -141,6 +141,10 @@ h2 { margin-top: 2px; }
 }
 .res-max:hover { background: #e0d1a8; }
 
+.next-chip { cursor: pointer; background: #f7f0dd; border-radius: 4px; padding: 2px 8px; }
+.next-chip:hover { background: #efe3c4; }
+.next-chip b { font-variant-numeric: tabular-nums; font-weight: 600; }
+
 tr.clickable { cursor: pointer; }
 tr.clickable:hover { background: #f3ecd9; }
 
