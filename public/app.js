@@ -412,7 +412,7 @@ function renderState() {
     const tr = document.createElement('tr');
     const queueFull = isl.queue.length >= isl.queueMax;
     tr.innerHTML = `
-      <td><b>${b.name}</b><br><small>${b.desc}</small></td>
+      <td><b>${b.name}</b>${b.atMax || b.needs || b.affordable ? '' : affordBadge(b.cost)}<br><small>${b.desc}</small></td>
       <td>${b.level}</td>
       <td class="cost">${b.atMax ? '—' : `🪵 ${b.cost.wood} 🪨 ${b.cost.stone} 🪙 ${b.cost.gold}`}</td>
       <td>${b.atMax ? '—' : fmtTime(b.time)}</td>
@@ -434,6 +434,36 @@ function renderState() {
   // the "finished" result: refresh() is what called us, and re-entering it
   // from here would loop on any item whose finish time has already passed.
   paintCountdowns(Date.now() + clockSkew);
+}
+
+// #18: when the island can afford a cost, given stocks and rates. Seconds
+// until affordable, or null when it already is — or never will be at current
+// rates (a deficit with no production, or a cost over the storehouse cap):
+// 'never' is not a countdown worth printing.
+function affordEtaSeconds(cost) {
+  const isl = state.island;
+  let secs = 0;
+  for (const r of ['wood', 'stone', 'gold']) {
+    const need = cost[r] || 0;
+    const deficit = need - isl.resources[r];
+    if (deficit <= 0) continue;
+    if (need > isl.capacity) return null;
+    const rate = isl.rates && isl.rates[r];
+    if (!rate) return null;
+    secs = Math.max(secs, (deficit / rate) * 3600);
+  }
+  return secs > 0 ? secs : null;
+}
+
+// The green badge beside a name: '⏳ 2h 14m' until affordable. Minute-granular
+// — the table re-renders on every state poll, so no timer of its own.
+function affordBadge(cost) {
+  const secs = affordEtaSeconds(cost);
+  if (secs == null) return '';
+  const mins = Math.ceil(secs / 60);
+  const label = mins >= 60 ? `${Math.floor(mins / 60)}h` + (mins % 60 ? ` ${mins % 60}m` : '')
+    : mins >= 1 ? `${mins}m` : '<1m';
+  return ` <small class="afford-eta">⏳ ${label}</small>`;
 }
 
 function renderMovements() {
@@ -478,7 +508,7 @@ function renderTroops() {
          <button data-train="${key}">${T('ui.train.button', { t: fmtTime(u.time) })}</button>`
       : `<small class="hint">${T('ui.needs', { building: u.requires })}</small>`;
     tr.innerHTML = `
-      <td><b>${u.name}</b><br><small>${u.desc}</small></td>
+      <td><b>${u.name}</b>${u.available ? affordBadge(u.cost) : ''}<br><small>${u.desc}</small></td>
       <td>${u.count}</td><td>${u.atk}</td><td>${u.def}</td><td>${u.carry}</td>
       <td class="cost" id="cost-${key}">🪵${u.cost.wood} 🪨${u.cost.stone} 🪙${u.cost.gold}</td>
       <td class="train-cell">${trainCell}</td>`;
