@@ -261,6 +261,26 @@ Fame. Shipped in ac5502f.
 
 ### Fixes you may have noticed
 
+### The boundary batch (2026-08-06, unannounced by design)
+
+Shipped in season 4's final hours, when the world had three unread Beacon
+reports and one player left standing at the keyboard. The season-5 opening
+announcement is the right place to say these out loud:
+
+- **Your did:nostr banner survives the season** (#86, PR #92): links live in
+  `identity.json` — hall-of-fame pattern, the boundary never touches it —
+  keyed by pod WebID. Both linked players were seeded before the reset. And
+  quest 9 of 9, *Raise your banner*, closes the chain: link a key (noskey is
+  the zero-install path), wear the ⚿ in rankings.
+- **Gold Mine 18 → 15/h** (#64 supply half, PR #93): gold ran 14.8% of output
+  against 9.6% of spend. This closes ~43% of the surplus; sinks (festivals,
+  crew costs) stay open in #64 for the rest.
+- **Green affordability countdowns** (#18, PR #94): `⏳ 2h 14m` beside every
+  building and unit name you can't yet afford, from live stocks and rates.
+  Only speaks when informative — an affordable row's button says it, and
+  'never' is not a countdown.
+
+
 - Shipments carrying a fractional amount printed the full float — a delivery
   once read `107.20775939008854 wood`. Now floored for display; the exact
   amount still arrives. (#57)
