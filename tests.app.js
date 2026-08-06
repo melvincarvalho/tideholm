@@ -1087,6 +1087,37 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     delete process.env.IDENTITY_FILE;
   }
 
+  // ---- #96: bots fly the banner the host hands them ----
+  {
+    fs.rmSync(path.join(process.env.DATA_DIR, 'world.json'), { force: true });
+    const didFor = (name) => 'did:nostr:' + Buffer.from(name).toString('hex').padEnd(64, '0').slice(0, 64);
+    const botApp = createApp({
+      botCount: 3, freeIsles: 1, log: silent,
+      botIdentity: async (name) => ({ webId: `https://pods.test/${name}`, nostrDid: didFor(name) }),
+    });
+    botApp.start();
+    const { srv, port } = await serve(botApp);
+    const reg = await req(port, 'POST', '/api/register',
+      { body: { name: 'Watcher', password: 'sekritsekrit', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    // the sweep is async fire-and-forget from start() — poll briefly
+    let bots = [];
+    for (let i = 0; i < 20; i++) {
+      const rank = await req(port, 'GET', '/api/rankings', { cookie });
+      bots = (rank.data.rankings || []).filter((r) => r.isBot);
+      if (bots.length && bots.every((b) => b.nostrDid)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    check('#96 every bot row carries its did', bots.length === 3 && bots.every((b) => b.nostrDid === didFor(b.name)),
+      JSON.stringify(bots.map((b) => [b.name, b.nostrDid && b.nostrDid.slice(0, 16)])));
+    check('#96 bot webIds ride along as extId', bots.every((b) => b.webId === `https://pods.test/${b.name}`));
+    const world = botApp.world;
+    check('#96 the sweep persists on the player objects',
+      world.players.filter((p) => p.isBot).every((p) => p.nostrDid && p.extId));
+    botApp.stop();
+    srv.close();
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

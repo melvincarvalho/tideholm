@@ -33,6 +33,7 @@ const fastify = createServer({
     config: {
       dataDir: path.join(DATA, 'game'), // pre-loader deployments keep their world
       adminToken: process.env.ADMIN_TOKEN,
+      issuer: PUBLIC_URL, // bots get pods + did:nostr banners (#96)
     },
   }],
 });
