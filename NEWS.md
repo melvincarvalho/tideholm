@@ -16,6 +16,22 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-06 16:20 · The dock drops its coordinates
+
+> Small quality-of-life change: the islands dock at the bottom now shows just
+> your islands names - the coordinates are gone from the chips. The dock is a
+> switcher, not a map: you click islands by name, and the coordinates doubled
+> every chips width without earning it. They are still one hover away (or a
+> long-press on mobile) in the chips tooltip, and unchanged on the map, the
+> island header, and the dropdown. More islands per row, calmer dock, nothing
+> lost. Fair winds.
+
+Five deleted lines (#101). The apostrophes fell out of the sent copy at the
+shell boundary — "your islands names" — a smaller price than the merchant
+label of #66, but the same lesson: what players received is what gets
+recorded. Suggested by the season-4 dock, which at fourteen islands was
+two-thirds coordinates by pixel count.
+
 ### 2026-08-06 15:08 · The season-5 opener
 
 > Season 5 is live. New laws: Colony Ships cost x1.4 per step - the 10th is
