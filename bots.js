@@ -107,6 +107,10 @@ function rollPersona(kind) {
       trainMix: { sentinel: 1, spearman: 0, raider: 0 },
       batch: randInt(1, 2),
       hallLag: randInt(2, 3),
+      // #39: the promised "safe farm loop", not the hardest island in the
+      // world. All-sentinel training packs the most defence per point of any
+      // mix, so barbarians fill only half the garrison cap other bots get.
+      defenseRatio: 0.5,
     };
   }
   return {
@@ -244,7 +248,8 @@ function maybeTrain(world, bot, island, now) {
   // island is already well-defended for its size. Raiders (offensive) are
   // exempt, so a capped bot shifts toward attacking rather than turtling.
   if (unit !== 'raider'
-      && unitPower(island.units, 'def') > islandPoints(island) * BOT_GARRISON_RATIO) {
+      && unitPower(island.units, 'def')
+         > islandPoints(island) * BOT_GARRISON_RATIO * (persona.defenseRatio || 1)) {
     return;
   }
   tryTrain(world, island, unit, persona.batch, now); // silently skips if unaffordable

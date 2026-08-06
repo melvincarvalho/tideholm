@@ -15,6 +15,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 process.env.GAME_SPEED = '1'; // test at classic pace; SPEED-scaling is tested explicitly
 process.env.MAX_BUILDING_LEVEL = '14'; // pin it: the cap is read from env at module load
 process.env.HALL_FILE = path.join(os.tmpdir(), `tideholm-hall-test-${process.pid}.json`);
+process.env.BOT_GARRISON_RATIO = '12'; // finite, so the cap (and #39's half-cap) is testable
 const g = await import('./game.js'); // dynamic: after the env above is set
 process.on('exit', () => {
   try { fs.rmSync(process.env.HALL_FILE, { force: true }); } catch { /* gone */ }
@@ -2179,6 +2180,30 @@ console.log('bot personalities');
   for (let i = 0; i < 300; i++) botTick(w, t0 + i * 15000);
   check('barbarian never attacks, scouts, colonizes or conquers',
     !w.movements.some((m) => m.ownerId === barb.id));
+}
+{
+  // #39: barbarians stop stacking defence at HALF the garrison cap. Same
+  // island, same stores, def power at 60% of the FULL cap — above the
+  // barbarian's half, below everyone else's whole. Only defenseRatio differs.
+  const { botTick, rollPersona } = await import('./bots.js');
+  const pin = (ratio) => {
+    const { w, b } = (() => {
+      const { w } = freshWorld();
+      const b = g.createPlayer(w, 'Cap Test', null, true).player;
+      b.persona = { ...rollPersona('barbarian'), tempo: 1, sleepLen: 0, batch: 2, defenseRatio: ratio };
+      return { w, b };
+    })();
+    const bi = g.playerIsland(w, b.id);
+    Object.assign(bi.buildings, { barracks: 3, farm: 14, storehouse: 8 });
+    bi.resources = { wood: 20000, stone: 20000, gold: 20000 };
+    const points = g.playerPoints(w, b.id);
+    const startSentinels = Math.ceil((points * 12 * 0.6) / 30); // def ≈ 60% of full cap
+    bi.units.sentinel = startSentinels;
+    for (let i = 0; i < 40; i++) botTick(w, t0 + i * 15000);
+    return bi.trainQueue.length > 0 || bi.units.sentinel > startSentinels;
+  };
+  check('#39 barbarian at 60% of full cap trains nothing more', pin(0.5) === false);
+  check('#39 the same island at full ratio keeps training', pin(1) === true);
 }
 {
   // Warlords hunt above their weight: far outside the band, soft intel, attack.
