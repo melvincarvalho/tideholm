@@ -16,6 +16,22 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-06 15:08 · The season-5 opener
+
+> Season 5 is live. New laws: Colony Ships cost x1.4 per step - the 10th is
+> ~56k. The Beacon wins at level 7; the last leg needs Storehouse 13. Gold
+> mines run 15/h - spend it, dont hoard it. Barbarians garrison HALF as
+> hard: the farm loop is real. Troops anywhere keep using their HOME
+> island's population. Respawn refuges get beginner protection. The Tidepool
+> sits mid-map and goods sail real distance. Your did:nostr banner survived
+> the reset - quest 9 rewards raising one. Fair winds.
+
+Held until the audience existed: an announcement only reaches players who
+exist, and a fresh world has none until each logs in. Both returning
+captains appeared within six minutes of the gates opening — sent then.
+Eight law changes in 486 characters; the boundary batch (NEWS.md below)
+and deploy/next-season.env carry the details and the reasoning.
+
 ### 2026-08-06 14:52 · Season 4 ends: the Beacon burns over V4
 
 > The Great Beacon burns at level 6 over V4 - season 4 belongs to melvin.
@@ -30,9 +46,8 @@ melvin, 14 of 63 islands, via wonder). The tower was announced at every
 level and never drew a shot; the level-5 window stood open for a full day.
 Chronicle: seasons/season-4.html.
 
-The season-5 opener is drafted and held: a fresh world has no human players
-until each logs in, and an announcement only reaches players who exist —
-it goes out once the returning captains have appeared.
+The season-5 opener was held until the returning captains appeared — see
+the entry above for the text as sent.
 
 ## Season 4 — opened 2026-07-29 16:30 UTC
 
