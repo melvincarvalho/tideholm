@@ -46,7 +46,10 @@ prints admin stats. The hall of fame survives by design.
 
       ssh ubuntu@nostr.social "python3 - <<'EOF'
       import json
-      w = json.load(open(sorted(__import__('glob').glob('/home/ubuntu/tideholm/jss-plugin/data/game/backups/world-season-end-*.json'))[-1]))
+      # NOT sorted(glob(...))[-1]: 'world-season-end-resurrected-…' sorts after
+      # every dated name ('r' > '2') and handed season 2's world to the season-4
+      # chronicle on 2026-08-06. Name the exact stamp the flip just printed.
+      w = json.load(open('/home/ubuntu/tideholm/jss-plugin/data/game/backups/world-season-end-<STAMP>.json'))
       for k in ('sessions','messages','boards','offers'): w.pop(k, None)
       for p in w['players']: p.pop('salt', None); p.pop('hash', None)
       print(json.dumps(w))
