@@ -89,6 +89,19 @@ button:disabled { opacity: 0.45; cursor: default; }
 
 .tab.active { background: var(--accent); color: #fff; }
 
+/* Tab icons (#102): stroke inherits the button ink via currentColor. On
+   narrow screens the words step aside and the icons carry the row — the
+   label stays in the accessibility tree (clipped, not display:none). */
+.tab { display: inline-flex; align-items: center; gap: 6px; }
+.tab-ico { width: 1.15em; height: 1.15em; flex: none; }
+@media (max-width: 620px) {
+  .tab { gap: 0; }
+  .tab-label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+}
+
 #resbar {
   display: flex;
   gap: 22px;

@@ -33,6 +33,22 @@
   <link rel="stylesheet" href="stage.css">
 </head>
 <body>
+    <!-- Tab icon sprite (#102): stroke-only, currentColor — the ink follows
+         the theme (parchment gold, retro dark, active highlight) with no
+         hardcoded fills. The painted icon set is reserved for content
+         surfaces; chrome stays quiet. -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <g id="i-island"><path d="M4 19a8 4.5 0 0 1 16 0"/><path d="M11.5 15c0-3 .3-5 1.5-7"/><path d="M13 8c-2-2-4-2.5-6-1.5M13 8c2-2 4-2.5 6-1.5M13 8c-.5-2.5-2-4-4-4.5M13 8c1.5-2 3.5-2.5 5.5-2"/></g>
+        <g id="i-islands"><path d="M2.5 10.5a4 2.5 0 0 1 8 0M13.5 8a3.5 2.2 0 0 1 7 0M7 19.5a4.5 2.6 0 0 1 9 0"/><path d="M6.5 8.5c0-1.5.2-2.5 1-3.5M17 6c0-1.2.2-2 .8-2.8"/></g>
+        <g id="i-map"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/><path d="M17.2 8.2l2.6 2.6M19.8 8.2l-2.6 2.6"/></g>
+        <g id="i-reports"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 12h5M9.5 15.5h5"/></g>
+        <g id="i-rankings"><path d="M8 4h8v4a4 4 0 0 1-8 0z"/><path d="M8 5H5a3 3 0 0 0 3 4M16 5h3a3 3 0 0 1-3 4"/><path d="M12 12v4M8 20h8M10 20l.6-4h2.8l.6 4"/></g>
+        <g id="i-market"><path d="M4 4h16l1.5 5h-19z"/><path d="M5 9v11h14V9"/><path d="M9 20v-5h6v5"/></g>
+        <g id="i-alliance"><path d="M8.5 3.5l4.5 1.7V10c0 3.2-1.9 5.4-4.5 6.5C5.9 15.4 4 13.2 4 10V5.2z"/><path d="M15.5 7.5L20 9.2v4.3c0 3.2-1.9 5.4-4.5 6.5c-1.2-.5-2.2-1.2-3-2.1"/></g>
+        <g id="i-mail"><path d="M3 6h18v12H3z"/><path d="M3 6l9 7 9-7"/></g>
+      </defs>
+    </svg>
 
   <!-- Login / register (same ids the client binds) -->
   <div id="auth" class="hidden">
@@ -62,14 +78,14 @@
     <header>
       <span class="brand">Tideholm</span>
       <nav>
-        <button id="tab-island" class="tab active" data-i18n="ui.tab.island"></button>
-        <button id="tab-islands" class="tab" data-i18n="ui.tab.islands"></button>
-        <button id="tab-map" class="tab" data-i18n="ui.tab.map"></button>
-        <button id="tab-reports" class="tab"><span data-i18n="ui.tab.reports"></span> <span id="report-badge" class="badge hidden"></span></button>
-        <button id="tab-rankings" class="tab" data-i18n="ui.tab.rankings"></button>
-        <button id="tab-market" class="tab" data-i18n="ui.tab.market"></button>
-        <button id="tab-alliance" class="tab" data-i18n="ui.tab.alliance"></button>
-        <button id="tab-messages" class="tab"><span data-i18n="ui.tab.mail"></span> <span id="mail-badge" class="badge hidden"></span></button>
+        <button id="tab-island" class="tab active"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-island"/></svg><span class="tab-label" data-i18n="ui.tab.island"></span></button>
+        <button id="tab-islands" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-islands"/></svg><span class="tab-label" data-i18n="ui.tab.islands"></span></button>
+        <button id="tab-map" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map"/></svg><span class="tab-label" data-i18n="ui.tab.map"></span></button>
+        <button id="tab-reports" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-reports"/></svg><span class="tab-label" data-i18n="ui.tab.reports"></span> <span id="report-badge" class="badge hidden"></span></button>
+        <button id="tab-rankings" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-rankings"/></svg><span class="tab-label" data-i18n="ui.tab.rankings"></span></button>
+        <button id="tab-market" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-market"/></svg><span class="tab-label" data-i18n="ui.tab.market"></span></button>
+        <button id="tab-alliance" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-alliance"/></svg><span class="tab-label" data-i18n="ui.tab.alliance"></span></button>
+        <button id="tab-messages" class="tab"><svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-mail"/></svg><span class="tab-label" data-i18n="ui.tab.mail"></span> <span id="mail-badge" class="badge hidden"></span></button>
       </nav>
       <span class="spacer"></span>
       <select id="island-select" class="hidden"></select>
