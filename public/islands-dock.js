@@ -64,7 +64,6 @@
       '#islands-dock .isl.pinned.active{background:rgba(91,157,255,.18)}' +
       '#islands-dock .pin{font-size:10px;line-height:1;flex:0 0 auto;opacity:.9}' +
       '#islands-dock .nm{max-width:120px;overflow:hidden;text-overflow:ellipsis}' +
-      '#islands-dock .co{opacity:.55;font-weight:400}' +
       '#islands-dock .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}' +
       '#islands-dock .d-atk{background:#e5484d;box-shadow:0 0 0 2px rgba(229,72,77,.28)}' +
       '#islands-dock .d-cap{background:#f5a524}' +
@@ -164,10 +163,6 @@
       nm.className = 'nm';
       nm.textContent = i.name;
       pill.appendChild(nm);
-      var co = document.createElement('span');
-      co.className = 'co';
-      co.textContent = i.x + ':' + i.y;
-      pill.appendChild(co);
       if (atk) pill.appendChild(mkDot('d-atk'));
       if (d.cap) pill.appendChild(mkDot('d-cap'));
       if (d.idle) pill.appendChild(mkDot('d-idle'));
