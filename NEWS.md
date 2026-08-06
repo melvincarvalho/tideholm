@@ -277,6 +277,10 @@ announcement is the right place to say these out loud:
   building and unit name you can't yet afford, from live stocks and rates.
   Only speaks when informative — an affordable row's button says it, and
   'never' is not a countdown.
+- **Barbarians garrison to half the cap** (#39 defence half, PR #95):
+  all-sentinel training made the "safe farm loop" the hardest islands in the
+  world. Persona-level `defenseRatio: 0.5`; season 5's fresh bot roll carries
+  it from creation. Whether farming them *pays* stays open in #39.
 
 ### Fixes you may have noticed
 
