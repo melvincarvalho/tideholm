@@ -79,7 +79,11 @@ const BUILDINGS = {
     base: { wood: 110, stone: 110, gold: 0 },
     time: 120,
     produces: 'gold',
-    perHour: 18,
+    // 18 -> 15 (#64): gold ran 14.8% of output against 9.6% of spend. This
+    // closes ~43% of the surplus from the supply side; the rest is the gold
+    // sinks' job (festivals, crew costs — still open in #64), so the full
+    // correction to ~11/h is deliberately NOT taken here.
+    perHour: 15,
   },
   storehouse: {
     name: 'Storehouse',

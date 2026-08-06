@@ -49,7 +49,7 @@ check('cost growth is 1.55x per level', (() => {
 check('storage capacity 400*1.5^lvl (lvl1=600, lvl2=900, lvl5=3038)',
   g.storageCapacity(1) === 600 && g.storageCapacity(2) === 900 && g.storageCapacity(5) === 3038);
 check('production lvl1 = base perHour at speed 1',
-  close(g.productionPerHour('lumberyard', 1), 40) && close(g.productionPerHour('goldmine', 1), 18));
+  close(g.productionPerHour('lumberyard', 1), 40) && close(g.productionPerHour('goldmine', 1), 15)); // 18->15: #64
 check('production lvl4 lumberyard = 40*4*1.12^3 ≈ 224.8',
   close(g.productionPerHour('lumberyard', 4), 40 * 4 * Math.pow(1.12, 3)));
 check('level 0 produces nothing', g.productionPerHour('quarry', 0) === 0);
