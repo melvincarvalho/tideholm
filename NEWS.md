@@ -16,6 +16,21 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-07 · The tabs grow icons
+
+> The tabs have grown icons - a palm for your island, a scroll for reports,
+> a trophy for rankings, and friends. On a phone the words now step aside
+> and the icons carry the whole row, so the top bar fits without wrapping.
+> On desktop you keep both. Drawn in the games own ink, they follow
+> whichever theme you play in. Small thing, easier thumbs. Fair winds.
+
+Eight hand-drawn stroke SVGs in one inline sprite, stroke=currentColor so
+every theme and the active state ink them correctly with no per-theme rules
+(#102, PR #103). The apostrophe in "game's" fell at the shell boundary
+again — twice now; the send pipeline owes us a proper JSON-file path. A
+painted full-colour icon set exists and was deliberately not spent on 24px
+chrome; it waits for content surfaces.
+
 ### 2026-08-06 16:45 · The Tidepool opens for season 5
 
 > The Tidepool is open in the Market tab - swap wood, stone and gold at a
