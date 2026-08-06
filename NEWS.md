@@ -14,6 +14,26 @@ who never heard about the keyboard shortcuts will never find them.
 
 ---
 
+## Season 5 — opens 2026-08-06 15:00 UTC
+
+### 2026-08-06 14:52 · Season 4 ends: the Beacon burns over V4
+
+> The Great Beacon burns at level 6 over V4 - season 4 belongs to melvin.
+> Fourteen islands, a river of convoys, and a tower raised in the open as a
+> target, so the endgame was anyone's to contest. Honours to philloster's
+> eleven-island empire in the southeast, and a first flag for darren. Season 5
+> opens TODAY at 17:00 CET on a fresh map with new laws - the opener that
+> follows has the details. Thank you for playing season 4. Fair winds.
+
+Sent minutes after checkVictory crowned the winner (hall of fame entry 4:
+melvin, 14 of 63 islands, via wonder). The tower was announced at every
+level and never drew a shot; the level-5 window stood open for a full day.
+Chronicle: seasons/season-4.html.
+
+The season-5 opener is drafted and held: a fresh world has no human players
+until each logs in, and an announcement only reaches players who exist —
+it goes out once the returning captains have appeared.
+
 ## Season 4 — opened 2026-07-29 16:30 UTC
 
 Seven announcements, all sent. Text below is what players actually received,
