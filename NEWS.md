@@ -259,8 +259,6 @@ Shipped in 2fc7a67, 9679da0, #29.
 Each finished season gets a permanent page, linked from its line in the Hall of
 Fame. Shipped in ac5502f.
 
-### Fixes you may have noticed
-
 ### The boundary batch (2026-08-06, unannounced by design)
 
 Shipped in season 4's final hours, when the world had three unread Beacon
@@ -280,6 +278,7 @@ announcement is the right place to say these out loud:
   Only speaks when informative — an affordable row's button says it, and
   'never' is not a countdown.
 
+### Fixes you may have noticed
 
 - Shipments carrying a fractional amount printed the full float — a delivery
   once read `107.20775939008854 wood`. Now floored for display; the exact
