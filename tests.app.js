@@ -1055,6 +1055,38 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       && !tfoot.includes('isl-t-def') && !tfoot.includes('isl-t-wall'));
   }
 
+  // ---- #86: the did:nostr link survives a world reset ----
+  {
+    process.env.IDENTITY_FILE = path.join(process.env.DATA_DIR, 'identity.json');
+    const DID = 'did:nostr:' + 'cd'.repeat(32);
+    const idApp = createApp({ botCount: 0, freeIsles: 2, log: silent });
+    const { srv, port } = await serve(idApp);
+    const reg = await req(port, 'POST', '/api/register',
+      { body: { name: 'Banner Bearer', password: 'sekritsekrit', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    const link = await req(port, 'POST', '/api/identity/nostr',
+      { cookie, body: { did: DID } });
+    check('#86 link accepted', link.status === 200 && link.data.nostrDid === DID,
+      JSON.stringify(link.data));
+    srv.close();
+
+    // the season boundary: the world file goes, the identity store stays.
+    // Same name registers afresh on the new world with the banner flying.
+    fs.rmSync(path.join(process.env.DATA_DIR, 'world.json'), { force: true });
+    const nextApp = createApp({ botCount: 0, freeIsles: 2, log: silent });
+    const { srv: srv2, port: port2 } = await serve(nextApp);
+    const reg2 = await req(port2, 'POST', '/api/register',
+      { body: { name: 'Banner Bearer', password: 'other-season-pass', lang: 'en' } });
+    check('#86 fresh world, fresh register', reg2.status === 200, JSON.stringify(reg2.data));
+    const cookie2 = (reg2.headers.get('set-cookie') || '').split(';')[0];
+    const rank = await req(port2, 'GET', '/api/rankings', { cookie: cookie2 });
+    const row = rank.data.rankings.find((r) => r.name === 'Banner Bearer');
+    check('#86 rankings row carries the recalled did', row && row.nostrDid === DID,
+      JSON.stringify(row));
+    srv2.close();
+    delete process.env.IDENTITY_FILE;
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

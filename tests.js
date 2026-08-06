@@ -2035,7 +2035,7 @@ console.log('quests');
   const { w, a, b, ia } = freshWorld();
   g.checkQuests(w, a, t0);
   let q = g.currentQuest(w, a);
-  check('new player starts on quest 1/8', q && q.i === 1 && q.n === 8);
+  check('new player starts on quest 1/9', q && q.i === 1 && q.n === 9);
 
   // complete quest 1: lumberyard to 2
   g.resolveIsland(ia, t0);
@@ -2065,12 +2065,40 @@ console.log('quests');
   g.checkQuests(w, a, r.arrive + 1);
   check('first victory clears the battle quest', g.currentQuest(w, a).i === 7);
 
-  // harbor + second island finish the chain
+  // harbor + second island reach the banner quest (#86)
   ia.buildings.harbor = 1;
   const free = g.newUnchartedIsland(w);
   free.ownerId = a.id;
   g.checkQuests(w, a, r.arrive + 2);
+  check('expansion leads to the banner quest', (g.currentQuest(w, a) || {}).i === 9);
+
+  // #86: the banner quest completes on a linked did, not before — and the
+  // link persists in the identity store across a world reset.
+  process.env.IDENTITY_FILE = new URL('./.test-identity.json', import.meta.url).pathname;
+  try { fs.unlinkSync(process.env.IDENTITY_FILE); } catch {}
+  g.checkQuests(w, a, r.arrive + 3);
+  check('no did — banner quest stays open', g.currentQuest(w, a) !== null);
+  a.nostrDid = 'did:nostr:' + 'ab'.repeat(32);
+  g.saveIdentityFor(a, a.nostrDid);
+  g.checkQuests(w, a, r.arrive + 3);
   check('chain finished — no quest shown', g.currentQuest(w, a) === null);
+  {
+    // a fresh seasonal player object with the same durable key gets the
+    // banner back — and therefore auto-completes the quest next season
+    const fresh = { name: a.name, extId: a.extId };
+    g.recallIdentity(fresh);
+    check('#86 link survives the boundary (recall restores the did)',
+      fresh.nostrDid === a.nostrDid);
+    const stranger = { name: 'someone else' };
+    g.recallIdentity(stranger);
+    check('#86 recall is keyed — a stranger gets nothing', !stranger.nostrDid);
+    g.saveIdentityFor(a, null);
+    const cleared = { name: a.name, extId: a.extId };
+    g.recallIdentity(cleared);
+    check('#86 clearing the link clears the store', !cleared.nostrDid);
+  }
+  try { fs.unlinkSync(process.env.IDENTITY_FILE); } catch {}
+  delete process.env.IDENTITY_FILE;
   check('quest rewards clamp at storehouse capacity',
     ia.resources.wood <= g.storageCapacity(ia.buildings.storehouse));
 }

@@ -1273,8 +1273,9 @@ async function loadRankings() {
   data.rankings.forEach((row, idx) => {
     const tr = document.createElement('tr');
     if (row.isYou) tr.className = 'me';
+    // ⚿ marks a raised did:nostr banner (#86) — the quest's real reward.
     tr.innerHTML = `<td>${idx + 1}</td>
-      <td>${row.name}${row.isBot ? ` <small class="hint">${T('ui.map.bot')}</small>` : ''}</td>
+      <td>${row.name}${row.nostrDid ? ' <span class="banner-glyph" title="did:nostr">⚿</span>' : ''}${row.isBot ? ` <small class="hint">${T('ui.map.bot')}</small>` : ''}</td>
       <td>${row.alliance ? '[' + row.alliance + ']' : '—'}</td>
       <td>${row.islands}</td><td>${row.points}</td>`;
     // Pod players carry a host-verified WebID; bots and password-mode players
