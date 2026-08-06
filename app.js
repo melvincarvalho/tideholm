@@ -265,6 +265,7 @@ export function createApp(opts = {}) {
       const r = game.createPlayer(world, name, crypto.randomBytes(18).toString('hex'), false, lang);
       if (!r.error) {
         r.player.extId = ident.id;
+        game.recallIdentity(r.player); // #86: returning banner flies from day one
         game.saveWorld(world);
         log.log(`provisioned player "${name}" for external identity ${ident.id}`);
         return r.player;
@@ -590,6 +591,7 @@ export function createApp(opts = {}) {
       if (password.length < 3) return sendErr(res, 400, lang, 'err.passwordShort');
       const result = game.createPlayer(world, name, password, false, lang);
       if (result.error) return gameErr(res, lang, result);
+      game.recallIdentity(result.player); // #86: name-keyed on password worlds
       startSession(res, result.player.id);
       game.saveWorld(world);
       return sendJson(res, 200, { ok: true });
@@ -738,8 +740,9 @@ export function createApp(opts = {}) {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const raw = String(body.did || '').trim().toLowerCase();
-      if (!raw) { // empty clears the link
+      if (!raw) { // empty clears the link — in the world AND the store (#86)
         player.nostrDid = null;
+        game.saveIdentityFor(player, null);
         game.saveWorld(world);
         return sendJson(res, 200, { nostrDid: null });
       }
@@ -748,6 +751,7 @@ export function createApp(opts = {}) {
       const m = /^(?:did:nostr:)?([0-9a-f]{64})$/.exec(raw);
       if (!m) return sendErr(res, 400, lang, 'err.badNostrDid');
       player.nostrDid = `did:nostr:${m[1]}`;
+      game.saveIdentityFor(player, player.nostrDid); // #86: survives seasons
       game.saveWorld(world);
       return sendJson(res, 200, { nostrDid: player.nostrDid });
     }

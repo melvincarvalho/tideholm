@@ -1964,6 +1964,11 @@ const QUESTS = [
     done: (world, p) => playerIslands(world, p.id).some((i) => i.buildings.harbor >= 1) },
   { id: 'expand2', reward: { wood: 400, stone: 400, gold: 200 },
     done: (world, p) => playerIslands(world, p.id).length >= 2 },
+  // #86: identity onboarding as gameplay. A token packet, not a payday —
+  // the real reward is the banner (the did in rankings). Auto-completes
+  // for returning players whose link recallIdentity restored.
+  { id: 'banner', reward: { wood: 200, stone: 200, gold: 200 },
+    done: (world, p) => !!p.nostrDid },
 ];
 
 function checkQuests(world, player, now) {
@@ -2005,6 +2010,41 @@ function currentQuest(world, player) {
 }
 
 // ---------------------------------------------------------------- victory
+
+// The identity store (#86): did:nostr links survive world resets, hall-of-
+// fame pattern — its own file, the season boundary never touches it. Keyed
+// by the durable identity: the pod WebID (extId) when the host authenticates,
+// else the player's lowercased name for password worlds. Paths resolve at
+// call time so tests can point IDENTITY_FILE at a scratch file per block.
+function identityFile() {
+  return process.env.IDENTITY_FILE
+    || path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'identity.json');
+}
+
+function identityKey(player) {
+  return player.extId || `name:${String(player.name || '').toLowerCase()}`;
+}
+
+function loadIdentityStore() {
+  try { return JSON.parse(fs.readFileSync(identityFile(), 'utf8')); } catch { return {}; }
+}
+
+function saveIdentityFor(player, nostrDid) {
+  const store = loadIdentityStore();
+  const key = identityKey(player);
+  if (nostrDid) store[key] = { ...store[key], nostrDid };
+  else delete store[key];
+  fs.mkdirSync(path.dirname(identityFile()), { recursive: true });
+  fs.writeFileSync(identityFile(), JSON.stringify(store, null, 2));
+}
+
+// A returning player's banner flies from day one of a new season: called at
+// provisioning/registration, it restores the stored link onto the fresh
+// seasonal player object. The world copy stays the runtime source of truth.
+function recallIdentity(player) {
+  const rec = loadIdentityStore()[identityKey(player)];
+  if (rec && rec.nostrDid && !player.nostrDid) player.nostrDid = rec.nostrDid;
+}
 
 // The hall of fame lives in its own file so it survives world resets.
 const HALL_FILE = process.env.HALL_FILE
@@ -2378,7 +2418,7 @@ export {
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
-  loadHall, WONDER_WIN_LEVEL,
+  loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
