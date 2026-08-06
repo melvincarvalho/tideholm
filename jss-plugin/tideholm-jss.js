@@ -30,11 +30,73 @@ export function nameFromWebId(webId) {
   }
 }
 
+// "Barnacle Bill" -> "barnacle-bill": pod-safe slug for a bot name.
+export function botSlug(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// #96: every bot flies a banner. Ensure a pod exists for the bot and return
+// its identity. The pod is minted through the host's own machinery (account
+// record + createPodStructure with provisionKeys), so the bot gets exactly
+// what a human registrant gets: profile card.jsonld, a /private/ owner key
+// (Schnorr secp256k1 — nostr's scheme), owner-only WAC. The did:nostr IS the
+// pod owner key; this plugin never touches key material.
+//
+// A registry file (bot-pods.json, beside the world in dataDir) remembers
+// name -> identity so later seasons reuse the pod: Ned is Ned forever. If
+// the slug is already a real account we did not create, the bot flies no
+// banner — never hijack a human's pod.
+async function makeEnsureBotPod({ issuer, dataDir, log }) {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const crypto = await import('node:crypto');
+  const { createAccount, findByUsername } = await import('javascript-solid-server/src/idp/accounts.js');
+  const { createPodStructure } = await import('javascript-solid-server/src/handlers/container.js');
+  const regFile = path.join(dataDir, 'bot-pods.json');
+  const loadReg = () => { try { return JSON.parse(fs.readFileSync(regFile, 'utf8')); } catch { return {}; } };
+
+  return async function ensureBotPod(botName) {
+    const key = String(botName || '').toLowerCase();
+    const reg = loadReg();
+    if (reg[key]) return reg[key];
+
+    const slug = botSlug(botName);
+    if (!slug) return null;
+    const webId = `${issuer}/${slug}/profile/card.jsonld#me`;
+    const podUri = `${issuer}/${slug}/`;
+
+    const existing = await findByUsername(slug);
+    if (existing) return null; // someone real holds this name — no banner
+
+    await createAccount({
+      username: slug,
+      // Throwaway: bot auth is the pod owner key, never a password login.
+      password: crypto.randomBytes(24).toString('hex'),
+      webId,
+      podName: slug,
+    });
+    const creation = await createPodStructure(slug, webId, podUri, issuer, 0, { provisionKeys: true });
+    const didNostr = creation && creation.ownerKey && creation.ownerKey.didNostr;
+    if (!didNostr) {
+      if (log && log.error) log.error(`bot pod for "${botName}": no owner key came back`);
+      return null;
+    }
+    const record = { slug, webId, nostrDid: didNostr };
+    reg[key] = record;
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(regFile, JSON.stringify(reg, null, 2));
+    if (log && log.log) log.log(`bot pod minted: ${botName} -> ${podUri} (${didNostr.slice(0, 20)}...)`);
+    return record;
+  };
+}
+
 /**
  * @param {object} opts
  * @param {string}   [opts.prefix='/tideholm']  mount point
  * @param {function} [opts.getWebId]            async (fastifyRequest) => webId|null
  * @param {string}   [opts.dataDir]             game storage (world.json, backups)
+ * @param {string}   [opts.issuer]              public origin; when set, every
+ *                                              bot gets a pod + did:nostr (#96)
  * @param {number}   [opts.botCount] [opts.freeIsles] [opts.adminToken] …
  *                                              forwarded to createApp
  * @param {object}   [opts.log]                 console-like
@@ -49,9 +111,18 @@ export async function tideholmApp(opts = {}) {
   if (opts.dataDir) process.env.DATA_DIR = opts.dataDir;
   const { createApp } = await import('../app.js');
 
+  const botIdentity = opts.issuer
+    ? await makeEnsureBotPod({
+        issuer: String(opts.issuer).replace(/\/+$/, ''),
+        dataDir: process.env.DATA_DIR,
+        log: opts.log,
+      })
+    : null;
+
   const app = createApp({
     basePath: prefix,
     log: opts.log,
+    botIdentity,
     botCount: opts.botCount,
     freeIsles: opts.freeIsles,
     adminToken: opts.adminToken,
@@ -106,6 +177,7 @@ export async function activate(api) {
       ? (req) => api.auth.getAgent(req)
       : undefined,
     adminToken: api.config && api.config.adminToken,
+    issuer: api.config && api.config.issuer,
     botCount: api.config && api.config.bots,
     freeIsles: api.config && api.config.freeIsles,
     log: api.log,

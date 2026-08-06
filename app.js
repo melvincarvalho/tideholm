@@ -54,6 +54,10 @@ export function createApp(opts = {}) {
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
   const adminToken = opts.adminToken ?? (process.env.ADMIN_TOKEN || '');
   const identify = opts.identify || null;
+  // #96: async (botName) => { webId, nostrDid } | null. A host that can mint
+  // pod identities (the jss-plugin) hands one in; password worlds run
+  // without — no key, no banner.
+  const botIdentity = opts.botIdentity || null;
   const podLoginUrl = opts.podLoginUrl || '/idp/credentials';
   const base = (opts.basePath || '').replace(/\/+$/, '');
   const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -148,6 +152,7 @@ export function createApp(opts = {}) {
   let timers = [];
   function start() {
     if (timers.length) return; // already running
+    if (botIdentity) sweepBotIdentities();
     timers = [
       setInterval(() => {
         if (game.worldPhase(world, Date.now()) === 'live') botTick(world, Date.now());
@@ -1359,6 +1364,29 @@ export function createApp(opts = {}) {
       return sendErr(res, 500, 'en', 'err.serverError');
     }
   };
+
+  // #96: every bot flies a banner. Ask the host for each bot's pod identity
+  // and stamp it onto the seasonal player object. Fire-and-forget from
+  // start(); idempotent (skips bots already stamped), so restarts and worlds
+  // that predate the hook both converge. Failures log and skip — a bot
+  // without a banner is the password-world state, not an error.
+  async function sweepBotIdentities() {
+    let changed = false;
+    for (const p of world.players) {
+      if (!p.isBot || p.nostrDid) continue;
+      try {
+        const ident = await botIdentity(p.name);
+        if (ident && ident.nostrDid) {
+          p.nostrDid = ident.nostrDid;
+          if (ident.webId && !p.extId) p.extId = ident.webId;
+          changed = true;
+        }
+      } catch (err) {
+        log.error(`bot identity for "${p.name}": ${err && err.message || err}`);
+      }
+    }
+    if (changed) game.saveWorld(world);
+  }
 
   return {
     handle,
