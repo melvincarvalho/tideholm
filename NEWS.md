@@ -16,6 +16,26 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-06 16:45 · The Tidepool opens for season 5
+
+> The Tidepool is open in the Market tab - swap wood, stone and gold at a
+> live price, no trading partner needed. New this season: the pool sits at
+> the middle of the map, and goods sail the real distance from your Harbor,
+> so where you live matters. Seeded shallow at 100/100/38 - the gold side
+> reflects what the mines actually make - so big swaps will be capped until
+> players deepen it. Deposit to become a provider and earn a share of the
+> 0.3% fee. Needs a Harbor; uses no merchant. Fair winds.
+
+Two season-5 differences from the season-4 opening, both deliberate. The
+distance term (#76) is live for the first time: the pool sits mid-map and
+swaps sail at TRADE_SPEED, so the courier loophole is closed and geography
+prices every trade. And the seed is 100/100/38, not 100/100/100 — the gold
+reserve matches the production-implied price (rates run 40/40/15), so the
+pool opens honest instead of opening with a small gold-side arbitrage.
+Operator's disclosure: both humans were mid-ship-race when this opened, and
+the pool mildly favours the player nearer the map centre — announced to
+everyone the minute it existed, which is the point of announcements.
+
 ### 2026-08-06 16:20 · The dock drops its coordinates
 
 > Small quality-of-life change: the islands dock at the bottom now shows just
