@@ -1172,6 +1172,30 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     srv.close(); capApp.stop();
   }
 
+  // ---- #109: overview defence counts reinforcements (support contingents) ----
+  {
+    const defApp = createApp({ botCount: 0, freeIsles: 2, log: silent });
+    const w2 = defApp.world;
+    const { srv, port } = await serve(defApp);
+    const reg = await req(port, 'POST', '/api/register',
+      { body: { name: 'Warden', password: 'sekritsekrit', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    const player = w2.players.find((p) => p.name === 'Warden');
+    const home = w2.islands.find((i) => i.ownerId === player.id);
+    home.buildings.wall = 2;
+    home.units.sentinel = 3;                          // 90 def power at home
+    home.support = [{ ownerId: player.id, fromId: home.id, units: { sentinel: 5 } }];
+    // expected = (home 90 + support 150 + 15*2 wall) * (1 + 0.08*2)
+    const gameMod = await import('./game.js');
+    const wl = 2;
+    const expected = Math.round((90 + 150 + gameMod.WALL_FLAT_DEF * wl) * (1 + gameMod.WALL_DEF_BONUS * wl));
+    const st = await req(port, 'GET', '/api/state', { cookie });
+    const row = st.data.islands.find((i) => i.id === home.id);
+    check('#109 overview defence includes reinforcements', row.defence === expected,
+      `shown ${row.defence}, expected ${expected}`);
+    srv.close(); defApp.stop();
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

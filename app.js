@@ -477,9 +477,14 @@ export function createApp(opts = {}) {
         wall: i.buildings.wall,
         // The wall multiplies defenders and adds flat defence, so the honest
         // column is the one combat actually uses, not the raw unit total.
+        // Reinforcements count: combat sums support contingents into the
+        // defence (game.js resolveAttack), so the overview must too, or an
+        // island you have shored up reads far softer than it fights (#109).
         // Night bonus is left out: it is a property of when you are hit.
         defence: Math.round(
-          (game.unitPower(i.units, 'def') + game.WALL_FLAT_DEF * i.buildings.wall)
+          (game.unitPower(i.units, 'def')
+            + (i.support || []).reduce((n, c) => n + game.unitPower(c.units, 'def'), 0)
+            + game.WALL_FLAT_DEF * i.buildings.wall)
           * (1 + game.WALL_DEF_BONUS * i.buildings.wall),
         ),
         // Infinity does not survive JSON; null is the wire form of "unlimited".
