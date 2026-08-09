@@ -31,6 +31,23 @@ again — twice now; the send pipeline owes us a proper JSON-file path. A
 painted full-colour icon set exists and was deliberately not spent on 24px
 chrome; it waits for content surfaces.
 
+### 2026-08-09 · Wealth at sea, counted — by player request
+
+> By player request, shipped the same day: the Islands tab now counts your
+> wealth at sea. A new At-sea row in the totals adds up every cargo aboard
+> your shipments and returning fleets - shelved plus sailing equals what you
+> actually own. Below it, a Movements table lists every fleet and cargo of
+> yours on the water, empire-wide: what it is, where from, what it carries,
+> when it lands. Keep the requests coming. Fair winds.
+
+philloster's first feature request of the season ("I cannot count my
+resources that are on the move because they become invisible"), filed as
+#104 and shipped in #105 within the hour — the season-4 request-to-ship
+loop, continued. The at-sea row extends #77's honest-totals principle to
+cargo; the movements payload gained an origin field (six convoys are
+indistinguishable by target alone). Sent via a JSON file this time: the
+apostrophes survived.
+
 ### 2026-08-06 16:45 · The Tidepool opens for season 5
 
 > The Tidepool is open in the Market tab - swap wood, stone and gold at a
