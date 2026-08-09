@@ -352,6 +352,8 @@ export function createApp(opts = {}) {
         carry: u.carry,
         speed: u.speed,
         ship: !!u.ship,
+        capture: !!u.capture, // #? flagship: single expensive build, defaults the count to 1
+
         requires: t(lang, `building.${need}.name`),
         available: island.buildings[need] >= 1,
         time: game.trainTime(key, island.buildings[need]),

@@ -1154,6 +1154,24 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     }
   }
 
+  // ---- flagship count defaults to 1, not a 5-batch (28.5k foot-gun) ----
+  {
+    const capApp = createApp({ botCount: 0, freeIsles: 1, log: silent });
+    const { srv, port } = await serve(capApp);
+    const reg = await req(port, 'POST', '/api/register',
+      { body: { name: 'Capt', password: 'sekritsekrit', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    const st = await req(port, 'GET', '/api/state', { cookie });
+    const ut = st.data.unitTypes;
+    check('flagship is a capture unit, not a ship',
+      ut.flagship.capture === true && ut.flagship.ship === false, JSON.stringify({c: ut.flagship.capture, s: ut.flagship.ship}));
+    check('colony ship is a ship, not capture',
+      ut.colonyship.ship === true && ut.colonyship.capture === false);
+    check('spearman is neither (defaults to a batch)',
+      !ut.spearman.ship && !ut.spearman.capture);
+    srv.close(); capApp.stop();
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {

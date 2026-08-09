@@ -552,7 +552,7 @@ function renderTroops() {
   for (const [key, u] of Object.entries(state.unitTypes)) {
     const tr = document.createElement('tr');
     const trainCell = u.available
-      ? `<input type="number" min="1" max="500" value="${u.ship ? 1 : 5}" id="train-n-${key}">
+      ? `<input type="number" min="1" max="500" value="${u.ship || u.capture ? 1 : 5}" id="train-n-${key}">
          <button data-train="${key}">${T('ui.train.button', { t: fmtTime(u.time) })}</button>`
       : `<small class="hint">${T('ui.needs', { building: u.requires })}</small>`;
     tr.innerHTML = `
