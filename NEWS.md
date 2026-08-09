@@ -31,6 +31,22 @@ again — twice now; the send pipeline owes us a proper JSON-file path. A
 painted full-colour icon set exists and was deliberately not spent on 24px
 chrome; it waits for content surfaces.
 
+### 2026-08-09 · Troop counts stop resetting as you type
+
+> Bug fixed, reported in play: when you typed a number of troops to train, the
+> count kept resetting itself every few seconds - the screen refresh was
+> wiping what you had entered. It now keeps your number, and your cursor,
+> while you type. Thanks to the player who flagged it. Keep the reports
+> coming. Fair winds.
+
+The train inputs were rebuilt from scratch on every 5-second state poll, with
+a hardcoded default — so any count you typed reset (and lost focus) within a
+cycle. Now the poll snapshots the fields and the focused cursor before the
+rebuild and restores them; untouched fields keep their defaults. The attack
+panel was never affected — it's built on target-click, not the poll. Reported
+via phil's session (his second catch of the weekend, after the movements
+overview), filed #106, fixed #107.
+
 ### 2026-08-09 · Wealth at sea, counted — by player request
 
 > By player request, shipped the same day: the Islands tab now counts your
