@@ -371,8 +371,12 @@ export function createApp(opts = {}) {
     for (const m of world.movements) {
       if (m.ownerId === player.id) {
         const dest = world.islands.find((i) => i.id === m.toId);
+        const src = world.islands.find((i) => i.id === m.fromId);
         outgoing.push({
           type: m.type,
+          // #104: the empire-wide movements table needs the origin too — a
+          // player with six convoys can't tell them apart by target alone.
+          from: src ? `${shownName(src)} (${src.x}:${src.y})` : '?',
           target: dest ? `${shownName(dest)} (${dest.x}:${dest.y})` : '?',
           units: m.units,
           loot: m.loot || null,

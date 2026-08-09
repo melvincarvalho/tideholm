@@ -1015,7 +1015,7 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     const html = fs.readFileSync(path.join(HERE, 'public/index.html'), 'utf8');
     const pane = html.slice(html.indexOf('id="view-islands"'), html.indexOf('id="view-map"'));
     const ths = [...pane.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => m[0]);
-    check('found the islands table headers (9 columns + totals + production labels)', ths.length === 11, ths.length);
+    check('found the islands table headers (9 cols + totals/production/at-sea + 4 movement cols)', ths.length === 16, ths.length); // #104 added 5
 
     const i18n = await import('./public/i18n.js');
     for (const th of ths) {
@@ -1116,6 +1116,42 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       world.players.filter((p) => p.isBot).every((p) => p.nostrDid && p.extId));
     botApp.stop();
     srv.close();
+  }
+
+  // ---- #104: movements carry their origin; the islands tab counts the sea ----
+  {
+    const mv = createApp({ botCount: 1, freeIsles: 2, log: silent });
+    const w2 = mv.world;
+    const me = w2.players.find((p) => !p.isBot) || (() => {
+      const r = mv.world; return null; })();
+    // register a player over http to get a session + islands
+    const { srv, port } = await serve(mv);
+    const reg = await req(port, 'POST', '/api/register',
+      { body: { name: 'Argo', password: 'sekritsekrit', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    const player = w2.players.find((p) => p.name === 'Argo');
+    const home = w2.islands.find((i) => i.ownerId === player.id);
+    const bot = w2.players.find((p) => p.isBot);
+    const botIsle = w2.islands.find((i) => i.ownerId === bot.id);
+    // a return movement with loot — the archetypal cargo-at-sea
+    w2.movements.push({
+      id: w2.nextId++, type: 'return', ownerId: player.id,
+      fromId: botIsle.id, toId: home.id, units: { raider: 3 },
+      loot: { wood: 120, stone: 45, gold: 60 },
+      depart: Date.now(), arrive: Date.now() + 3600_000,
+    });
+    const st = await req(port, 'GET', '/api/state', { cookie });
+    const out = st.data.movements.outgoing;
+    check('#104 outgoing rows carry an origin', out.length === 1 && typeof out[0].from === 'string'
+      && out[0].from.includes(String(botIsle.x)), JSON.stringify(out));
+    check('#104 cargo survives into the payload', out[0].loot && out[0].loot.wood === 120);
+    srv.close(); mv.stop();
+  }
+  {
+    const html = fs.readFileSync(path.join(HERE, 'public', 'index.html'), 'utf8');
+    for (const id of ['isl-s-wood', 'isl-s-stone', 'isl-s-gold', 'fleet-moves']) {
+      check(`#104 markup exists: ${id}`, html.includes(`id="${id}"`));
+    }
   }
 
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');

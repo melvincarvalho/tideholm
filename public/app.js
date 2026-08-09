@@ -240,6 +240,43 @@ function renderIslands() {
     ? '∞'
     : `${sum((i) => i.tradeSlots.free)}/${sum((i) => i.tradeSlots.total)}`;
   $('isl-t-points').textContent = String(sum((i) => i.points));
+
+  // #104: wealth on the water. Cargo aboard outbound shipments and loot on
+  // returning fleets — the resources every other ledger forgets until they
+  // dock. Units in transit are counts, not resources; they live in the
+  // movements table below, never in this sum.
+  const moves = (state.movements && state.movements.outgoing) || [];
+  const atSea = (r) => moves.reduce((n, m) => n + ((m.loot && m.loot[r]) || 0), 0);
+  $('isl-s-wood').textContent = fmtNum(Math.floor(atSea('wood')));
+  $('isl-s-stone').textContent = fmtNum(Math.floor(atSea('stone')));
+  $('isl-s-gold').textContent = fmtNum(Math.floor(atSea('gold')));
+
+  // The empire-wide movements table (#104): every fleet and cargo in one
+  // place, exactly the view the movements box shows one island at a time.
+  const fbody = $('fleet-moves').querySelector('tbody');
+  fbody.innerHTML = '';
+  if (!moves.length && !(state.movements && state.movements.incoming || []).length) {
+    fbody.innerHTML = `<tr><td colspan="4"><i>${T('ui.islands.movNone')}</i></td></tr>`;
+  }
+  for (const m of moves) {
+    const tr = document.createElement('tr');
+    const cargo = m.loot
+      ? `🪵${fmtNum(Math.floor(m.loot.wood))} 🪨${fmtNum(Math.floor(m.loot.stone))} 🪙${fmtNum(Math.floor(m.loot.gold))}`
+      : Object.entries(m.units || {}).filter(([, n]) => n > 0)
+          .map(([k, n]) => `${n}× ${T(`unit.${k}.name`)}`).join(', ') || '—';
+    tr.innerHTML = `<td>${T('ui.move.' + m.type, { target: m.target })}</td>
+      <td>${m.from || '—'}</td><td>${cargo}</td>
+      <td class="countdown" data-finish="${m.arrive}"></td>`;
+    fbody.appendChild(tr);
+  }
+  for (const inc of (state.movements && state.movements.incoming) || []) {
+    const tr = document.createElement('tr');
+    tr.className = 'incoming';
+    tr.innerHTML = `<td colspan="2">${T('ui.move.incoming', { target: inc.target, attacker: inc.attacker, from: inc.from })}</td>
+      <td>—</td><td class="countdown" data-finish="${inc.arrive}"></td>`;
+    fbody.appendChild(tr);
+  }
+  paintCountdowns(Date.now() + clockSkew);
 }
 
 // ---------------------------------------------------------------- rendering
