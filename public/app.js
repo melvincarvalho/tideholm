@@ -537,6 +537,17 @@ function renderMovements() {
 function renderTroops() {
   const isl = state.island;
   const ubody = $('units').querySelector('tbody');
+  // The 5s poll re-renders this table, which wiped any count you were typing
+  // back to the default. Snapshot the fields (and the focused one's cursor)
+  // before the rebuild and restore them after, so a running poll never
+  // clobbers input mid-type.
+  const typed = {};
+  for (const box of ubody.querySelectorAll('input[id^="train-n-"]')) {
+    typed[box.id] = box.value;
+  }
+  const active = document.activeElement;
+  const keepId = active && active.id && active.id.startsWith('train-n-') ? active.id : null;
+  const keepSel = keepId ? [active.selectionStart, active.selectionEnd] : null;
   ubody.innerHTML = '';
   for (const [key, u] of Object.entries(state.unitTypes)) {
     const tr = document.createElement('tr');
@@ -561,6 +572,15 @@ function renderTroops() {
   for (const box of ubody.querySelectorAll('input[id^="train-n-"]')) {
     const key = box.id.slice('train-n-'.length);
     box.addEventListener('input', () => quoteTrain(key, box.value));
+    if (typed[box.id] !== undefined) box.value = typed[box.id]; // survive the poll
+  }
+  if (keepId) {
+    const el = document.getElementById(keepId);
+    if (el) {
+      el.focus();
+      // number inputs throw on setSelectionRange in some engines; ignore.
+      try { el.setSelectionRange(keepSel[0], keepSel[1]); } catch { /* fine */ }
+    }
   }
 
   const tbody = $('train-queue').querySelector('tbody');
