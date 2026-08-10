@@ -116,6 +116,20 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 #resbar small { color: #6b5d40; }
 
+/* Meter bars (#116): a water-level line under each resbar chip. The top line
+   (icon · number · rate) stays put; the meter wraps to a full-width second
+   row. Storage & pop fill toward their cap (amber near full, red at it);
+   loyalty is inverted — low is the danger, so amber/red mark a weak hold. */
+.res { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 4px; }
+.meter {
+  flex: 0 0 100%; height: 3px; margin-top: 3px;
+  background: #e7dcc0; border-radius: 2px; overflow: hidden;
+}
+.meter > i { display: block; height: 100%; width: 0;
+  background: var(--accent); transition: width .35s ease; }
+.meter > i.warn { background: #c46a12; }
+.meter > i.full { background: var(--error); }
+
 main { padding: 14px; }
 
 section {

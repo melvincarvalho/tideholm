@@ -434,11 +434,11 @@ function renderState() {
   }
 
   $('who').textContent = state.player.name;
+  // Loyalty and pop moved to the resbar meters (#116). The title now holds
+  // only what is stable per island — which also keeps sound.js's "same
+  // island?" snapshot from resetting on every loyalty tick.
   $('island-title').textContent =
-    `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}` +
-    ` · ⚜️ ${T('ui.loyalty')} ${isl.loyalty}/${isl.loyaltyMax}` +
-    ` · 👥 ${T('ui.pop')} ${isl.popUsed + (isl.popAbroad || 0)}/${isl.popCap}` +
-    (isl.popAbroad ? ` (${T('ui.popAbroad', { n: isl.popAbroad })})` : '');
+    `${isl.name} (${isl.x}:${isl.y}) — ${isl.points} ${T('ui.points')}`;
 
   // The island switcher stays hidden (#112): the dock and the Islands tab are
   // the switchers now. The <select> lives on as the invisible source of truth
@@ -484,7 +484,19 @@ function renderState() {
   $('res-cap').textContent = fmtNum(isl.capacity);
   for (const r of ['wood', 'stone', 'gold']) {
     $(`rate-${r}`).textContent = `+${fmtNum(isl.rates[r])}/h`;
+    setMeter(`bar-${r}`, isl.resources[r] / isl.capacity);
   }
+
+  // Vitals meters (#116). Pop counts citizens home + abroad against the home
+  // cap, matching the Islands table; loyalty fills toward a secure hold.
+  const popNow = isl.popUsed + (isl.popAbroad || 0);
+  $('pop-val').textContent = `${popNow}/${isl.popCap}`;
+  $('pop-chip').title = T('ui.pop')
+    + (isl.popAbroad ? ` — ${T('ui.popAbroad', { n: isl.popAbroad })}` : '');
+  setMeter('bar-pop', popNow / isl.popCap);
+  $('loyal-val').textContent = `${isl.loyalty}/${isl.loyaltyMax}`;
+  $('loyal-chip').title = T('ui.loyalty');
+  setMeter('bar-loyal', isl.loyalty / isl.loyaltyMax, 'low');
 
   // Queue
   const qbody = $('queue').querySelector('tbody');
@@ -723,6 +735,25 @@ function renderSupport() {
 // empty, and without an immediate paint they would stay blank until the next
 // localTick — up to a second in which the cell has no text, so the table
 // reflows around it and visibly jumps (#24).
+// Set a meter fill to a 0..1 fraction and colour it. Default mode: high is the
+// alert (storage/pop near cap wastes production / blocks training). mode 'low':
+// low is the danger (a weak loyalty hold). Missing element = skinless, no-op.
+function setMeter(id, frac, mode) {
+  const el = $(id);
+  if (!el) return;
+  frac = Math.max(0, Math.min(1, frac || 0));
+  el.style.width = (frac * 100).toFixed(1) + '%';
+  el.classList.remove('warn', 'full');
+  if (mode === 'low') {
+    if (frac < 0.25) el.classList.add('full');
+    else if (frac < 0.5) el.classList.add('warn');
+  } else if (frac >= 1) {
+    el.classList.add('full');
+  } else if (frac >= 0.9) {
+    el.classList.add('warn');
+  }
+}
+
 function paintCountdowns(now) {
   let finished = false;
   for (const el of document.querySelectorAll('.countdown')) {
@@ -742,6 +773,7 @@ function localTick() {
   for (const r of ['wood', 'stone', 'gold']) {
     const val = Math.min(isl.capacity, isl.resources[r] + isl.rates[r] * dt);
     $(`res-${r}`).textContent = fmtNum(val);
+    setMeter(`bar-${r}`, val / isl.capacity);
   }
   if (paintCountdowns(now)) refresh();
 }
