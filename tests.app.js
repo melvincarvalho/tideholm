@@ -947,6 +947,21 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       { body: { islandId: visl.id, amount: 100 }, cookie: vcookie });
     check('#132 a withdraw with no storehouse room is refused (gold not lost)',
       vr.status !== 200 && vp.vault === 5000, `${vr.status} vault=${vp.vault}`);
+
+    // Withdrawal fee knob — ceil(amount*fee) burned, net reaches the island.
+    vp.vault = 1000; visl.buildings.storehouse = 14; visl.resources.gold = 0;
+    let fr = gameMod.vaultWithdraw(openApp.world, vp, visl, 250, Date.now(), 0.01);
+    check('#132 fee is ceil(amount*fee), burned; net reaches the island',
+      fr.ok && fr.fee === 3 && Math.floor(visl.resources.gold) === 247 && vp.vault === 750,
+      JSON.stringify(fr));
+    vp.vault = 1000; visl.resources.gold = 0;
+    fr = gameMod.vaultWithdraw(openApp.world, vp, visl, 10, Date.now(), 0.01);
+    check('#132 the fee rounds UP (10 @ 1% burns 1, not 0)',
+      fr.ok && fr.fee === 1 && Math.floor(visl.resources.gold) === 9, JSON.stringify(fr));
+    vp.vault = 1000; visl.resources.gold = 0;
+    fr = gameMod.vaultWithdraw(openApp.world, vp, visl, 100, Date.now(), 0);
+    check('#132 fee 0 is a no-op (today\'s default)',
+      fr.ok && fr.fee === 0 && Math.floor(visl.resources.gold) === 100, JSON.stringify(fr));
   }
 
   oa.srv.close();

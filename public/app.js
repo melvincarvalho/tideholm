@@ -441,9 +441,14 @@ function renderState() {
   }
 
   $('who').textContent = state.player.name;
-  // Vault balance (#132) — raid-proof gold, shown in the Market tab.
+  // Vault balance (#132) — raid-proof gold, shown in the Market tab. When the
+  // withdrawal-fee knob is on (0 today), note the rate beside the balance.
   if ($('vault-balance') && state.player.vault != null) {
-    $('vault-balance').textContent = T('ui.vault.balance', { n: fmtNum(state.player.vault) });
+    let txt = T('ui.vault.balance', { n: fmtNum(state.player.vault) });
+    if (state.vaultFee > 0) {
+      txt += ' · ' + T('ui.vault.fee', { pct: +(state.vaultFee * 100).toFixed(2) });
+    }
+    $('vault-balance').textContent = txt;
   }
   // Loyalty and pop moved to the resbar meters (#116). The title now holds
   // only what is stable per island — which also keeps sound.js's "same

@@ -1170,6 +1170,14 @@ function sendPoolWithdraw(world, player, island, shares, now) {
 // onto the player. Withdraw returns it to the island's stock, capped by
 // storehouse room so it can't overflow and silently vanish. Instant, gold
 // only. Later (#132 phase 2) a peg-out will seal this balance cross-chain.
+//
+// Withdrawal fee (#132): a knob, 0 by default so deposit/withdraw is free
+// today. Set VAULT_WITHDRAW_FEE (a 0..1 fraction, e.g. 0.01 for 1%) and every
+// withdrawal burns ceil(amount × fee) — rounded UP, so even a 1-coin churn
+// costs at least 1 gold. A gentle brake on abuse, and a gold sink. The
+// cross-chain "sealed" withdrawal (blocktrails) will be a SEPARATE path with
+// its own knob, layered on top — not a change to this one.
+const VAULT_WITHDRAW_FEE = Number(process.env.VAULT_WITHDRAW_FEE) || 0;
 function vaultDeposit(world, player, island, amount, now) {
   resolveIsland(island, now);
   amount = Math.floor(Number(amount));
@@ -1180,19 +1188,23 @@ function vaultDeposit(world, player, island, amount, now) {
   return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold) };
 }
 
-function vaultWithdraw(world, player, island, amount, now) {
+function vaultWithdraw(world, player, island, amount, now, fee = VAULT_WITHDRAW_FEE) {
   resolveIsland(island, now);
   amount = Math.floor(Number(amount));
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
   if (amount > Math.floor(player.vault || 0)) return { error: 'err.vaultEmpty' };
+  // The fee is burned; `net` is what actually reaches the island. Rounded up,
+  // so tiny churn always costs. At fee 0 this is a no-op (net === amount).
+  const feeAmt = fee > 0 ? Math.ceil(amount * fee) : 0;
+  const net = amount - feeAmt;
   const cap = storageCapacity(island.buildings.storehouse);
   const room = Math.floor(cap - island.resources.gold);
-  if (room <= 0 || amount > room) {
+  if (room <= 0 || net > room) {
     return { error: 'err.vaultNoRoom', errorParams: { room: Math.max(0, room) } };
   }
-  island.resources.gold += amount;
+  island.resources.gold += net;
   player.vault = Math.floor(player.vault - amount);
-  return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold) };
+  return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold), fee: feeAmt };
 }
 
 // ---- swapping against the pool
@@ -2454,7 +2466,7 @@ export {
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
-  vaultDeposit, vaultWithdraw,
+  vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
