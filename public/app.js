@@ -1055,6 +1055,9 @@ const MINI_COLORS = {
   you: '#3faf46', ally: '#2ab5a5', war: '#ff5544',
   player: '#3b7dd8', bot: '#e08030', barb: '#8d7b64', unowned: '#a9b0b8',
 };
+// The island you're currently on. Gold — the one colour no team uses, so it
+// reads at a glance where an outline on a few-pixel cell never could (#119).
+const YOU_ARE_HERE = '#ffd21a';
 
 // Match the canvas backing store to the display's pixel ratio (#119). Without
 // this a 160/180px buffer is upscaled and blurred on a HiDPI screen, and fine
@@ -1071,25 +1074,6 @@ function hiDpiCanvas(canvas, logical) {
   }
 }
 
-// The "you are here" marker (#119): a bold ring set outside the cell so the
-// island's own colour shows through the middle, over a dark halo so it reads
-// on light islands too. All sizes are in buffer px, which scale with the
-// pixel ratio — so it stays crisp and proportional on any display.
-function drawYouAreHere(ctx, gx, gy, px) {
-  const s = Math.max(2, px - 1);
-  const out = Math.max(2, px * 0.55);
-  const x = gx * px - out;
-  const y = gy * px - out;
-  const w = s + 2 * out;
-  const lw = Math.max(1.5, px * 0.26);
-  ctx.lineWidth = lw + 2;
-  ctx.strokeStyle = 'rgba(14,42,63,0.85)';
-  ctx.strokeRect(x, y, w, w);
-  ctx.lineWidth = lw;
-  ctx.strokeStyle = '#ffffff';
-  ctx.strokeRect(x, y, w, w);
-}
-
 function drawMinimap(data) {
   const canvas = $('minimap');
   const ctx = canvas.getContext('2d');
@@ -1099,20 +1083,16 @@ function drawMinimap(data) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(buildRaster(data), 0, 0, canvas.width, canvas.height);
-  let active = null;
   for (const isl of data.islands) {
+    const here = state && state.island && isl.x === state.island.x && isl.y === state.island.y;
     const kind = isl.isYou ? 'you'
       : isl.relation === 'war' ? 'war'
       : isl.relation === 'ally' || isl.relation === 'same' ? 'ally'
       : isl.unowned ? 'unowned' : isl.barbarian ? 'barb' : isl.isBot ? 'bot' : 'player';
-    ctx.fillStyle = MINI_COLORS[kind];
+    // The island you're on is gold; every other keeps its team colour (#119).
+    ctx.fillStyle = here ? YOU_ARE_HERE : MINI_COLORS[kind];
     ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
-    if (state && state.island && isl.x === state.island.x && isl.y === state.island.y) active = isl;
   }
-  // "You are here" (#119): a white ring around the island you're currently on,
-  // drawn last so it sits above its neighbours. Position is unique, so no id
-  // needed. Outset a touch to stay legible when a cell is only a few pixels.
-  if (active) drawYouAreHere(ctx, active.x, active.y, px);
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * data.size);
