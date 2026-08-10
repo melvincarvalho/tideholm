@@ -16,6 +16,21 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-10 · The map marks where you are
+
+> 🗺️ The World Map now marks where you stand: the island you're on is painted
+> gold, on both the rail map and the full Map tab. Hold a dozen isles and
+> you'll still spot your current one at a glance — switch islands and the gold
+> follows at once. Small thing, easier eyes. Fair winds.
+
+The active island is filled gold on the minimap and the stage rail's World Map
+(#119, PRs #124–#126). It began as a white "you are here" ring, but a ring
+around a ~3px cell is mostly outline — measured, the island's colour was 3% of
+the marker at 1×, so it read as a white square no matter how it was tuned. A
+unique solid colour reads where an outline never could. The rail is a separate
+poller, so switching islands lagged up to 5s until app.js began firing an
+event to move the gold at once; a HiDPI pass also made the whole map crisp.
+
 ### 2026-08-10 · The resbar grows meters
 
 > ⚜️ Read the resbar at a glance. Each store now wears a fill-line — amber as
