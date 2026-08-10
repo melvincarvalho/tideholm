@@ -16,6 +16,24 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-10 · The resbar grows meters
+
+> ⚜️ Read the resbar at a glance. Each store now wears a fill-line — amber as
+> it nears the brim, red when it spills unused. Two gauges join them: your
+> muster against its cap, and an island's loyalty (that one glows amber while
+> a fresh conquest still chafes). No sums, no clicking through. Hard-refresh
+> to see them.
+
+A thin water-level bar under each resbar chip (#116, PR #117). Every value was
+already on the wire — resources+capacity, popUsed+popCap, loyalty+loyaltyMax —
+so client + CSS only, no payload change, no restart. Storage and pop fill
+toward their cap (amber near full, red at it); loyalty is inverted, low being
+the danger, so amber/red mark a weak hold on a freshly-taken island. First of
+a "UI candy" pass; the timer bars for the build/train queues want a payload
+field and come later. Bonus: pop and loyalty left the island title, which had
+been changing on every loyalty tick and resetting `sound.js`'s "same island?"
+snapshot.
+
 ### 2026-08-07 · The tabs grow icons
 
 > The tabs have grown icons - a palm for your island, a scroll for reports,
