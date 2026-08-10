@@ -1060,6 +1060,7 @@ function drawMinimap(data) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(buildRaster(data), 0, 0, canvas.width, canvas.height);
+  let active = null;
   for (const isl of data.islands) {
     const kind = isl.isYou ? 'you'
       : isl.relation === 'war' ? 'war'
@@ -1067,6 +1068,17 @@ function drawMinimap(data) {
       : isl.unowned ? 'unowned' : isl.barbarian ? 'barb' : isl.isBot ? 'bot' : 'player';
     ctx.fillStyle = MINI_COLORS[kind];
     ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
+    if (state && state.island && isl.x === state.island.x && isl.y === state.island.y) active = isl;
+  }
+  // "You are here" (#119): a white ring around the island you're currently on,
+  // drawn last so it sits above its neighbours. Position is unique, so no id
+  // needed. Outset a touch to stay legible when a cell is only a few pixels.
+  if (active) {
+    const s = Math.max(2, px - 1);
+    const pad = 1.5;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.5, px * 0.22);
+    ctx.strokeRect(active.x * px - pad, active.y * px - pad, s + 2 * pad, s + 2 * pad);
   }
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
