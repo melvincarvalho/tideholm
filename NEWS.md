@@ -47,6 +47,27 @@ panel was never affected — it's built on target-click, not the poll. Reported
 via phil's session (his second catch of the weekend, after the movements
 overview), filed #106, fixed #107.
 
+### 2026-08-10 · The Tideholm Almanac
+
+> The Help link now opens The Tideholm Almanac - a proper captain's handbook.
+> Fifteen chapters, from your first island to the admiral's craft: resources
+> and buildings, the full unit roster, how combat and losses are actually
+> calculated, colonisation and conquest, scouting and support, the Tidepool,
+> the Beacon, the ways of the island folk, and hard-won advanced tactics -
+> plus a quick-reference of the numbers that matter. Read the first chapters
+> to play, the rest to win. Fair winds.
+
+A self-contained, book-styled manual (public/almanac.html) replacing the thin
+getting-started page: parchment aesthetic in its own CSS, theme-aware,
+responsive with a mobile contents drawer, scroll-spy contents rail — no
+dependency on the game's stylesheet. Built commercial-grade with a harsh-critic
+pass (which caught the missing interface orientation, the Alliance/Mail
+coverage, and the battle-simulator mention, all added before release).
+Modular: one file plus ~10 lines. Also fixed the underlying Help-link bug — a
+bare href='help.html' resolved to the host root (Cannot GET /help.html) when
+the game loads without a trailing slash; the links now resolve the Almanac
+against import.meta.url, correct at any mount.
+
 ### 2026-08-09 · Wealth at sea, counted — by player request
 
 > By player request, shipped the same day: the Islands tab now counts your
