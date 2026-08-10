@@ -103,9 +103,40 @@
     return d.innerHTML;
   }
 
+  // Match the backing store to the pixel ratio so the map isn't upscaled and
+  // blurred on HiDPI (#119) — a 1px ring bloomed into a white blob without it.
+  function hiDpiCanvas(canvas, logical) {
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const want = Math.round(logical * dpr);
+    if (canvas.width !== want) {
+      canvas.width = want;
+      canvas.height = want;
+      canvas.style.width = logical + 'px';
+      canvas.style.height = logical + 'px';
+    }
+  }
+
+  // "You are here": a bold white ring outside the cell over a dark halo, so the
+  // island's colour shows and it reads on light islands too. Matches app.js.
+  function drawYouAreHere(ctx, gx, gy, px) {
+    const s = Math.max(2, px - 1);
+    const out = Math.max(2, px * 0.55);
+    const x = gx * px - out;
+    const y = gy * px - out;
+    const w = s + 2 * out;
+    const lw = Math.max(1.5, px * 0.26);
+    ctx.lineWidth = lw + 2;
+    ctx.strokeStyle = 'rgba(14,42,63,0.85)';
+    ctx.strokeRect(x, y, w, w);
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeRect(x, y, w, w);
+  }
+
   function drawMap(m) {
     const canvas = $('stage-map');
     const ctx = canvas.getContext('2d');
+    hiDpiCanvas(canvas, 180);
     const px = canvas.width / m.size;
     ctx.fillStyle = '#0e2a3f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -121,13 +152,7 @@
     }
     // "You are here" (#119): a white ring around the island you're on, drawn
     // last so it sits above its neighbours. Matches drawMinimap in app.js.
-    if (activePos) {
-      const s = Math.max(2, px - 1);
-      const out = Math.max(1.5, px * 0.4); // gap outside the cell so its colour shows
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(1, px * 0.18);
-      ctx.strokeRect(activePos.x * px - out, activePos.y * px - out, s + 2 * out, s + 2 * out);
-    }
+    if (activePos) drawYouAreHere(ctx, activePos.x, activePos.y, px);
     // Clicking the widget jumps to the real map tab.
     canvas.onclick = () => { const t = $('tab-map'); if (t) t.click(); };
   }

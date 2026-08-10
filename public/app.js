@@ -1056,9 +1056,44 @@ const MINI_COLORS = {
   player: '#3b7dd8', bot: '#e08030', barb: '#8d7b64', unowned: '#a9b0b8',
 };
 
+// Match the canvas backing store to the display's pixel ratio (#119). Without
+// this a 160/180px buffer is upscaled and blurred on a HiDPI screen, and fine
+// detail — island dots, the "you are here" ring — smears; a 1px ring blooms
+// into a white blob. Idempotent, so it's safe to call on every draw.
+function hiDpiCanvas(canvas, logical) {
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  const want = Math.round(logical * dpr);
+  if (canvas.width !== want) {
+    canvas.width = want;
+    canvas.height = want;
+    canvas.style.width = logical + 'px';
+    canvas.style.height = logical + 'px';
+  }
+}
+
+// The "you are here" marker (#119): a bold ring set outside the cell so the
+// island's own colour shows through the middle, over a dark halo so it reads
+// on light islands too. All sizes are in buffer px, which scale with the
+// pixel ratio — so it stays crisp and proportional on any display.
+function drawYouAreHere(ctx, gx, gy, px) {
+  const s = Math.max(2, px - 1);
+  const out = Math.max(2, px * 0.55);
+  const x = gx * px - out;
+  const y = gy * px - out;
+  const w = s + 2 * out;
+  const lw = Math.max(1.5, px * 0.26);
+  ctx.lineWidth = lw + 2;
+  ctx.strokeStyle = 'rgba(14,42,63,0.85)';
+  ctx.strokeRect(x, y, w, w);
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = '#ffffff';
+  ctx.strokeRect(x, y, w, w);
+}
+
 function drawMinimap(data) {
   const canvas = $('minimap');
   const ctx = canvas.getContext('2d');
+  hiDpiCanvas(canvas, 160);
   const px = canvas.width / data.size;
   ctx.fillStyle = '#0e2a3f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1077,13 +1112,7 @@ function drawMinimap(data) {
   // "You are here" (#119): a white ring around the island you're currently on,
   // drawn last so it sits above its neighbours. Position is unique, so no id
   // needed. Outset a touch to stay legible when a cell is only a few pixels.
-  if (active) {
-    const s = Math.max(2, px - 1);
-    const out = Math.max(1.5, px * 0.4); // gap outside the cell so its colour shows
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = Math.max(1, px * 0.18);
-    ctx.strokeRect(active.x * px - out, active.y * px - out, s + 2 * out, s + 2 * out);
-  }
+  if (active) drawYouAreHere(ctx, active.x, active.y, px);
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * data.size);
