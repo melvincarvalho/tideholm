@@ -5,6 +5,19 @@
 
 const $ = (id) => document.getElementById(id);
 
+// The help links point at the Almanac. Resolve the URL against this module's
+// own location (import.meta.url is always the correctly-resolved path the
+// browser loaded), so the link works whether the game is served at /,
+// /tideholm/, or /tideholm without a trailing slash — a bare relative
+// href="almanac.html" breaks in the last case.
+{
+  const almanac = new URL('almanac.html', import.meta.url).href;
+  for (const id of ['game-help', 'auth-help']) {
+    const a = document.getElementById(id);
+    if (a) a.href = almanac;
+  }
+}
+
 let state = null;         // last /api/state payload
 let clockSkew = 0;        // serverNow - Date.now()
 let pollTimer = null;

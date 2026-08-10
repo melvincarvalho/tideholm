@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Tideholm Almanac — a captain's handbook</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+/* The Almanac is deliberately self-contained: its own parchment, its own
+   type, no dependency on the game's stylesheet — so it reads the same in a
+   shared link or an offline tab, and the game's chrome can change without
+   breaking the book. */
+:root{
+  --paper:#efe2c0; --paper-edge:#e2d0a4; --ink:#33260f; --ink-soft:#6a583a;
+  --rule:#c3a969; --gold:#9a7414; --gold-bright:#b98d1f; --sea:#173245;
+  --wood:#2c1d0f; --wood-edge:#4a3418; --panel:#f6ecd2; --error:#8e2b20;
+}
+@media (prefers-color-scheme: dark){:root{
+  --paper:#23190d; --paper-edge:#2c2011; --ink:#ecdcb6; --ink-soft:#b09a6c;
+  --rule:#5a4622; --gold:#d3a94a; --gold-bright:#eac986; --sea:#0d2130;
+  --wood:#160e06; --wood-edge:#3a2814; --panel:#2a1f10; --error:#d5786a;
+}}
+:root[data-theme="dark"]{
+  --paper:#23190d; --paper-edge:#2c2011; --ink:#ecdcb6; --ink-soft:#b09a6c;
+  --rule:#5a4622; --gold:#d3a94a; --gold-bright:#eac986; --sea:#0d2130;
+  --wood:#160e06; --wood-edge:#3a2814; --panel:#2a1f10; --error:#d5786a;
+}
+:root[data-theme="light"]{
+  --paper:#efe2c0; --paper-edge:#e2d0a4; --ink:#33260f; --ink-soft:#6a583a;
+  --rule:#c3a969; --gold:#9a7414; --gold-bright:#b98d1f; --sea:#173245;
+  --wood:#2c1d0f; --wood-edge:#4a3418; --panel:#f6ecd2; --error:#8e2b20;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{
+  margin:0; color:var(--ink);
+  background:
+    radial-gradient(ellipse at 20% -10%, rgba(201,162,75,.14), transparent 55%),
+    var(--sea);
+  font:17px/1.65 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+.wrap{max-width:1180px; margin:0 auto; display:grid; grid-template-columns:250px 1fr; gap:0}
+/* ---- the contents rail ---- */
+nav.toc{
+  position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+  padding:26px 18px 40px; background:linear-gradient(180deg,var(--wood),var(--wood-edge));
+  border-right:3px solid #0c0703;
+}
+nav.toc .brand{font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:var(--gold-bright); margin-bottom:2px}
+nav.toc .brand b{display:block; font-family:inherit; font-size:1.15rem; letter-spacing:.04em; color:#f4e6c4; text-transform:none; margin-top:3px}
+nav.toc ol{list-style:none; margin:18px 0 0; padding:0; counter-reset:ch}
+nav.toc a{
+  display:block; padding:5px 8px; margin:1px 0; border-radius:4px;
+  color:#d8c290; text-decoration:none; font-size:.9rem; line-height:1.35;
+  border-left:2px solid transparent;
+}
+nav.toc li{counter-increment:ch}
+nav.toc a::before{content:counter(ch,upper-roman) ".  "; color:var(--gold); font-size:.78rem}
+nav.toc a:hover{background:rgba(201,162,75,.12); color:#f4e6c4}
+nav.toc a.on{background:rgba(201,162,75,.18); color:#f4e6c4; border-left-color:var(--gold-bright)}
+nav.toc .end{margin-top:16px; padding-top:14px; border-top:1px solid #4a3418}
+nav.toc .end a::before{content:none}
+nav.toc .end a{font-size:.82rem; color:#b39a68}
+/* ---- the pages ---- */
+main{
+  background:var(--paper);
+  background-image:
+    linear-gradient(180deg, var(--paper-edge), var(--paper) 60px),
+    repeating-linear-gradient(0deg, transparent 0 27px, rgba(120,90,40,.03) 27px 28px);
+  border-left:1px solid rgba(0,0,0,.25); min-width:0;
+  padding:0 clamp(20px,5vw,72px) 90px;
+}
+.masthead{
+  text-align:center; padding:64px 0 40px; border-bottom:3px double var(--rule); margin-bottom:8px;
+}
+.masthead .eyebrow{font-size:.74rem; letter-spacing:.34em; text-transform:uppercase; color:var(--gold)}
+.masthead h1{
+  font-size:clamp(2.4rem,6vw,3.8rem); line-height:1.02; margin:.15em 0 .1em;
+  font-weight:600; letter-spacing:.01em; text-wrap:balance;
+}
+.masthead .sub{font-style:italic; color:var(--ink-soft); font-size:1.15rem; margin:0}
+.masthead .compass{width:66px; height:66px; margin:22px auto 0; opacity:.85}
+h2.chapter{
+  font-size:clamp(1.7rem,3.6vw,2.4rem); font-weight:600; margin:2.4em 0 .1em; text-wrap:balance;
+  padding-top:14px;
+}
+h2.chapter .num{
+  display:block; font-size:.68rem; letter-spacing:.28em; text-transform:uppercase;
+  color:var(--gold); font-weight:400; margin-bottom:.4em;
+}
+h2.chapter::after{content:""; display:block; width:74px; height:3px; background:var(--gold); margin-top:.5em; border-radius:2px}
+h3{font-size:1.24rem; margin:1.8em 0 .3em; color:var(--ink)}
+p{margin:.7em 0; max-width:68ch}
+.lead{font-size:1.12rem}
+.lead::first-letter{
+  float:left; font-size:3.4em; line-height:.72; padding:.05em .1em 0 0; color:var(--gold);
+  font-weight:600;
+}
+strong{color:var(--ink)}
+em.term{font-style:normal; font-weight:600; color:var(--gold)}
+a.xref{color:var(--gold); text-decoration:none; border-bottom:1px dotted var(--gold)}
+a.xref:hover{border-bottom-style:solid}
+code{background:rgba(120,90,40,.14); padding:1px 6px; border-radius:4px; font-size:.86em; font-family:"SFMono-Regular",Consolas,monospace}
+/* callouts */
+.note{
+  border-left:4px solid var(--gold); background:var(--panel); padding:12px 18px;
+  margin:1.4em 0; border-radius:0 6px 6px 0; max-width:68ch;
+}
+.note .tag{font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); font-weight:700; font-family:system-ui,sans-serif}
+.note.warn{border-left-color:var(--error)}
+.note.warn .tag{color:var(--error)}
+/* tables */
+.tbl-scroll{overflow-x:auto; margin:1.3em 0; max-width:100%}
+table{border-collapse:collapse; width:100%; font-size:.94rem; min-width:440px}
+caption{text-align:left; font-style:italic; color:var(--ink-soft); padding-bottom:6px}
+th{
+  font:600 .72rem/1.3 system-ui,sans-serif; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gold); text-align:left; padding:8px 12px; border-bottom:2px solid var(--rule);
+}
+td{padding:8px 12px; border-bottom:1px solid rgba(120,90,40,.2); vertical-align:top; font-variant-numeric:tabular-nums}
+td.n,th.n{text-align:right}
+tbody tr:hover{background:rgba(201,162,75,.08)}
+.u-name{font-weight:600}
+.formula{
+  font-family:"SFMono-Regular",Consolas,monospace; font-size:.92rem; background:var(--panel);
+  border:1px solid var(--rule); border-radius:6px; padding:14px 18px; margin:1.2em 0;
+  overflow-x:auto; max-width:68ch;
+}
+.formula b{color:var(--gold)}
+.tier{display:flex; gap:10px; flex-wrap:wrap; margin:1em 0}
+.tier .card{flex:1 1 200px; background:var(--panel); border:1px solid var(--rule); border-radius:8px; padding:14px 16px}
+.tier .card h4{margin:0 0 .3em; color:var(--gold); font-size:1.02rem}
+.tier .card p{margin:.2em 0; font-size:.92rem; max-width:none}
+.backlink{display:inline-block; margin:2.6em 0 0; color:var(--gold); text-decoration:none; font-size:.95rem}
+.backlink:hover{text-decoration:underline}
+footer.colophon{
+  margin-top:4em; padding-top:1.6em; border-top:3px double var(--rule);
+  color:var(--ink-soft); font-size:.9rem; font-style:italic;
+}
+/* mobile: rail becomes a top drawer */
+.menu-btn{display:none}
+@media (max-width:820px){
+  .wrap{grid-template-columns:1fr}
+  nav.toc{position:static; height:auto; max-height:0; overflow:hidden; padding:0 18px; transition:max-height .25s ease}
+  nav.toc.open{max-height:80vh; overflow-y:auto; padding:20px 18px}
+  main{border-left:none}
+  .menu-btn{
+    display:flex; align-items:center; gap:8px; position:sticky; top:0; z-index:5;
+    width:100%; background:linear-gradient(180deg,var(--wood),var(--wood-edge));
+    color:#f4e6c4; border:none; border-bottom:2px solid #0c0703; padding:12px 18px;
+    font:600 .8rem/1 system-ui,sans-serif; letter-spacing:.14em; text-transform:uppercase; cursor:pointer;
+  }
+}
+:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <button class="menu-btn" id="menuBtn" aria-expanded="false">☰ &nbsp;Contents</button>
+  <nav class="toc" id="toc" aria-label="Contents">
+    <div class="brand">The <b>Tideholm Almanac</b></div>
+    <ol>
+      <li><a href="#tides">The Tides</a></li>
+      <li><a href="#resources">Three Resources</a></li>
+      <li><a href="#building">Raising an Island</a></li>
+      <li><a href="#muster">The Muster</a></li>
+      <li><a href="#war">The Art of War</a></li>
+      <li><a href="#widen">Widening the Map</a></li>
+      <li><a href="#conquest">Taking What's Held</a></li>
+      <li><a href="#shields">Shields, Spies &amp; Allies</a></li>
+      <li><a href="#tidepool">The Tidepool</a></li>
+      <li><a href="#beacon">The Great Beacon</a></li>
+      <li><a href="#folk">The Island Folk</a></li>
+      <li><a href="#craft">The Admiral's Craft</a></li>
+      <li><a href="#banners">Banners &amp; Names</a></li>
+      <li><a href="#seasons">The Season Turns</a></li>
+    </ol>
+    <div class="end">
+      <a href="#quickref">Quick reference &amp; keys</a>
+      <a href="./">&larr; Back to the game</a>
+    </div>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <div class="eyebrow">A Captain's Handbook</div>
+      <h1>The Tideholm Almanac</h1>
+      <p class="sub">Everything the ocean will teach you, written down so it needn't cost you a fleet.</p>
+      <svg class="compass" viewBox="0 0 100 100" fill="none" stroke="var(--gold)" stroke-width="2" aria-hidden="true">
+        <circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="4" fill="var(--gold)"/>
+        <path d="M50 8 L58 50 L50 92 L42 50 Z" fill="var(--gold)" opacity=".5"/>
+        <path d="M8 50 L50 42 L92 50 L50 58 Z" fill="var(--gold)" opacity=".25"/>
+      </svg>
+    </header>
+
+    <p class="lead">You rule one island on a wide, patient ocean. From it you will grow an
+    economy, raise an army, and reach for more land — by settling the empty
+    grey islands or taking the inhabited ones. Everything runs in real time:
+    your buildings rise, your troops train, and your fleets sail while you sleep.
+    This book is the difference between learning that the slow way and the
+    fast way. Read the first five chapters to play; read the rest to win.</p>
+
+    <!-- I -->
+    <h2 class="chapter" id="tides"><span class="num">Chapter One</span>The Tides</h2>
+    <p>Tideholm is a game of <strong>slow strategy</strong>. There are no turns and
+    no pause. A wall you queue tonight is standing by morning; a fleet you send
+    across the map arrives hours later, whether or not you are watching. The
+    ocean rewards the captain who plans for the hours they are <em class="term">away</em>,
+    not only the minutes they are present.</p>
+    <p>The world is a single shared sea of forty by forty tiles. Some islands are
+    <strong>yours</strong>, some belong to <strong>other captains</strong>, and the rest are held
+    by the <strong>island folk</strong> — bots who are anything but decorative
+    (<a class="xref" href="#folk">Chapter Eleven</a>). Grey islands are
+    <em class="term">uncharted</em>: unclaimed land waiting for a colony ship.</p>
+    <p>Play unfolds in <strong>seasons</strong>. Each opens on a fresh map, runs until
+    someone wins or the season is called, and then resets — with the ruleset
+    sometimes changed for the season ahead. What survives a reset is deliberately
+    little: the <strong>hall of fame</strong>, and your <strong>name and banner</strong>
+    (<a class="xref" href="#banners">Chapter Thirteen</a>). Everything else is
+    built anew, which is the point — every season is a clean race.</p>
+    <div class="note"><span class="tag">A newcomer's mercy</span>
+    <p style="margin:.4em 0 0">New captains cannot be attacked until they cross
+    <strong>40 points</strong> and their opening grace expires — build in peace, but
+    choose your first fight carefully, for striking a fellow human ends your own
+    protection early.</p></div>
+    <h3>Finding your way about</h3>
+    <p>The game is a row of tabs and a dock. You will spend most of your time in
+    <strong>My Island</strong> — build, train, read one island's detail — and on the
+    <strong>Islands</strong> overview, which lays your whole holding on one screen:
+    stocks, production, defence, and what is <em>at sea</em>, sorted weakest-first so
+    the island most in need of you sits at the top. The <strong>Map</strong> is where you
+    click a target; <strong>Reports</strong> keeps your battle and scout dispatches;
+    <strong>Rankings</strong>, <strong>Market</strong>, <strong>Alliance</strong>, and
+    <strong>Mail</strong> each earn a chapter below.</p>
+    <p>Two conveniences repay learning early. The <strong>dock</strong> along the bottom
+    holds a chip for every island — click to switch, hold or right-click to
+    <em class="term">pin</em> one to the front (and to the front of the number keys). And the
+    <strong>⏳ chip</strong> in the top bar names the very next thing to finish anywhere
+    in your empire — a building, a training batch, a fleet landing — with a
+    countdown; click it and you are carried straight to that island. When the chip
+    is empty, so are your halls, and idle halls earn nothing.</p>
+    <p>Before you commit an attack, open its target and use the <strong>battle
+    simulator</strong>: enter a force and it estimates the outcome and your losses
+    against the garrison you have scouted. It is far cheaper to lose a battle on
+    paper than at sea.</p>
+
+    <!-- II -->
+    <h2 class="chapter" id="resources"><span class="num">Chapter Two</span>Three Resources</h2>
+    <p>Three resources accumulate on every island you hold, hour after hour:</p>
+    <div class="tier">
+      <div class="card"><h4>🪵 Wood</h4><p>The Lumberyard's yield. The backbone of buildings and the cheapest thing you burn.</p></div>
+      <div class="card"><h4>🪨 Stone</h4><p>The Quarry's yield. Walls and storehouses drink it; it is often your quiet bottleneck.</p></div>
+      <div class="card"><h4>🪙 Gold</h4><p>The Gold Mine's yield, and the slowest to accrue. Ships and the finest units are hungry for it — plan around gold and the rest follows.</p></div>
+    </div>
+    <p>Your <strong>Storehouse</strong> caps how much of each you can hold. A full store
+    <strong>wastes</strong> everything produced past the brim, so a wise captain keeps the
+    store a step ahead of income. Storage grows generously — <code>400 × 1.5^level</code>
+    per resource — so a single upgrade buys real headroom.</p>
+    <p>Production climbs with the producing building's level, at about
+    <strong>12% more per level</strong> on top of the flat gain — so a Lumberyard 5
+    makes far more than five Lumberyard 1s. Balance the three mines against what
+    you actually <em class="term">spend</em>, not against each other: if your gold sits
+    empty while wood overflows, raise the Gold Mine, not the Lumberyard.</p>
+
+    <!-- III -->
+    <h2 class="chapter" id="building"><span class="num">Chapter Three</span>Raising an Island</h2>
+    <p>Every building costs about <strong>1.55× more per level</strong> and takes
+    <strong>1.5× longer</strong>, so early levels are cheap and late ones are
+    investments. Upgrades queue up to three deep. The <strong>Island Hall</strong>
+    speeds every construction on that island — roughly 4% faster per hall level —
+    so a captain who neglects the Hall builds slowly forever.</p>
+    <div class="tbl-scroll">
+    <table>
+      <caption>The buildings of an island, and what each is for.</caption>
+      <thead><tr><th>Building</th><th>What it does</th><th>Raise it when…</th></tr></thead>
+      <tbody>
+        <tr><td class="u-name">Lumberyard</td><td>Produces wood (~40/h × level, compounding)</td><td>wood is your bottleneck</td></tr>
+        <tr><td class="u-name">Quarry</td><td>Produces stone</td><td>stone is your bottleneck</td></tr>
+        <tr><td class="u-name">Gold Mine</td><td>Produces gold — the slowest faucet (~15/h × level)</td><td>almost always sooner than you think</td></tr>
+        <tr><td class="u-name">Storehouse</td><td>Raises the cap on all three resources (×1.5/level)</td><td>a resource is about to overflow</td></tr>
+        <tr><td class="u-name">Island Hall</td><td>Speeds all construction on the island</td><td>early, and kept near your mine levels</td></tr>
+        <tr><td class="u-name">Barracks</td><td>Unlocks troops; higher levels train faster</td><td>you are ready to defend or raid</td></tr>
+        <tr><td class="u-name">Harbor</td><td>Unlocks ships (colony &amp; flagship) and grants merchant slots — one per level</td><td>you mean to expand, conquer, or trade</td></tr>
+        <tr><td class="u-name">Wall</td><td>Strengthens every defender (see <a class="xref" href="#war">Chapter Five</a>); takes damage only when the island is sacked</td><td>an island holds anything worth taking</td></tr>
+        <tr><td class="u-name">Farm</td><td>Population cap — every unit needs people (×1.35/level)</td><td>your army wants to grow past its cap</td></tr>
+        <tr><td class="u-name">Great Beacon</td><td>The wonder of victory (<a class="xref" href="#beacon">Chapter Ten</a>)</td><td>you intend to win the world</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><span class="tag">The Wall is the best stone you'll lay</span>
+    <p style="margin:.4em 0 0">A wall gives flat defence <em>and</em> multiplies every defender behind it,
+    and — unlike a soldier — it never dies in a battle it wins. Points spent on
+    stone defend forever; points spent on flesh defend once. When in doubt, wall first.</p></div>
+
+    <!-- IV -->
+    <h2 class="chapter" id="muster"><span class="num">Chapter Four</span>The Muster</h2>
+    <p>Six units make an army. Each costs <strong>population</strong> from your Farm as
+    well as resources, so a bigger army needs a bigger Farm. Read the table with
+    an eye to <em class="term">role</em>, not raw numbers: a sentinel's 30 defence and a
+    raider's 24 attack are the two pillars of the game.</p>
+    <div class="tbl-scroll">
+    <table>
+      <caption>The roster. Attack and defence are per unit; carry is the loot one soldier hauls home.</caption>
+      <thead><tr><th>Unit</th><th class="n">Atk</th><th class="n">Def</th><th class="n">Carry</th><th class="n">Pop</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td class="u-name">Spearman</td><td class="n">10</td><td class="n">14</td><td class="n">25</td><td class="n">1</td><td>Cheap all-rounder; a starter garrison</td></tr>
+        <tr><td class="u-name">Raider</td><td class="n">24</td><td class="n">7</td><td class="n">60</td><td class="n">2</td><td>The hammer — strong attack, biggest hold, weak at home</td></tr>
+        <tr><td class="u-name">Sentinel</td><td class="n">6</td><td class="n">30</td><td class="n">10</td><td class="n">1</td><td>The wall's best friend; never leaves on a raid</td></tr>
+        <tr><td class="u-name">Scout</td><td class="n">0</td><td class="n">2</td><td class="n">5</td><td class="n">1</td><td>Spies abroad; counter-spies at home; cannot fight</td></tr>
+        <tr><td class="u-name">Colony Ship</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">6</td><td>Settles an uncharted island; consumed on landing</td></tr>
+        <tr><td class="u-name">Flagship</td><td class="n">0</td><td class="n">10</td><td class="n">0</td><td class="n">10</td><td>The instrument of conquest (<a class="xref" href="#conquest">Chapter Seven</a>)</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Note the <strong>speeds</strong> you will feel in play: raiders are quick, the
+    flagship is the <em>slowest</em> thing that sails. A wave travels at the pace of
+    its slowest member — so a flagship in your fleet slows the whole fleet to a
+    crawl. This single fact shapes every campaign in <a class="xref" href="#conquest">Chapter Seven</a>.</p>
+
+    <!-- V -->
+    <h2 class="chapter" id="war"><span class="num">Chapter Five</span>The Art of War</h2>
+    <p>Click any island to attack it. Travel time depends on distance and your
+    slowest unit. On arrival, your <strong>attack power</strong> meets the garrison's
+    <strong>defence power</strong>, and the stronger side wins. <strong>Ties go to the
+    defender</strong> — a fact that quietly kills many a lone flagship.</p>
+    <p>The two powers are built like so:</p>
+    <div class="formula">
+      Attack&nbsp;&nbsp;<b>A</b> = (sum of attackers' attack) × morale<br>
+      Defence <b>D</b> = (sum of defenders' defence + <b>15</b>×wall) × (1 + <b>0.08</b>×wall)
+    </div>
+    <p>The <strong>wall</strong> appears twice — a flat bonus and a multiplier — which is
+    why walls are so strong on a garrisoned island. Reinforcements sent as
+    support (<a class="xref" href="#shields">Chapter Eight</a>) add their defence
+    to the total, so a well-supported ally is a hard nut.</p>
+    <h3>The cost of winning</h3>
+    <p>The loser is destroyed utterly. The <strong>winner</strong> loses a fraction of
+    their force, and that fraction is the crux of every raid you will ever plan:</p>
+    <div class="formula">winner's losses = (weaker side ÷ stronger side)<sup>1.5</sup></div>
+    <p>Crush a small garrison and you lose almost nothing; scrape a win and you
+    lose most of your army. The exponent is unkind: a <strong>3× advantage</strong>
+    costs you about <strong>19%</strong>, but a mere <strong>1.5×</strong> edge costs
+    <strong>54%</strong>. The lesson every captain learns the expensive way — <em>bring
+    overwhelming force or don't bring it at all</em>. Beyond roughly 3×, extra
+    troops shave little further; that is the sweet spot to aim for.</p>
+    <h3>Morale — the shield of the small</h3>
+    <p>When a <strong>much larger</strong> attacker strikes a <strong>much smaller</strong>
+    human, their attack is dampened by morale (down to a floor). The giant's fist
+    swings soft; the underdog's defence stands full. It is the game's built-in
+    protection against being farmed by a whale — and it means that when two
+    unequal captains finally trade blows, the larger one is fighting at a
+    discount they may not expect. Against the island folk, no such mercy applies:
+    humans hit bots at full strength.</p>
+    <p>Victors <strong>plunder</strong> what their surviving holds can carry, drawn
+    proportionally from the defender's stores, and sail home with it. An empty
+    store is a wasted raid — which is why a raided captain who <em>evacuates</em>
+    first gives the attacker nothing but a long trip.</p>
+
+    <!-- VI -->
+    <h2 class="chapter" id="widen"><span class="num">Chapter Six</span>Widening the Map</h2>
+    <p>The grey islands are yours for the settling. Build a <strong>Harbor</strong>,
+    train a <strong>Colony Ship</strong>, and send it to an uncharted tile — the first
+    ship to land claims it as a fresh colony. A newly settled island begins small
+    and grows like any other.</p>
+    <div class="note warn"><span class="tag">The expansion curve</span>
+    <p style="margin:.4em 0 0">Each Colony Ship costs more than the last, climbing along your
+    <strong>expansion position</strong> — the count of islands you hold <em>plus</em> every
+    ship already paid for. Ordering one at a time costs exactly the same as a
+    batch; there is no discount for clicking cleverly. Going wide is never
+    forbidden — it is <em>priced</em>. Weigh a fifth colony against simply deepening
+    the four you have.</p></div>
+    <p>Because the price counts <em>islands held</em>, a <strong>conquest</strong>
+    (<a class="xref" href="#conquest">next chapter</a>) also raises the cost of
+    your future ships. And so the seasoned captain buys every colony ship they
+    intend to build <em>before</em> taking an inhabited island — a small discipline
+    that saves a great deal of gold.</p>
+
+    <!-- VII -->
+    <h2 class="chapter" id="conquest"><span class="num">Chapter Seven</span>Taking What's Held</h2>
+    <p>An inhabited island is not settled — it is <strong>conquered</strong>, and conquest
+    is a campaign, not a single blow. Every island has <strong>loyalty</strong>, from
+    100 down to 0. The instrument that lowers it is the <strong>Flagship</strong>:</p>
+    <ul>
+      <li>A winning attack that includes a <strong>surviving flagship</strong> drops loyalty by <strong>25–40</strong>.</li>
+      <li>When loyalty reaches <strong>0</strong>, the island — buildings, stores, and all — becomes yours, and your surviving army garrisons it.</li>
+      <li>Loyalty <strong>regenerates</strong> slowly (about 2 per hour), so strike in a sustained rhythm, not in scattered pokes.</li>
+      <li>A fresh conquest starts <strong>restive at 25</strong>, and lose your <em>last</em> island and your people flee to a new one — you are never quite out of the game.</li>
+    </ul>
+    <h3>The doctrine</h3>
+    <p>From 100 loyalty you need three or four winning flagship waves. The
+    craft is in <em>how</em> you throw them:</p>
+    <div class="tier">
+      <div class="card"><h4>1 · Break the garrison</h4><p>Send the first wave as <strong>raiders only</strong> — fast, and expendable. They kill the defenders and knock the wall down, taking the campaign's only real losses. Keep the slow, precious flagship out of this brawl.</p></div>
+      <div class="card"><h4>2 · Ride the ladder</h4><p>Now send <strong>flagship plus a light escort</strong>, wave after wave, against the emptied island. Each winning wave drops loyalty; each is nearly lossless. Time them so regeneration never catches up.</p></div>
+      <div class="card"><h4>3 · Mind the flagship</h4><p>A flagship in a <em>losing</em> wave is consumed for nothing. Escort it enough that it never loses — and never send it alone, for a lone flagship attacks at zero and loses even to an empty beach on the tie rule.</p></div>
+    </div>
+    <p>Remember that the flagship is the slowest sailer, so each loyalty hit is a
+    long round trip and the ladder unfolds over hours. Plan it against a moment
+    you can watch — or against a sleeping defender (<a class="xref" href="#folk">Chapter Eleven</a>).</p>
+
+    <!-- VIII -->
+    <h2 class="chapter" id="shields"><span class="num">Chapter Eight</span>Shields, Spies &amp; Allies</h2>
+    <h3>Support — how alliances actually hold ground</h3>
+    <p>Click any island and choose <strong>Send support</strong> to station troops there as
+    defenders. Stationed troops fight and die in that island's defence, and their
+    power is added to the garrison in full. Recall them whenever you wish.
+    Reinforcing a threatened colony — your own or an ally's — is the difference
+    between a scouted-open target and a fortress.</p>
+    <div class="note"><span class="tag">Population travels with the soldier</span>
+    <p style="margin:.4em 0 0">Troops you send abroad keep consuming the population of the island that
+    <em>raised</em> them — sending them away does not free room to train more at home.
+    Helping an ally is a real, ongoing cost, not a free gesture.</p></div>
+    <h3>Scouts — and counter-scouts</h3>
+    <p>A <strong>Scout</strong> reveals a target's garrison, stores, loyalty, and buildings
+    — the intelligence every raid and conquest should begin with. But the
+    defender's own scouts fight back: <strong>send more scouts than they keep at home,
+    or none of yours return</strong> and they learn you tried.</p>
+    <p>The corollary is one of the game's deepest tricks. A raider will only strike
+    a measured, <em>beatable</em> target — so an island whose scouts <strong>catch every
+    incoming spy</strong> can never be measured, and therefore is never raided by an
+    opportunist. A screen of counter-scouts is armour made of ignorance.</p>
+    <h3>Alliances &amp; the mailbag</h3>
+    <p>Found an alliance or accept an invitation in the <strong>Alliance</strong> tab.
+    Allies cannot attack one another, your tag shows beside your name on the map and
+    the rankings, and — with support — you can genuinely hold ground together: one
+    captain's sentinels standing on another's wall is how the strongest positions in
+    the game are built. Against a shared enemy, an alliance is worth more than any
+    single fleet.</p>
+    <p>The <strong>Mail</strong> tab is your correspondence with any captain on the map —
+    to plot, to bargain, to threaten, or simply to keep a rival warm. In a game this
+    patient, a well-timed message often moves more than a wave. It is also where your
+    captain's profile and banner live (<a class="xref" href="#banners">Chapter Thirteen</a>).</p>
+
+    <!-- IX -->
+    <h2 class="chapter" id="tidepool"><span class="num">Chapter Nine</span>The Tidepool</h2>
+    <p>The Tidepool, in the Market tab, is an <strong>automatic market</strong>: swap
+    wood, stone, and gold at a live price with no trading partner needed. It
+    needs a Harbor — but unlike an ordinary shipment it uses <strong>no merchant
+    slot</strong>, so it works when all your merchants are at sea.</p>
+    <p>The price moves as you trade: the pool holds reserves of each resource, and
+    a swap that drains one side makes it dearer. Small, shallow pools mean large
+    swaps suffer heavy <strong>price impact</strong> and are capped — so trade in
+    measured amounts, or <strong>deposit</strong> to become a <em class="term">provider</em>
+    and earn a share of every swap's fee.</p>
+    <div class="note"><span class="tag">Where you live is what you pay</span>
+    <p style="margin:.4em 0 0">The pool sits at the centre of the map, and swapped goods sail the real
+    distance home from your Harbor. A captain near the middle trades in minutes;
+    one in the corner waits hours. Factor the voyage into every swap — the pool
+    is a poor tool for a resource you need <em>now</em>.</p></div>
+
+    <!-- X -->
+    <h2 class="chapter" id="beacon"><span class="num">Chapter Ten</span>The Great Beacon</h2>
+    <p>There is a way to win the whole world: raise the <strong>Great Beacon</strong>, a
+    colossal lighthouse, to its winning level. Its progress is announced to every
+    captain at each level, so it cannot be a secret — the wonder is a
+    <em class="term">target</em> as much as a triumph, and the last levels give your rivals
+    time to gather against you.</p>
+    <p>The Beacon is the most demanding structure in the game. It requires a
+    high Island Hall to begin, its costs are charged the moment you queue each
+    level, and its final level is vast — you will want your Storehouse tall
+    enough to <em>hold</em> that cost, and a river of resources flowing to the wonder
+    island while it builds. Building it is a season-defining project, and the
+    captain who announces one at level one is inviting the whole ocean to a duel.</p>
+
+    <!-- XI -->
+    <h2 class="chapter" id="folk"><span class="num">Chapter Eleven</span>The Island Folk</h2>
+    <p>The bots are the world's living content. They build, train, raid for loot,
+    expand — and they <strong>remember who attacked them</strong>. Understanding their
+    natures is half of a campaign.</p>
+    <div class="tbl-scroll">
+    <table>
+      <caption>The three temperaments of the island folk.</caption>
+      <thead><tr><th>Kind</th><th>Nature</th></tr></thead>
+      <tbody>
+        <tr><td class="u-name">Settler</td><td>The common folk. Build steadily, keep a modest guard, expand when they can. Most of the map, and most of your prey.</td></tr>
+        <tr><td class="u-name">Warlord</td><td>Hunters. They ignore the "don't punch above your weight" rule, raid twice as readily, and dream of conquest. The one kind that will scout and strike a giant unprovoked — so a naked empire is never safe from a wolf.</td></tr>
+        <tr><td class="u-name">Barbarian</td><td>Fortress-farmers. They train only defenders and never attack — a standing bank of resources behind a wall, meant to be scouted and farmed, never feared.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h3>Their habits, which you will exploit</h3>
+    <p>Every bot keeps a <strong>sleep window</strong> — hours in which it does nothing at
+    all: no building, no training, no reaction to your fleets. A conquest timed
+    to a sleeping bot meets no fresh defence between your waves. Every bot also
+    holds <strong>grudges</strong>: attack one and it will, once armed, send a wave at your
+    nearest island — a wave that, broken on a good wall, costs it far more than
+    it costs you. And a bot whose stores you keep <strong>empty</strong> can never afford
+    to rebuild — the farm loop, at its purest, is a cow that funds your fleet
+    while it sleeps.</p>
+
+    <!-- XII -->
+    <h2 class="chapter" id="craft"><span class="num">Chapter Twelve</span>The Admiral's Craft</h2>
+    <p>The chapters above are the rules. What follows is the wisdom — the hard-won
+    habits that separate a captain who <em>knows</em> the game from one who
+    <em>wins</em> it.</p>
+    <h3>Gold is your clock</h3>
+    <p>Wood and stone arrive quickly; gold does not. Nearly every ambition — ships,
+    flagships, the finest units — is gated by gold long before the other two.
+    Raise the Gold Mine earlier than feels natural, and price every plan in gold.</p>
+    <h3>Overwhelming force, or none</h3>
+    <p>The loss curve punishes the narrow win. Do not send a fleet you merely
+    <em>think</em> will win; send one that will win at three-to-one and come home
+    nearly whole. A raid that costs half your army to make is a raid you should
+    not have made.</p>
+    <h3>Walls before soldiers</h3>
+    <p>Defence in stone never bleeds. When shoring up an island, the wall is the
+    first purchase and the sentinels the second — and a handful of walls across
+    your frontier will turn a dozen opportunist raids into a dozen funerals.</p>
+    <h3>The unseen giant</h3>
+    <p>A large empire cannot be freshly scouted by ordinary bots — the "don't poke
+    giants" rule keeps them from measuring you at all. Your naked colonies stay
+    safe from opportunists <em>until</em> you conquer a pre-scouted bot island, whose
+    old intelligence you inherit; that stale reading fades within half a day, and
+    the colony goes quiet again. Only warlords, who ignore the rule, can measure a
+    giant on purpose — guard against wolves, not against the flock.</p>
+    <h3>Evacuate, don't defend the indefensible</h3>
+    <p>A raid takes stores, not land. If a wave is coming to a lightly held island
+    and you cannot make it win, <strong>spend the stores or ship them away</strong> before
+    the raiders land. They will sack an empty larder and sail home with nothing.</p>
+    <h3>Suppress, then take</h3>
+    <p>A bot you mean to conquer need not be strong when you arrive. Strip its army
+    and its stores in the days before; keep it too poor to rebuild; and let its
+    own grudge-waves bleed themselves on your wall. When the flagship finally
+    comes, it faces an empty shell its own vendetta helped hollow out.</p>
+
+    <!-- XIII -->
+    <h2 class="chapter" id="banners"><span class="num">Chapter Thirteen</span>Banners &amp; Names</h2>
+    <p>In the Mail tab you may link a <strong>did:nostr identity</strong> — a self-owned
+    key that becomes your captain's <em class="term">banner</em>, shown beside your name in
+    mail and the rankings. Generate a key on your own device, and paste back only
+    the <strong>public</strong> half; the secret never leaves your hands.</p>
+    <p>The banner is more than decoration. Because it is <strong>yours</strong> rather than
+    the season's, it <strong>survives the reset</strong> — link it once and it flies from
+    the first day of every season after. Your name persists; your deeds accrete to
+    it. It is the one thread of continuity the ocean allows, and the beginning of
+    a reputation that outlives any single map.</p>
+
+    <!-- XIV -->
+    <h2 class="chapter" id="seasons"><span class="num">Chapter Fourteen</span>The Season Turns</h2>
+    <p>When a season ends — by a Beacon lit, a runaway leader, or a called close —
+    the world is archived to the hall of fame and a fresh map opens, often under
+    a tuned ruleset. The colony curve may bite harder; the Beacon may demand more;
+    the balance of gold and stone may shift. Read the opening announcement of each
+    season the way a sailor reads the sky: the rules you mastered last time are
+    the rules of last time.</p>
+    <p>What you carry across is your banner, your place in the hall of fame, and
+    the craft in this book. Everything else you build again — which is the mercy
+    and the point of a season. No lead is permanent; every reset is a fair start;
+    and the ocean is always, patiently, waiting for the next tide.</p>
+
+    <!-- Quick ref -->
+    <h2 class="chapter" id="quickref"><span class="num">Appendix</span>Quick Reference &amp; Keys</h2>
+    <h3>Keyboard shortcuts</h3>
+    <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Key</th><th>Does</th></tr></thead>
+      <tbody>
+        <tr><td><code>i</code> / <code>o</code> / <code>m</code></td><td>Island · Islands overview · Map</td></tr>
+        <tr><td><code>r</code> / <code>l</code> / <code>t</code></td><td>Reports · Rankings · Market</td></tr>
+        <tr><td><code>a</code> / <code>p</code></td><td>Alliance · Mail</td></tr>
+        <tr><td><code>1</code>–<code>9</code></td><td>Jump to an island in dock order (pin one to move it to the front)</td></tr>
+        <tr><td><code>←</code> <code>→</code></td><td>Step through your islands</td></tr>
+        <tr><td><code>↑</code> <code>↓</code></td><td>On the Islands tab, select by table order</td></tr>
+        <tr><td><code>?</code> · <code>Esc</code></td><td>Show the shortcut list · Close panels</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h3>The numbers that matter</h3>
+    <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Rule of thumb</th><th>The figure</th></tr></thead>
+      <tbody>
+        <tr><td>Storehouse capacity</td><td>400 × 1.5<sup>level</sup> per resource</td></tr>
+        <tr><td>Building cost / time growth</td><td>×1.55 cost, ×1.5 time per level</td></tr>
+        <tr><td>Production growth</td><td>≈ +12% per producer level (compounding)</td></tr>
+        <tr><td>Wall defence</td><td>+15 flat and +8% per level, both at once</td></tr>
+        <tr><td>Winner's losses</td><td>(weaker ÷ stronger)<sup>1.5</sup> — aim for a 3× edge</td></tr>
+        <tr><td>Flagship loyalty hit</td><td>25–40 per surviving-flagship win</td></tr>
+        <tr><td>Loyalty regen</td><td>≈ 2 per hour — strike in rhythm</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <a class="backlink" href="./">&larr; Weigh anchor — back to the game</a>
+
+    <footer class="colophon">
+      The Tideholm Almanac · a living handbook, revised as the tides turn.
+      Figures are the season's defaults and may shift at a boundary; when the
+      chart and the sea disagree, believe the sea. Fair winds.
+    </footer>
+  </main>
+</div>
+<script>
+// Contents highlighting + the mobile drawer. Tiny and dependency-free, in
+// keeping with the game it belongs to.
+(function(){
+  var links = [].slice.call(document.querySelectorAll('nav.toc ol a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function(ents){
+    ents.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove('on'); });
+        var a = map[e.target.id]; if(a) a.classList.add('on');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+  [].slice.call(document.querySelectorAll('h2.chapter')).forEach(function(h){ obs.observe(h); });
+  var btn = document.getElementById('menuBtn'), toc = document.getElementById('toc');
+  if(btn){
+    btn.addEventListener('click', function(){
+      var open = toc.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    toc.addEventListener('click', function(e){ if(e.target.tagName==='A'){ toc.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
+  }
+})();
+</script>
+</body>
+</html>
