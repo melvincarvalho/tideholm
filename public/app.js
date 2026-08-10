@@ -471,7 +471,7 @@ function renderState() {
   // stale gold or paint two the way the surgical move did.
   if (lastMapData && !$('view-map').classList.contains('hidden')) {
     drawMinimap(lastMapData);
-    TMap.markGridActive($('map-grid'), lastMapData.size, state.island);
+    TMap.markGridActive($('map-grid'), lastMapData.size, selectedXY());
   }
 
   nextChipTarget = computeNextChip();
@@ -913,6 +913,7 @@ async function loadMap() {
   grid.innerHTML = '';
   let myCell = null;
   const byCoord = new Map(data.islands.map((i) => [`${i.x},${i.y}`, i]));
+  const cur = selectedXY();
   for (let y = 0; y < data.size; y++) {
     for (let x = 0; x < data.size; x++) {
       const cell = document.createElement('div');
@@ -932,7 +933,7 @@ async function loadMap() {
         if (isl.relation && isl.relation !== 'same') title += `\n${T('ui.dip.' + isl.relation)}`;
         if (isl.intel) title += `\n${T('ui.map.intel', { def: isl.intel.def, h: isl.intel.hours })}`;
         cell.title = title;
-        const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
+        const isActive = cur && isl.x === cur.x && isl.y === cur.y;
         if (isActive) { myCell = cell; cell.classList.add('active'); } // gold: the island you're on (#119)
         // Every island cell is clickable — including your own (opens its trade
         // panel) — so the gold is purely a marker and can move by class alone,
@@ -1075,6 +1076,17 @@ async function paintMapBackground(data) {
 
 // ---------------------------------------------------------------- minimap & zoom
 
+// The island you're currently on, read from the <select> you drive — the dock,
+// the arrows, and the islands table all set it, and every surface agrees on it.
+// state.island is the FETCHED active, which a poll race can roll back to your
+// default island; the gold must follow your SELECTION, not that (#131). Returns
+// {x,y}, falling back to state.island before the select is populated.
+function selectedXY() {
+  const id = Number($('island-select').value);
+  const isl = state && state.islands && state.islands.find((i) => i.id === id);
+  return isl || (state && state.island) || null;
+}
+
 function drawMinimap(data) {
   const canvas = $('minimap');
   const ctx = canvas.getContext('2d');
@@ -1083,7 +1095,7 @@ function drawMinimap(data) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(buildRaster(data), 0, 0, canvas.width, canvas.height);
-  TMap.paintDots(ctx, data, state && state.island);
+  TMap.paintDots(ctx, data, selectedXY());
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * data.size);
