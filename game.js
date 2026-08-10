@@ -2137,6 +2137,70 @@ function appendHall(entry) {
   return hall;
 }
 
+// The signed Tidegate trail (#135): one JSON doc per identity, beside the world.
+// This is the KISS stand-in for a Solid pod — the SAME one-doc-per-identity shape
+// a pod would hold, so moving it to a pod later is a store swap, not a rewrite.
+// The peg endpoints move `pegged` (the money-safe cap that stops minting); this
+// persists the SEAL: the client-signed, linear history that makes the sealed
+// balance portable and verifiable by other apps under one did:nostr. We chain-
+// check each transition (prev → next by delta, landing on the new `pegged`);
+// the SIGNATURE is the client's attestation for consumers to verify, never ours
+// to trust — so there is no crypto on the server, which keeps deployment simple.
+const TIDEGATE_DIR = process.env.TIDEGATE_DIR
+  || path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'tidegate');
+
+// Keyed by did:nostr when the player has one (portable across seasons and apps).
+// Without one the trail isn't identity-portable anyway, so we key by the player's
+// unique id — never a name slug, which can collide (many valid Unicode names
+// normalize to the same ASCII and would then share, and clobber, one trail file).
+function tidegateKey(player) {
+  const m = /^did:nostr:([0-9a-f]{64})$/.exec(player.nostrDid || '');
+  return m ? m[1] : `local-${player.id}`;
+}
+function tidegateFile(player) { return path.join(TIDEGATE_DIR, `${tidegateKey(player)}.json`); }
+
+// The player's signed trail, oldest first (empty if they've never pegged, or if
+// the doc is missing or somehow not an array — callers push/read it as a list).
+function tidegateTrail(player) {
+  try {
+    const t = JSON.parse(fs.readFileSync(tidegateFile(player), 'utf8'));
+    return Array.isArray(t) ? t : [];
+  } catch { return []; }
+}
+
+// Append a signed transition. Returns the new trail, or null (never throws) when
+// it doesn't chain onto the stored trail and land exactly on the post-peg
+// `pegged`. Call AFTER the peg has moved `pegged`. We store the client's OWN
+// prev/delta/next — the exact values its signature commits to — so the stored
+// sig stays valid; if they don't match the expected chain we reject rather than
+// re-stamp a record the signature no longer fits. A null return is soft: the
+// money move already stuck; only the seal lagged — never fail the peg over it.
+function tidegateRecord(player, t) {
+  try {
+    if (!t || typeof t !== 'object') return null;
+    const prev = Number(t.prev), delta = Number(t.delta), next = Number(t.next);
+    if (![prev, delta, next].every(Number.isSafeInteger) || delta === 0) return null;
+    if (next !== prev + delta) return null;               // internally consistent
+    const pegged = Math.floor(player.pegged || 0);
+    if (next !== pegged) return null;                     // mirrors the authoritative balance
+    const trail = tidegateTrail(player);
+    // Chain: prev is the last recorded balance, or — for the first entry — the
+    // balance the player already held before we began recording (pegged - delta).
+    const expectedPrev = trail.length ? trail[trail.length - 1].next : pegged - delta;
+    if (prev !== expectedPrev) return null;
+    trail.push({
+      did: player.nostrDid || t.did || null,
+      prev, delta, next,
+      sig: typeof t.sig === 'string' ? t.sig : null,
+      pubkey: typeof t.pubkey === 'string' ? t.pubkey : null,
+      at: Date.now(),
+    });
+    fs.mkdirSync(TIDEGATE_DIR, { recursive: true });
+    fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
+    return trail;
+  } catch { return null; }
+}
+
 function crownWinner(world, winner, now) {
   world.winner = { ...winner, time: now };
   appendHall(world.winner);
@@ -2494,6 +2558,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
+  tidegateRecord, tidegateTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,

@@ -1252,6 +1252,9 @@ export function createApp(opts = {}) {
       const island = myIsland(player, body.islandId);
       const result = game.vaultPegIn(player, Number(body.amount));
       if (result.error) return gameErr(res, lang, result);
+      // Persist the client-signed seal (#135). Soft — a bad/absent transition
+      // never fails the peg; the money already moved, only the trail would lag.
+      game.tidegateRecord(player, body.transition);
       return sendJson(res, 200, stateFor(player, island.id));
     }
 
@@ -1261,7 +1264,15 @@ export function createApp(opts = {}) {
       const island = myIsland(player, body.islandId);
       const result = game.vaultPegOut(player, Number(body.amount));
       if (result.error) return gameErr(res, lang, result);
+      game.tidegateRecord(player, body.transition);
       return sendJson(res, 200, stateFor(player, island.id));
+    }
+
+    // The signed Tidegate trail (#135), read-only — so the player (and other
+    // apps under the same did:nostr) can fetch and verify the seal. The KISS
+    // stand-in for reading a pod; the doc shape is identical.
+    if (req.method === 'GET' && pathname === '/api/tidegate/trail') {
+      return sendJson(res, 200, { trail: game.tidegateTrail(player) });
     }
 
     if (req.method === 'POST' && pathname === '/api/market/create') {

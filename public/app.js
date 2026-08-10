@@ -1751,7 +1751,14 @@ async function getTidegate() {
       balance: async () => (state && state.player && state.player.pegged) || 0,
       append: async (did, t) => {
         const path = t.delta > 0 ? '/api/vault/pegin' : '/api/vault/pegout';
-        state = await api(path, { islandId: activeIslandId, amount: Math.abs(t.delta) });
+        // Carry the signed transition so the server persists the SEAL (#135) —
+        // the durable, portable trail, one signed doc per did:nostr. The peg
+        // itself stays server-capped (no minting); the trail is the mirror.
+        state = await api(path, {
+          islandId: activeIslandId,
+          amount: Math.abs(t.delta),
+          transition: { did, prev: t.prev, delta: t.delta, next: t.next, sig: t.sig, pubkey: signer.pubkey },
+        });
         clockSkew = state.serverNow - Date.now();
         renderState();
         return (state.player && state.player.pegged) || 0;
