@@ -249,13 +249,27 @@
     step(e.key === 'ArrowRight' ? 1 : -1);
   });
 
-  // Swipe on the island header only — a page-wide listener would fight the
-  // map drag, wide tables, and the dock's own horizontal scroll. Swipe left
-  // (content moves left) = next island rightward in the dock.
+  // Swipe anywhere on the island panel (#127) — but never where a horizontal
+  // drag would scroll something. Walk from the touch up to #view-island and
+  // bail if any element can scroll sideways (a wide table, or the whole
+  // section on a narrow phone), so the gesture can't fight native scrolling.
+  // Only #view-island is armed, so the map's drag and the dock's own scroll
+  // (both outside it) are untouched. Swipe left = next island rightward.
+  function armsSwipe(target) {
+    var root = target && target.closest && target.closest('#view-island');
+    if (!root) return false;
+    for (var el = target; el; el = el.parentElement) {
+      if (el.scrollWidth > el.clientWidth + 4) {
+        var ox = getComputedStyle(el).overflowX;
+        if (ox === 'auto' || ox === 'scroll') return false;
+      }
+      if (el === root) break;
+    }
+    return true;
+  }
   var swipe = null;
   document.addEventListener('touchstart', function (e) {
-    var hd = e.target && e.target.closest && e.target.closest('#island-title');
-    swipe = (hd && e.touches.length === 1)
+    swipe = (e.touches.length === 1 && armsSwipe(e.target))
       ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
   }, { passive: true });
   document.addEventListener('touchend', function (e) {
