@@ -279,6 +279,9 @@ th { background: #eadfc4; }
 .cell.island.unowned { background: #a9b0b8; }
 .cell.island.rel-ally { background: #2ab5a5; }
 .cell.island.rel-war { box-shadow: 0 0 3px 2px #ff5544; }
+/* The island you're currently on — gold, matching the minimap and rail (#119).
+   Last so it wins the specificity tie against .you / .rel-ally. */
+.cell.island.active { background: #ffd21a; box-shadow: 0 0 4px 2px #ffe08a; cursor: default; }
 
 #island-select {
   font: inherit;
