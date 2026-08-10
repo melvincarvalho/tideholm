@@ -465,9 +465,14 @@ function renderState() {
   // Keep the islands table live while it is the tab on screen (#77).
   if (!$('view-islands').classList.contains('hidden')) renderIslands();
 
-  // Keep the minimap's gold "you are here" live while the map tab is open —
-  // from cache, no fetch — so switching islands moves it at once (#119).
-  if (lastMapData && !$('view-map').classList.contains('hidden')) drawMinimap(lastMapData);
+  // Keep both maps' gold "you are here" live while the map tab is open — from
+  // cache, no fetch — so switching islands moves them at once (#119, #131).
+  // markGridActive re-derives the highlight from scratch, so it can't strand a
+  // stale gold or paint two the way the surgical move did.
+  if (lastMapData && !$('view-map').classList.contains('hidden')) {
+    drawMinimap(lastMapData);
+    TMap.markGridActive($('map-grid'), lastMapData.size, state.island);
+  }
 
   nextChipTarget = computeNextChip();
   renderNextChip();
@@ -920,7 +925,10 @@ async function loadMap() {
         cell.title = title;
         const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
         if (isActive) { myCell = cell; cell.classList.add('active'); } // gold: the island you're on (#119)
-        if (!isActive) cell.addEventListener('click', () => openAttackPanel(isl));
+        // Every island cell is clickable — including your own (opens its trade
+        // panel) — so the gold is purely a marker and can move by class alone,
+        // with no click to rebind when you switch islands (#131).
+        cell.addEventListener('click', () => openAttackPanel(isl));
       }
       grid.appendChild(cell);
     }
@@ -1058,48 +1066,15 @@ async function paintMapBackground(data) {
 
 // ---------------------------------------------------------------- minimap & zoom
 
-const MINI_COLORS = {
-  you: '#3faf46', ally: '#2ab5a5', war: '#ff5544',
-  player: '#3b7dd8', bot: '#e08030', barb: '#8d7b64', unowned: '#a9b0b8',
-};
-// The island you're currently on. Gold — the one colour no team uses, so it
-// reads at a glance where an outline on a few-pixel cell never could (#119).
-const YOU_ARE_HERE = '#ffd21a';
-
-// Match the canvas backing store to the display's pixel ratio (#119). Without
-// this a 160/180px buffer is upscaled and blurred on a HiDPI screen, and fine
-// detail — island dots, the "you are here" ring — smears; a 1px ring blooms
-// into a white blob. Idempotent, so it's safe to call on every draw.
-function hiDpiCanvas(canvas, logical) {
-  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-  const want = Math.round(logical * dpr);
-  if (canvas.width !== want) {
-    canvas.width = want;
-    canvas.height = want;
-    canvas.style.width = logical + 'px';
-    canvas.style.height = logical + 'px';
-  }
-}
-
 function drawMinimap(data) {
   const canvas = $('minimap');
   const ctx = canvas.getContext('2d');
-  hiDpiCanvas(canvas, 160);
-  const px = canvas.width / data.size;
+  TMap.hiDpiCanvas(canvas, 160);
   ctx.fillStyle = '#0e2a3f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(buildRaster(data), 0, 0, canvas.width, canvas.height);
-  for (const isl of data.islands) {
-    const here = state && state.island && isl.x === state.island.x && isl.y === state.island.y;
-    const kind = isl.isYou ? 'you'
-      : isl.relation === 'war' ? 'war'
-      : isl.relation === 'ally' || isl.relation === 'same' ? 'ally'
-      : isl.unowned ? 'unowned' : isl.barbarian ? 'barb' : isl.isBot ? 'bot' : 'player';
-    // The island you're on is gold; every other keeps its team colour (#119).
-    ctx.fillStyle = here ? YOU_ARE_HERE : MINI_COLORS[kind];
-    ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
-  }
+  TMap.paintDots(ctx, data, state && state.island);
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * data.size);

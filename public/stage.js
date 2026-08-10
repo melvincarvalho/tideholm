@@ -15,10 +15,6 @@
 
   const $ = (id) => document.getElementById(id);
   const RES = { wood: '🪵', stone: '🪨', gold: '🪙' };
-  const MAP_COLORS = {
-    you: '#3faf46', ally: '#2ab5a5', war: '#ff5544',
-    player: '#3b7dd8', bot: '#e08030', barb: '#8d7b64', unowned: '#a9b0b8',
-  };
 
   function T(key, params) {
     try { return window.I18N.t(document.documentElement.lang || 'en', key, params); }
@@ -105,39 +101,13 @@
 
   // Match the backing store to the pixel ratio so the map isn't upscaled and
   // blurred on HiDPI (#119) — a 1px ring bloomed into a white blob without it.
-  function hiDpiCanvas(canvas, logical) {
-    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    const want = Math.round(logical * dpr);
-    if (canvas.width !== want) {
-      canvas.width = want;
-      canvas.height = want;
-      canvas.style.width = logical + 'px';
-      canvas.style.height = logical + 'px';
-    }
-  }
-
-  // The island you're currently on. Gold — the one colour no team uses (#119).
-  const YOU_ARE_HERE = '#ffd21a';
-
   function drawMap(m) {
     const canvas = $('stage-map');
     const ctx = canvas.getContext('2d');
-    hiDpiCanvas(canvas, 180);
-    const px = canvas.width / m.size;
+    window.TMap.hiDpiCanvas(canvas, 180);
     ctx.fillStyle = '#0e2a3f';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    for (const isl of m.islands) {
-      const here = activePos && isl.x === activePos.x && isl.y === activePos.y;
-      const kind = isl.isYou ? 'you'
-        : isl.relation === 'war' ? 'war'
-        : isl.relation === 'ally' || isl.relation === 'same' ? 'ally'
-        : isl.unowned ? 'unowned'
-        : isl.barbarian ? 'barb'
-        : isl.isBot ? 'bot' : 'player';
-      // The island you're on is gold; every other keeps its team colour.
-      ctx.fillStyle = here ? YOU_ARE_HERE : MAP_COLORS[kind];
-      ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
-    }
+    window.TMap.paintDots(ctx, m, activePos); // activePos {x,y} is drawn gold
     // Clicking the widget jumps to the real map tab.
     canvas.onclick = () => { const t = $('tab-map'); if (t) t.click(); };
   }
