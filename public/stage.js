@@ -38,6 +38,11 @@
 
   // Player total points + rank come from the rankings, not the island.
   let standing = null; // { rank, points }
+  // The active island's position and the last map payload, so the "you are
+  // here" ring (#119) can follow island switches without waiting for the 30s
+  // map poll — the two pollers are independent, so we redraw on state change.
+  let activePos = null;
+  let lastMap = null;
 
   function left(finish) {
     const s = Math.max(0, Math.round((finish - Date.now()) / 1000));
@@ -47,6 +52,8 @@
 
   function fillState(s) {
     const isl = s.island;
+    activePos = { x: isl.x, y: isl.y };
+    if (lastMap) drawMap(lastMap); // reflect an island switch on the map at once
     $('stage-name').textContent = s.player.name;
     $('stage-rank').textContent = standing ? T('ui.stage.rank', { n: standing.rank }) : '';
     // Player TOTAL from rankings; the active island's own points as fallback,
@@ -112,6 +119,15 @@
       ctx.fillStyle = MAP_COLORS[kind];
       ctx.fillRect(isl.x * px, isl.y * px, Math.max(2, px - 1), Math.max(2, px - 1));
     }
+    // "You are here" (#119): a white ring around the island you're on, drawn
+    // last so it sits above its neighbours. Matches drawMinimap in app.js.
+    if (activePos) {
+      const s = Math.max(2, px - 1);
+      const pad = 1.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.5, px * 0.22);
+      ctx.strokeRect(activePos.x * px - pad, activePos.y * px - pad, s + 2 * pad, s + 2 * pad);
+    }
     // Clicking the widget jumps to the real map tab.
     canvas.onclick = () => { const t = $('tab-map'); if (t) t.click(); };
   }
@@ -125,7 +141,8 @@
 
   async function tickMap() {
     try {
-      drawMap(await get('api/map'));
+      lastMap = await get('api/map');
+      drawMap(lastMap);
     } catch (e) { /* ignore */ }
   }
 
