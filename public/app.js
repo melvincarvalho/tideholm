@@ -881,9 +881,18 @@ $('rename-btn').addEventListener('click', async () => {
   }
 });
 
+let refreshSeq = 0;
 async function refresh() {
+  // Sequence-guard the poll (#131). The 5s poll and an island switch both call
+  // refresh(); without this, a poll already in flight for your OLD island can
+  // return AFTER the switch's fetch and clobber state back to it — the "switch
+  // goes gold, then ticks back to the wrong island" bug. Only the newest
+  // refresh's response is applied; older ones are dropped.
+  const seq = ++refreshSeq;
   try {
-    state = await api('/api/state' + (activeIslandId ? `?island=${activeIslandId}` : ''));
+    const next = await api('/api/state' + (activeIslandId ? `?island=${activeIslandId}` : ''));
+    if (seq !== refreshSeq) return; // a newer poll/switch superseded this one
+    state = next;
     clockSkew = state.serverNow - Date.now();
     renderState();
   } catch (err) {
