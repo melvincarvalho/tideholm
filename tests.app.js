@@ -984,6 +984,44 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       { body: { islandId: visl.id, amount: 99999 }, cookie: vcookie });
     check('#135 peg-in cannot exceed the vault',
       vr.status !== 200 && vp.vault === 100, `${vr.status} vault=${vp.vault}`);
+
+    // #135 the SEAL: a client-signed transition sent with the peg is persisted
+    // as a trail — one signed doc per did:nostr — and read back through the
+    // trail endpoint. This is the KISS server store; a pod is the same doc later.
+    vp.nostrDid = 'did:nostr:' + 'c'.repeat(64);
+    vp.vault = 1000; vp.pegged = 0;
+    vr = await req(oa.port, 'POST', '/api/vault/pegin', {
+      body: {
+        islandId: visl.id, amount: 300,
+        transition: { did: vp.nostrDid, prev: 0, delta: 300, next: 300, sig: 'deadbeef', pubkey: 'c'.repeat(64) },
+      }, cookie: vcookie });
+    check('#135 peg-in with a signed transition still moves gold',
+      vr.status === 200 && vp.pegged === 300, JSON.stringify({ pegged: vp.pegged }));
+
+    vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
+    check('#135 the signed trail is persisted and readable',
+      vr.status === 200 && Array.isArray(vr.data.trail) && vr.data.trail.length === 1
+        && vr.data.trail[0].next === 300 && vr.data.trail[0].sig === 'deadbeef'
+        && vr.data.trail[0].did === vp.nostrDid, JSON.stringify(vr.data));
+
+    vr = await req(oa.port, 'POST', '/api/vault/pegout', {
+      body: {
+        islandId: visl.id, amount: 100,
+        transition: { did: vp.nostrDid, prev: 300, delta: -100, next: 200, sig: 'cafe' },
+      }, cookie: vcookie });
+    vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
+    check('#135 peg-out extends the same trail; balance mirrors pegged',
+      vr.data.trail.length === 2 && vr.data.trail[1].prev === 300
+        && vr.data.trail[1].next === 200 && vp.pegged === 200, JSON.stringify(vr.data));
+
+    // The seal is optional: a peg with no transition still moves gold; the
+    // trail simply doesn't grow (real clients always sign, so this is the
+    // defensive path, not a normal one).
+    vr = await req(oa.port, 'POST', '/api/vault/pegout',
+      { body: { islandId: visl.id, amount: 50 }, cookie: vcookie });
+    vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
+    check('#135 a peg without a transition still works; trail unchanged',
+      vp.pegged === 150 && vr.data.trail.length === 2, JSON.stringify({ pegged: vp.pegged, len: vr.data.trail.length }));
   }
 
   oa.srv.close();
