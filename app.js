@@ -454,6 +454,7 @@ export function createApp(opts = {}) {
       // including a separate floor when the defender is a bot (#config).
       moraleFloor: game.MORALE_FLOOR,
       botMoraleFloor: game.BOT_MORALE_FLOOR,
+      vaultFee: game.VAULT_WITHDRAW_FEE, // withdrawal fee knob, 0 for now (#132)
       // Season phase + launch time for the pregame countdown (#8).
       phase: game.worldPhase(world, Date.now()),
       startAt: world.startAt,
