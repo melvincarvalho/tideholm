@@ -57,10 +57,15 @@ window.TMap = (function () {
   // can never leave two golds or a stale one — the bug the surgical move hit.
   // `size` is the grid's side; cells are row-major (index = y*size + x).
   function markGridActive(grid, size, active) {
-    if (!grid || !grid.children.length || !active) return;
+    if (!grid || !active) return;
+    // Index into the .cell elements, NOT grid.children — #map-grid's first
+    // child is the background <canvas> (inserted before the cells), so raw
+    // children are offset by one and the gold lands a tile off (#131).
+    const cells = grid.querySelectorAll('.cell');
+    if (!cells.length) return;
     const prev = grid.querySelectorAll('.cell.active');
     for (let i = 0; i < prev.length; i++) prev[i].classList.remove('active');
-    const cell = grid.children[active.y * size + active.x];
+    const cell = cells[active.y * size + active.x];
     if (cell && cell.classList.contains('island')) cell.classList.add('active');
   }
 

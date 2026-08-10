@@ -409,7 +409,6 @@ setInterval(updatePregameBanner, 1000);
 function renderState() {
   if (!state) return;
   const isl = state.island;
-  if (activeIslandId !== isl.id) console.log('[render] activeIslandId', activeIslandId, '->', isl.id, '(from state.island', isl.x + ',' + isl.y + ')'); // DEBUG #131
   activeIslandId = isl.id;
   // Publish the selection so the stage rails (stage.js, a separate poller)
   // can show the SAME island as this column — otherwise they default to
@@ -856,7 +855,6 @@ $('next-chip').addEventListener('click', () => {
 
 $('island-select').addEventListener('change', () => {
   activeIslandId = Number($('island-select').value);
-  console.log('[switch] select-change -> activeIslandId', activeIslandId, 'sel.value', $('island-select').value); // DEBUG #131
   refresh();
 });
 
@@ -892,9 +890,7 @@ async function refresh() {
   // refresh's response is applied; older ones are dropped.
   const seq = ++refreshSeq;
   try {
-    const reqIsland = activeIslandId; // DEBUG #131
     const next = await api('/api/state' + (activeIslandId ? `?island=${activeIslandId}` : ''));
-    console.log('[tick] seq', seq, 'req', reqIsland || 'PARAMLESS', 'got', next.island.x + ',' + next.island.y, seq === refreshSeq ? 'APPLIED' : 'dropped'); // DEBUG #131
     if (seq !== refreshSeq) return; // a newer poll/switch superseded this one
     state = next;
     clockSkew = state.serverNow - Date.now();
@@ -1104,7 +1100,7 @@ function drawMinimap(data) {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor(((e.clientX - rect.left) / rect.width) * data.size);
     const y = Math.floor(((e.clientY - rect.top) / rect.height) * data.size);
-    const cell = $('map-grid').children[y * data.size + x];
+    const cell = $('map-grid').querySelectorAll('.cell')[y * data.size + x];
     if (cell) cell.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
   };
 }
