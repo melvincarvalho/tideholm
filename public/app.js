@@ -919,7 +919,7 @@ async function loadMap() {
         if (isl.intel) title += `\n${T('ui.map.intel', { def: isl.intel.def, h: isl.intel.hours })}`;
         cell.title = title;
         const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
-        if (isActive) myCell = cell;
+        if (isActive) { myCell = cell; cell.classList.add('active'); } // gold: the island you're on (#119)
         if (!isActive) cell.addEventListener('click', () => openAttackPanel(isl));
       }
       grid.appendChild(cell);
