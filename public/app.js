@@ -465,12 +465,9 @@ function renderState() {
   // Keep the islands table live while it is the tab on screen (#77).
   if (!$('view-islands').classList.contains('hidden')) renderIslands();
 
-  // Keep both maps' gold "you are here" live while the map tab is open — from
-  // cache, no fetch — so switching islands moves them at once (#119).
-  if (lastMapData && !$('view-map').classList.contains('hidden')) {
-    drawMinimap(lastMapData);
-    markActiveMapCell();
-  }
+  // Keep the minimap's gold "you are here" live while the map tab is open —
+  // from cache, no fetch — so switching islands moves it at once (#119).
+  if (lastMapData && !$('view-map').classList.contains('hidden')) drawMinimap(lastMapData);
 
   nextChipTarget = computeNextChip();
   renderNextChip();
@@ -922,11 +919,8 @@ async function loadMap() {
         if (isl.intel) title += `\n${T('ui.map.intel', { def: isl.intel.def, h: isl.intel.hours })}`;
         cell.title = title;
         const isActive = state && isl.x === state.island.x && isl.y === state.island.y;
-        cell._isl = isl; // kept so markActiveMapCell() can rebind clicks on a switch (#119)
-        // Gold: the island you're on. Its click is nulled — you can't attack
-        // yourself — and onclick (not addEventListener) so the marker can move.
-        if (isActive) { myCell = cell; cell.classList.add('active'); }
-        else cell.onclick = () => openAttackPanel(isl);
+        if (isActive) { myCell = cell; cell.classList.add('active'); } // gold: the island you're on (#119)
+        if (!isActive) cell.addEventListener('click', () => openAttackPanel(isl));
       }
       grid.appendChild(cell);
     }
@@ -937,26 +931,6 @@ async function loadMap() {
   lastMapData = data;
   await paintMapBackground(data);
   drawMinimap(data);
-}
-
-// Move the gold "you are here" on the big grid when you switch islands while
-// the map is open — without rebuilding it (#119). Swaps the .active class and
-// rebinds clicks: the cell you leave regains its attack handler, the one you
-// land on loses it (you can't attack yourself).
-function markActiveMapCell() {
-  const grid = $('map-grid');
-  if (!lastMapData || !grid.children.length || !state) return;
-  const prev = grid.querySelector('.cell.island.active');
-  const next = grid.children[state.island.y * lastMapData.size + state.island.x];
-  if (prev === next) return;
-  if (prev) {
-    prev.classList.remove('active');
-    if (prev._isl) prev.onclick = () => openAttackPanel(prev._isl);
-  }
-  if (next && next.classList.contains('island')) {
-    next.classList.add('active');
-    next.onclick = null;
-  }
 }
 
 // ---------------------------------------------------------------- map background
