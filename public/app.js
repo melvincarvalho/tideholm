@@ -462,6 +462,10 @@ function renderState() {
   // Keep the islands table live while it is the tab on screen (#77).
   if (!$('view-islands').classList.contains('hidden')) renderIslands();
 
+  // Keep the minimap's gold "you are here" live while the map tab is open —
+  // from cache, no fetch — so switching islands moves it at once (#119).
+  if (lastMapData && !$('view-map').classList.contains('hidden')) drawMinimap(lastMapData);
+
   nextChipTarget = computeNextChip();
   renderNextChip();
 
