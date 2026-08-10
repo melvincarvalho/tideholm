@@ -1811,7 +1811,8 @@ async function refreshFuel(force) {
   const el = $('tidegate-fuel');
   if (!el) return;
   const did = fuelDid();
-  if (!did) { el.classList.add('hidden'); return; }   // only did:nostr players have an address
+  // Only did:nostr players have an address; reset + clear so no stale line lingers.
+  if (!did) { _fuel = { did: null, addr: null, data: null, at: 0, pending: false }; renderFuel(); return; }
   if (_fuel.did !== did) _fuel = { did, addr: null, data: null, at: 0, pending: false };
   if (_fuel.pending) return;                           // one flight at a time
   if (!force && _fuel.data && Date.now() - _fuel.at < FUEL_TTL) { renderFuel(); return; }
@@ -1830,6 +1831,7 @@ async function refreshFuel(force) {
     _fuel.at = Date.now();
   } catch (_) {
     _fuel.data = { error: true };
+    _fuel.at = Date.now();   // rate-limit failures too — don't re-hit a down endpoint on every open
   } finally {
     _fuel.pending = false;
     renderFuel();
@@ -1852,7 +1854,7 @@ function renderFuel() {
     el.appendChild(document.createTextNode(' · '));
     const a = document.createElement('a');
     a.href = `https://mempool.space/testnet4/address/${_fuel.addr}`;
-    a.target = '_blank'; a.rel = 'noopener';
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.textContent = _fuel.addr.slice(0, 10) + '…' + _fuel.addr.slice(-4);
     el.appendChild(a);
   }
