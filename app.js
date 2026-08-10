@@ -39,6 +39,7 @@ const PREGAME_BLOCKED = new Set([
   '/api/scout', '/api/trade', '/api/colonize', '/api/market/create',
   '/api/pool/swap', '/api/pool/deposit', '/api/pool/withdraw',
   '/api/vault/deposit', '/api/vault/withdraw',
+  '/api/vault/pegin', '/api/vault/pegout',
 ]);
 const BACKUP_KEEP = 24;
 
@@ -449,6 +450,8 @@ export function createApp(opts = {}) {
         name: player.name,
         points: game.playerPoints(world, player.id),
         vault: Math.floor(player.vault || 0), // raid-proof gold treasury (#132)
+        pegged: Math.floor(player.pegged || 0), // gold sealed to the Tidegate (#135)
+        did: player.nostrDid || null, // identity the Tidegate trail is keyed to
       },
       // Morale floors so the battle simulator matches the server's combat,
       // including a separate floor when the defender is a bot (#config).
@@ -1239,6 +1242,24 @@ export function createApp(opts = {}) {
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
       const island = myIsland(player, body.islandId);
       const result = game.vaultWithdraw(world, player, island, Number(body.amount), Date.now());
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, stateFor(player, island.id));
+    }
+
+    if (req.method === 'POST' && pathname === '/api/vault/pegin') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      const result = game.vaultPegIn(player, Number(body.amount));
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, stateFor(player, island.id));
+    }
+
+    if (req.method === 'POST' && pathname === '/api/vault/pegout') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      const result = game.vaultPegOut(player, Number(body.amount));
       if (result.error) return gameErr(res, lang, result);
       return sendJson(res, 200, stateFor(player, island.id));
     }

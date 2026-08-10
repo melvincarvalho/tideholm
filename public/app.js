@@ -450,6 +450,10 @@ function renderState() {
     }
     $('vault-balance').textContent = txt;
   }
+  // Tidegate sealed balance (#135) — gold pegged out of the vault.
+  if ($('tidegate-balance') && state.player.pegged != null) {
+    $('tidegate-balance').textContent = T('ui.tidegate.balance', { n: fmtNum(state.player.pegged) });
+  }
   // Loyalty and pop moved to the resbar meters (#116). The title now holds
   // only what is stable per island — which also keeps sound.js's "same
   // island?" snapshot from resetting on every loyalty tick.
@@ -1722,6 +1726,55 @@ async function vaultMove(path) {
 if ($('vault-deposit')) {
   $('vault-deposit').addEventListener('click', () => vaultMove('/api/vault/deposit'));
   $('vault-withdraw').addEventListener('click', () => vaultMove('/api/vault/withdraw'));
+}
+
+// The Tidegate (#135): the sealed, cross-app balance. Driven through the
+// `tidegate` library — imported straight from its gh-pages URL — with a
+// Tideholm backend injected: pegIn/pegOut go through the server, which caps
+// peg-out at what was pegged in (so no gold is minted). The library is the
+// client's interface; in phase 2b its backend swaps to BlockTrails/nostr and
+// the signer to noskey, with no change to this call site. Loaded lazily, so a
+// failed fetch never breaks the game — only the peg buttons report it.
+let _tidegate = null;
+async function getTidegate() {
+  if (_tidegate) return _tidegate;
+  const base = 'https://melvincarvalho.github.io/tidegate/';
+  const [core, local] = await Promise.all([
+    import(base + 'tidegate.js'),
+    import(base + 'local.js'),
+  ]);
+  _tidegate = core.createTidegate({
+    backend: {
+      balance: async () => (state && state.player && state.player.pegged) || 0,
+      append: async (did, t) => {
+        const path = t.delta > 0 ? '/api/vault/pegin' : '/api/vault/pegout';
+        state = await api(path, { islandId: activeIslandId, amount: Math.abs(t.delta) });
+        clockSkew = state.serverNow - Date.now();
+        renderState();
+        return (state.player && state.player.pegged) || 0;
+      },
+      subscribe: () => () => {},
+    },
+    signer: local.localSigner(state.player.did || state.player.name),
+  });
+  return _tidegate;
+}
+async function pegMove(dir) {
+  $('tidegate-msg').textContent = '';
+  const amount = Math.floor(Number($('tidegate-amount').value));
+  if (!(amount > 0)) { $('tidegate-msg').textContent = T('err.badRequest'); return; }
+  try {
+    const tg = await getTidegate();
+    const did = state.player.did || ('tideholm:' + state.player.name);
+    if (dir === 'in') await tg.pegIn(did, amount);
+    else await tg.pegOut(did, amount);
+  } catch (err) {
+    $('tidegate-msg').textContent = err.message || String(err);
+  }
+}
+if ($('tidegate-pegin')) {
+  $('tidegate-pegin').addEventListener('click', () => pegMove('in'));
+  $('tidegate-pegout').addEventListener('click', () => pegMove('out'));
 }
 
 // Slippage tolerance. A quote is fetched, then the player acts; the pool can
