@@ -16,6 +16,23 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-10 · The Vault opens
+
+> 🏦 The Vault opens in the Market. Deposit gold into a personal strongroom and
+> it's safe from raiders — they can sack an island bare and never touch what
+> you've locked away. Withdraw it back to any island, up to its storehouse
+> room. Instant, gold only for now. Somewhere to keep a fortune between wars.
+> Fair winds.
+
+A personal, raid-proof gold treasury (#132, PR #133). Gold in the vault lives
+on the player, not an island — and loot only ever touches island resources, so
+vaulted gold cannot be sacked. Deposit from any island, withdraw back capped by
+its storehouse room (so it can't overflow and vanish). Instant, gold only. It's
+phase 1 of a longer arc: phase 2 seals the balance cross-chain with single-use
+seals anchored to your did:nostr banner (peg-in mints, peg-out redeems), and
+phase 3 opens tavern games on the settled gold. Also a quiet sink for the #64
+surplus — banked gold sits idle, out of production's reach.
+
 ### 2026-08-10 · The map marks where you are
 
 > 🗺️ The World Map now marks where you stand: the island you're on is painted
