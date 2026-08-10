@@ -2149,45 +2149,56 @@ function appendHall(entry) {
 const TIDEGATE_DIR = process.env.TIDEGATE_DIR
   || path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'tidegate');
 
-// Keyed by did:nostr when the player has one (portable across seasons and apps),
-// else a local slug — the trail still works, it just isn't identity-portable.
+// Keyed by did:nostr when the player has one (portable across seasons and apps).
+// Without one the trail isn't identity-portable anyway, so we key by the player's
+// unique id — never a name slug, which can collide (many valid Unicode names
+// normalize to the same ASCII and would then share, and clobber, one trail file).
 function tidegateKey(player) {
   const m = /^did:nostr:([0-9a-f]{64})$/.exec(player.nostrDid || '');
-  return m ? m[1] : `local-${String(player.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'anon'}`;
+  return m ? m[1] : `local-${player.id}`;
 }
 function tidegateFile(player) { return path.join(TIDEGATE_DIR, `${tidegateKey(player)}.json`); }
 
-// The player's signed trail, oldest first (empty if they've never pegged).
+// The player's signed trail, oldest first (empty if they've never pegged, or if
+// the doc is missing or somehow not an array — callers push/read it as a list).
 function tidegateTrail(player) {
-  try { return JSON.parse(fs.readFileSync(tidegateFile(player), 'utf8')); } catch { return []; }
+  try {
+    const t = JSON.parse(fs.readFileSync(tidegateFile(player), 'utf8'));
+    return Array.isArray(t) ? t : [];
+  } catch { return []; }
 }
 
-// Append a signed transition. Returns the new trail, or null when it doesn't
-// chain onto the stored trail and land exactly on the post-peg `pegged` (so the
-// trail always mirrors the authoritative balance). Call AFTER the peg has moved
-// `pegged`. A null return is soft: the money move already stuck; only the seal
-// lagged — never fail the peg over it.
+// Append a signed transition. Returns the new trail, or null (never throws) when
+// it doesn't chain onto the stored trail and land exactly on the post-peg
+// `pegged`. Call AFTER the peg has moved `pegged`. We store the client's OWN
+// prev/delta/next — the exact values its signature commits to — so the stored
+// sig stays valid; if they don't match the expected chain we reject rather than
+// re-stamp a record the signature no longer fits. A null return is soft: the
+// money move already stuck; only the seal lagged — never fail the peg over it.
 function tidegateRecord(player, t) {
-  if (!t || typeof t !== 'object') return null;
-  const delta = Math.trunc(Number(t.delta));
-  if (!Number.isInteger(delta) || delta === 0) return null;
-  const trail = tidegateTrail(player);
-  // prev chains onto the stored trail; for a first entry the client's claimed
-  // prev seeds the opening balance (whatever was already pegged before we began
-  // recording), so the trail mirrors `pegged` from the very first move.
-  const prev = trail.length ? trail[trail.length - 1].next : Math.trunc(Number(t.prev)) || 0;
-  const next = prev + delta;
-  if (next !== Math.floor(player.pegged || 0)) return null; // must mirror pegged
-  trail.push({
-    did: player.nostrDid || t.did || null,
-    prev, delta, next,
-    sig: typeof t.sig === 'string' ? t.sig : null,
-    pubkey: typeof t.pubkey === 'string' ? t.pubkey : null,
-    at: Date.now(),
-  });
-  fs.mkdirSync(TIDEGATE_DIR, { recursive: true });
-  fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
-  return trail;
+  try {
+    if (!t || typeof t !== 'object') return null;
+    const prev = Number(t.prev), delta = Number(t.delta), next = Number(t.next);
+    if (![prev, delta, next].every(Number.isSafeInteger) || delta === 0) return null;
+    if (next !== prev + delta) return null;               // internally consistent
+    const pegged = Math.floor(player.pegged || 0);
+    if (next !== pegged) return null;                     // mirrors the authoritative balance
+    const trail = tidegateTrail(player);
+    // Chain: prev is the last recorded balance, or — for the first entry — the
+    // balance the player already held before we began recording (pegged - delta).
+    const expectedPrev = trail.length ? trail[trail.length - 1].next : pegged - delta;
+    if (prev !== expectedPrev) return null;
+    trail.push({
+      did: player.nostrDid || t.did || null,
+      prev, delta, next,
+      sig: typeof t.sig === 'string' ? t.sig : null,
+      pubkey: typeof t.pubkey === 'string' ? t.pubkey : null,
+      at: Date.now(),
+    });
+    fs.mkdirSync(TIDEGATE_DIR, { recursive: true });
+    fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
+    return trail;
+  } catch { return null; }
 }
 
 function crownWinner(world, winner, now) {

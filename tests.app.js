@@ -1022,6 +1022,18 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
     check('#135 a peg without a transition still works; trail unchanged',
       vp.pegged === 150 && vr.data.trail.length === 2, JSON.stringify({ pegged: vp.pegged, len: vr.data.trail.length }));
+
+    // A transition inconsistent with the chain (its sig wouldn't match the
+    // stored values) is refused — but the peg still moves the money.
+    vp.vault = 1000;
+    vr = await req(oa.port, 'POST', '/api/vault/pegin', {
+      body: {
+        islandId: visl.id, amount: 100,
+        transition: { did: vp.nostrDid, prev: 999, delta: 100, next: 1099, sig: 'bogus' },
+      }, cookie: vcookie });
+    vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
+    check('#135 an inconsistent transition is not sealed, but the peg still moved',
+      vp.pegged === 250 && vr.data.trail.length === 2, JSON.stringify({ pegged: vp.pegged, len: vr.data.trail.length }));
   }
 
   oa.srv.close();
