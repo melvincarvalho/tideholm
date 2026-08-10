@@ -38,6 +38,7 @@ const PREGAME_BLOCKED = new Set([
   '/api/build', '/api/train', '/api/attack', '/api/support', '/api/withdraw',
   '/api/scout', '/api/trade', '/api/colonize', '/api/market/create',
   '/api/pool/swap', '/api/pool/deposit', '/api/pool/withdraw',
+  '/api/vault/deposit', '/api/vault/withdraw',
 ]);
 const BACKUP_KEEP = 24;
 
@@ -444,7 +445,11 @@ export function createApp(opts = {}) {
       serverNow: now,
       speed: game.SPEED,
       lang,
-      player: { name: player.name, points: game.playerPoints(world, player.id) },
+      player: {
+        name: player.name,
+        points: game.playerPoints(world, player.id),
+        vault: Math.floor(player.vault || 0), // raid-proof gold treasury (#132)
+      },
       // Morale floors so the battle simulator matches the server's combat,
       // including a separate floor when the defender is a bot (#config).
       moraleFloor: game.MORALE_FLOOR,
@@ -1217,6 +1222,24 @@ export function createApp(opts = {}) {
         ok: true, arrive: result.arrive, burned: result.burned,
         out: result.out, shares: result.shares,
       });
+    }
+
+    if (req.method === 'POST' && pathname === '/api/vault/deposit') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      const result = game.vaultDeposit(world, player, island, Number(body.amount), Date.now());
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, stateFor(player, island.id));
+    }
+
+    if (req.method === 'POST' && pathname === '/api/vault/withdraw') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      const result = game.vaultWithdraw(world, player, island, Number(body.amount), Date.now());
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, stateFor(player, island.id));
     }
 
     if (req.method === 'POST' && pathname === '/api/market/create') {
