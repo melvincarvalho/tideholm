@@ -37,6 +37,9 @@ function applyStatic() {
   for (const el of document.querySelectorAll('[data-i18n-ph]')) {
     el.placeholder = T(el.dataset.i18nPh);
   }
+  for (const el of document.querySelectorAll('[data-i18n-title]')) {
+    el.title = T(el.dataset.i18nTitle);
+  }
   $('auth-help').href = HELP_URL;
   $('game-help').href = HELP_URL;
 }
@@ -178,7 +181,7 @@ $('tab-islands').addEventListener('click', () => { showTab('islands'); renderIsl
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
-$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); });
+$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); });
 $('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
@@ -1785,6 +1788,80 @@ async function pegMove(dir) {
 if ($('tidegate-pegin')) {
   $('tidegate-pegin').addEventListener('click', () => pegMove('in'));
   $('tidegate-pegout').addEventListener('click', () => pegMove('out'));
+}
+
+// The testnet4 "fuel" behind the seal (#135). The taproot address this identity
+// controls IS a Bitcoin address (same secp256k1 key), and its testnet4 balance
+// is what a BlockTrails committer will eventually spend to anchor the trail.
+// Read-only, and deliberately NOT in the poll loop: fetched only when the market
+// opens and on an explicit refresh, cached with a cooldown so repeats coalesce
+// and a single in-flight request is never duplicated. mempool.space serves
+// testnet4 with permissive CORS, so the browser reads it directly. Address
+// derivation is public-key only — no signer, so this never prompts for a key.
+const FUEL_TTL = 60000; // never re-hit mempool more than once a minute
+let _fuel = { did: null, addr: null, data: null, at: 0, pending: false };
+let _btcMod = null;
+
+function fuelDid() {
+  const did = state && state.player && state.player.did;
+  return (did && /^did:nostr:[0-9a-f]{64}$/i.test(did)) ? did : null;
+}
+
+async function refreshFuel(force) {
+  const el = $('tidegate-fuel');
+  if (!el) return;
+  const did = fuelDid();
+  if (!did) { el.classList.add('hidden'); return; }   // only did:nostr players have an address
+  if (_fuel.did !== did) _fuel = { did, addr: null, data: null, at: 0, pending: false };
+  if (_fuel.pending) return;                           // one flight at a time
+  if (!force && _fuel.data && Date.now() - _fuel.at < FUEL_TTL) { renderFuel(); return; }
+  _fuel.pending = true;
+  renderFuel();                                        // show the checking/last state immediately
+  try {
+    if (!_fuel.addr) {
+      const btc = _btcMod || (_btcMod = await import('https://melvincarvalho.github.io/tidegate/btc.js'));
+      _fuel.addr = btc.taprootAddress(did, 'testnet');
+    }
+    const r = await fetch(`https://mempool.space/testnet4/api/address/${_fuel.addr}`);
+    if (!r.ok) throw new Error('http ' + r.status);
+    const j = await r.json();
+    const c = j.chain_stats || {};
+    _fuel.data = { sat: (c.funded_txo_sum || 0) - (c.spent_txo_sum || 0) };
+    _fuel.at = Date.now();
+  } catch (_) {
+    _fuel.data = { error: true };
+  } finally {
+    _fuel.pending = false;
+    renderFuel();
+  }
+}
+
+// Render-only: paints whatever is in the cache. Safe to call any time; never fetches.
+function renderFuel() {
+  const el = $('tidegate-fuel');
+  if (!el) return;
+  if (!fuelDid()) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.classList.remove('hidden');
+  el.textContent = '';
+  const label = document.createElement('span');
+  if (!_fuel.data) label.textContent = '⛽ ' + T('ui.tidegate.fuelChecking');
+  else if (_fuel.data.error) label.textContent = '⛽ ' + T('ui.tidegate.fuelOffline');
+  else label.textContent = '⛽ ' + T('ui.tidegate.fuel', { sat: fmtNum(_fuel.data.sat) });
+  el.appendChild(label);
+  if (_fuel.addr) {
+    el.appendChild(document.createTextNode(' · '));
+    const a = document.createElement('a');
+    a.href = `https://mempool.space/testnet4/address/${_fuel.addr}`;
+    a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = _fuel.addr.slice(0, 10) + '…' + _fuel.addr.slice(-4);
+    el.appendChild(a);
+  }
+  el.appendChild(document.createTextNode(' · '));
+  const rf = document.createElement('a');
+  rf.href = '#';
+  rf.textContent = T('ui.tidegate.fuelRefresh');
+  rf.addEventListener('click', (ev) => { ev.preventDefault(); refreshFuel(true); });
+  el.appendChild(rf);
 }
 
 // Slippage tolerance. A quote is fetched, then the player acts; the pool can
