@@ -1196,6 +1196,30 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     srv.close(); defApp.stop();
   }
 
+  // ---- #113: each island payload carries its army (home + abroad) ----
+  {
+    const armyApp = createApp({ botCount: 0, freeIsles: 2, log: silent });
+    const w2 = armyApp.world;
+    const { srv, port } = await serve(armyApp);
+    const reg = await req(port, 'POST', '/api/register',
+      { body: { name: 'General', password: 'sekritsekrit', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    const player = w2.players.find((p) => p.name === 'General');
+    const home = w2.islands.find((i) => i.ownerId === player.id);
+    const other = w2.islands.find((i) => i.ownerId == null) || home;
+    home.units.raider = 12; home.units.sentinel = 4; home.units.scout = 0;
+    // this island's troops stationed abroad on `other`
+    other.support = [{ ownerId: player.id, fromId: home.id, units: { sentinel: 6 } }];
+    const st = await req(port, 'GET', '/api/state', { cookie });
+    const row = st.data.islands.find((i) => i.id === home.id);
+    check('#113 island army carries home counts, zero types omitted',
+      row.army.home.raider === 12 && row.army.home.sentinel === 4 && row.army.home.scout === undefined,
+      JSON.stringify(row.army.home));
+    check('#113 island army carries troops stationed abroad',
+      row.army.abroad.sentinel === 6, JSON.stringify(row.army.abroad));
+    srv.close(); armyApp.stop();
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {
