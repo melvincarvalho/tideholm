@@ -962,6 +962,28 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     fr = gameMod.vaultWithdraw(openApp.world, vp, visl, 100, Date.now(), 0);
     check('#132 fee 0 is a no-op (today\'s default)',
       fr.ok && fr.fee === 0 && Math.floor(visl.resources.gold) === 100, JSON.stringify(fr));
+
+    // Tidegate peg (#135): vault <-> pegged, server-mediated, peg-out capped.
+    vp.vault = 1000; vp.pegged = 0;
+    vr = await req(oa.port, 'POST', '/api/vault/pegin',
+      { body: { islandId: visl.id, amount: 400 }, cookie: vcookie });
+    check('#135 peg-in moves gold vault -> pegged',
+      vr.status === 200 && vp.vault === 600 && vp.pegged === 400 && vr.data.player.pegged === 400,
+      JSON.stringify({ status: vr.status, vault: vp.vault, pegged: vp.pegged }));
+    vr = await req(oa.port, 'POST', '/api/vault/pegout',
+      { body: { islandId: visl.id, amount: 150 }, cookie: vcookie });
+    check('#135 peg-out moves gold pegged -> vault',
+      vr.status === 200 && vp.pegged === 250 && vp.vault === 750,
+      JSON.stringify({ vault: vp.vault, pegged: vp.pegged }));
+    vr = await req(oa.port, 'POST', '/api/vault/pegout',
+      { body: { islandId: visl.id, amount: 99999 }, cookie: vcookie });
+    check('#135 peg-out cannot mint — capped at what was pegged in',
+      vr.status !== 200 && vp.pegged === 250 && vp.vault === 750, `${vr.status} pegged=${vp.pegged}`);
+    vp.vault = 100;
+    vr = await req(oa.port, 'POST', '/api/vault/pegin',
+      { body: { islandId: visl.id, amount: 99999 }, cookie: vcookie });
+    check('#135 peg-in cannot exceed the vault',
+      vr.status !== 200 && vp.vault === 100, `${vr.status} vault=${vp.vault}`);
   }
 
   oa.srv.close();

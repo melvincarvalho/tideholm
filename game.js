@@ -1207,6 +1207,32 @@ function vaultWithdraw(world, player, island, amount, now, fee = VAULT_WITHDRAW_
   return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold), fee: feeAmt };
 }
 
+// ---- the Tidegate peg (#135)
+//
+// Move gold between the vault and the Tidegate — a sealed, identity-anchored
+// balance other apps spend against. Server-mediated so peg-OUT can never mint:
+// `player.pegged` records what's been sealed out, peg-out is capped at it, and
+// peg-in is capped at the vault. Phase 1 keeps `pegged` server-authoritative as
+// this safe cap; phase 2b turns it into a mirror the server reconciles against
+// the player's public nostr trail (the balance moves off-server to the trail).
+function vaultPegIn(player, amount) {
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
+  if (amount > Math.floor(player.vault || 0)) return { error: 'err.vaultEmpty' };
+  player.vault = Math.floor((player.vault || 0) - amount);
+  player.pegged = Math.floor((player.pegged || 0) + amount);
+  return { ok: true, vault: player.vault, pegged: player.pegged };
+}
+
+function vaultPegOut(player, amount) {
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
+  if (amount > Math.floor(player.pegged || 0)) return { error: 'err.pegEmpty' };
+  player.pegged = Math.floor((player.pegged || 0) - amount);
+  player.vault = Math.floor((player.vault || 0) + amount);
+  return { ok: true, vault: player.vault, pegged: player.pegged };
+}
+
 // ---- swapping against the pool
 //
 // Travel. Originally flat 30 minutes for every island — the pool has no place
@@ -2400,6 +2426,7 @@ function migrateWorld(world) {
     if (!p.stats) p.stats = {};
     if (p.lpShares == null) p.lpShares = 0; // liquidity position in world.pool (#46)
     if (p.vault == null) p.vault = 0; // personal raid-proof gold treasury (#132)
+    if (p.pegged == null) p.pegged = 0; // gold sealed out to the Tidegate (#135)
   }
   for (const island of world.islands) {
     for (const key of Object.keys(BUILDINGS)) {
@@ -2466,7 +2493,7 @@ export {
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
-  vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE,
+  vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
