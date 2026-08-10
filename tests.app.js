@@ -871,6 +871,30 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('and its row reports the resolved figures, not the stale ones',
       secondRow.resources.wood > 100 || secondRow.resources.stone > 100,
       JSON.stringify(secondRow.resources));
+
+    // #118 the queue carries a start, so the client fills a progress bar. Set
+    // it on whichever island the poll resolves as active, then read it back.
+    r = await req(oa.port, 'GET', '/api/state', { cookie: ocookie });
+    const activeSrc = openApp.world.islands.find((i) => i.id === r.data.island.id);
+    const qStart = Date.now() - 120_000;
+    const qFinish = Date.now() + 480_000;
+    activeSrc.queue = [{ building: 'harbor', level: 3, start: qStart, finish: qFinish }];
+    activeSrc.trainQueue = [{ unit: 'spearman', count: 4, start: qStart, finish: qFinish }];
+    r = await req(oa.port, 'GET', '/api/state', { cookie: ocookie });
+    const bq = r.data.island.queue[0];
+    const tq = r.data.island.trainQueue[0];
+    check('#118 build-queue item carries start and finish (start < finish)',
+      bq && bq.start === qStart && bq.finish === qFinish && bq.start < bq.finish,
+      JSON.stringify(bq));
+    check('#118 train-queue item carries start and finish',
+      tq && tq.start === qStart && tq.finish === qFinish, JSON.stringify(tq));
+    // A legacy item queued before the field existed has no start; it must
+    // still surface (finish only) so the client degrades to text, not vanish.
+    activeSrc.queue = [{ building: 'harbor', level: 4, finish: qFinish }];
+    r = await req(oa.port, 'GET', '/api/state', { cookie: ocookie });
+    const lq = r.data.island.queue[0];
+    check('#118 a startless legacy item still surfaces, start undefined',
+      lq && lq.finish === qFinish && lq.start === undefined, JSON.stringify(lq));
   }
 
   oa.srv.close();

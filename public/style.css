@@ -130,6 +130,17 @@ button:disabled { opacity: 0.45; cursor: default; }
 .meter > i.warn { background: #c46a12; }
 .meter > i.full { background: var(--error); }
 
+/* Queue timer bars (#118): a build/train countdown fills as it runs. The time
+   stays on top; a thin bar creeps beneath it. The 1s linear ease matches the
+   per-second repaint so the fill glides rather than steps. */
+.cd-txt { font-variant-numeric: tabular-nums; }
+.cd-bar {
+  display: block; height: 3px; margin-top: 3px;
+  background: #e7dcc0; border-radius: 2px; overflow: hidden;
+}
+.cd-bar > i { display: block; height: 100%; width: 0;
+  background: var(--accent); transition: width 1s linear; }
+
 main { padding: 14px; }
 
 section {

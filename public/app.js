@@ -507,7 +507,7 @@ function renderState() {
   for (const item of isl.queue) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${item.building}</td><td>${T('ui.queue.level', { n: item.level })}</td>
-      <td class="countdown" data-finish="${item.finish}"></td>`;
+      ${countdownCell(item.start, item.finish)}`;
     qbody.appendChild(tr);
   }
 
@@ -657,7 +657,7 @@ function renderTroops() {
   for (const item of isl.trainQueue) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${T('ui.training', { n: item.count, unit: item.unit })}</td>
-      <td class="countdown" data-finish="${item.finish}"></td>`;
+      ${countdownCell(item.start, item.finish)}`;
     tbody.appendChild(tr);
   }
 
@@ -754,11 +754,37 @@ function setMeter(id, frac, mode) {
   }
 }
 
+// A countdown table cell (#118). With a known start it wears a progress bar
+// that fills as the job runs; without one — a legacy item queued before the
+// field shipped — it degrades to the plain text cell. The initial fill is
+// stamped inline so a fresh render doesn't sweep up from zero; paintCountdowns
+// then nudges both bar and text each second.
+function countdownCell(start, finish) {
+  if (!start) return `<td class="countdown" data-finish="${finish}"></td>`;
+  const now = Date.now() + clockSkew;
+  const frac = finish > start
+    ? Math.max(0, Math.min(1, (now - start) / (finish - start))) : 1;
+  return `<td class="countdown" data-start="${start}" data-finish="${finish}">`
+    + `<span class="cd-bar"><i style="width:${(frac * 100).toFixed(1)}%"></i></span>`
+    + '<span class="cd-txt"></span></td>';
+}
+
 function paintCountdowns(now) {
   let finished = false;
   for (const el of document.querySelectorAll('.countdown')) {
-    const left = (Number(el.dataset.finish) - now) / 1000;
-    el.textContent = fmtTime(left);
+    const finish = Number(el.dataset.finish);
+    const left = (finish - now) / 1000;
+    const start = Number(el.dataset.start);
+    if (start) {
+      const total = finish - start;
+      const frac = total > 0 ? Math.max(0, Math.min(1, (now - start) / total)) : 1;
+      const fill = el.querySelector('.cd-bar > i');
+      const txt = el.querySelector('.cd-txt');
+      if (fill) fill.style.width = (frac * 100).toFixed(1) + '%';
+      if (txt) txt.textContent = fmtTime(left);
+    } else {
+      el.textContent = fmtTime(left);
+    }
     if (left <= 0) finished = true;
   }
   return finished;

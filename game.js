@@ -493,7 +493,7 @@ function tryBuild(world, island, key, now) {
   for (const r of RESOURCES) island.resources[r] -= cost[r];
   const start = island.queue.length ? island.queue[island.queue.length - 1].finish : now;
   const duration = upgradeTime(key, target, island.buildings.hall) * 1000;
-  island.queue.push({ building: key, level: target, finish: start + duration });
+  island.queue.push({ building: key, level: target, start, finish: start + duration });
   return { ok: true };
 }
 
@@ -652,6 +652,7 @@ function tryTrain(world, island, key, count, now) {
   island.trainQueue.push({
     unit: key,
     count,
+    start,
     finish: start + trainTime(key, island.buildings[need]) * 1000 * count,
   });
   const owner = world.players.find((p) => p.id === island.ownerId);
