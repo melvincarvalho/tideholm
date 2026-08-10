@@ -541,6 +541,7 @@ export function createApp(opts = {}) {
         queue: island.queue.map((q) => ({
           building: t(lang, `building.${q.building}.name`),
           level: q.level,
+          start: q.start,
           finish: q.finish,
         })),
         queueMax: game.QUEUE_MAX,
@@ -568,6 +569,7 @@ export function createApp(opts = {}) {
         trainQueue: island.trainQueue.map((q) => ({
           unit: t(lang, `unit.${q.unit}.name`),
           count: q.count,
+          start: q.start,
           finish: q.finish,
         })),
         trainQueueMax: game.TRAIN_QUEUE_MAX,
