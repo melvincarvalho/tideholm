@@ -47,6 +47,23 @@ panel was never affected — it's built on target-click, not the poll. Reported
 via phil's session (his second catch of the weekend, after the movements
 overview), filed #106, fixed #107.
 
+### 2026-08-10 · The Islands tab gets an Army section
+
+> New on the Islands tab: an Army section. Your whole military on one screen -
+> a column for each kind of unit you own, a row per island, and an empire
+> total. Troops you have stationed on another island show as +n, so you can
+> see where your reinforcements are, not just that your defence went up. No
+> more clicking every island to find your raiders. Fair winds.
+
+The overview showed a computed defence number per island but not the army
+behind it — and raiders/flagships barely register in that number, so the
+attacking force was invisible on the whole-holding screen (#113, PR #114). New
+table below the stocks table: a column per owned unit type (empty hidden), a
+row per island, an empire total; troops stationed abroad as support show as
++n (pairs with popAbroad and the #109 support-defence fix). Payload gains
+army:{home,abroad} per island, non-zero types only, pinned. Motivated straight
+from live play — the manual army-tracking this retires was a real weekly chore.
+
 ### 2026-08-10 · A tidy and a couple of fixes
 
 > A tidy and a couple of fixes. The Islands tab now counts reinforcements in an
