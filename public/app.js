@@ -414,6 +414,9 @@ function renderState() {
   // can show the SAME island as this column — otherwise they default to
   // mine[0] and disagree with the main view (#119 follow-up).
   localStorage.setItem('tideholm-island', String(isl.id));
+  // And nudge the rail's World Map to move its gold marker NOW, instead of
+  // waiting up to 5s for stage.js's own poll to notice the switch (#119).
+  window.dispatchEvent(new CustomEvent('tideholm:island', { detail: { x: isl.x, y: isl.y } }));
 
   // The server knows the account's language; follow it.
   if (state.lang && state.lang !== LANG && I18N.LANGS.includes(state.lang)) {

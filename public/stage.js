@@ -163,6 +163,12 @@
     } catch (e) { /* ignore */ }
   }
 
+  // app.js fires this the instant you switch islands (arrow key, dock, select);
+  // move the gold marker now instead of waiting for the next 5s tickState (#119).
+  window.addEventListener('tideholm:island', function (e) {
+    if (e.detail) { activePos = e.detail; if (lastMap) drawMap(lastMap); }
+  });
+
   tickStanding().then(tickState);
   tickMap();
   setInterval(tickState, 5000);
