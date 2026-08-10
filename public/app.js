@@ -5,19 +5,6 @@
 
 const $ = (id) => document.getElementById(id);
 
-// The help links point at the Almanac. Resolve the URL against this module's
-// own location (import.meta.url is always the correctly-resolved path the
-// browser loaded), so the link works whether the game is served at /,
-// /tideholm/, or /tideholm without a trailing slash — a bare relative
-// href="almanac.html" breaks in the last case.
-{
-  const almanac = new URL('almanac.html', import.meta.url).href;
-  for (const id of ['game-help', 'auth-help']) {
-    const a = document.getElementById(id);
-    if (a) a.href = almanac;
-  }
-}
-
 let state = null;         // last /api/state payload
 let clockSkew = 0;        // serverNow - Date.now()
 let pollTimer = null;
@@ -35,7 +22,12 @@ if (!I18N.LANGS.includes(LANG)) {
 
 function T(key, params) { return I18N.t(LANG, key, params); }
 
-const HELP_PAGES = { en: '/help.html', de: '/help.de.html', cs: '/help.cs.html' };
+// The Almanac is the help. Resolve against this module's own URL (import.meta.url
+// is always the correctly-resolved path the browser loaded) so the link works
+// whether the game is served at /, /tideholm/, or /tideholm without a trailing
+// slash — an absolute '/help.html' resolved to the host root (Cannot GET). The
+// Almanac is English today; a localised edition would be keyed here per LANG.
+const HELP_URL = new URL('almanac.html', import.meta.url).href;
 
 function applyStatic() {
   document.documentElement.lang = LANG;
@@ -45,8 +37,8 @@ function applyStatic() {
   for (const el of document.querySelectorAll('[data-i18n-ph]')) {
     el.placeholder = T(el.dataset.i18nPh);
   }
-  $('auth-help').href = HELP_PAGES[LANG] || '/help.html';
-  $('game-help').href = HELP_PAGES[LANG] || '/help.html';
+  $('auth-help').href = HELP_URL;
+  $('game-help').href = HELP_URL;
 }
 
 function fillLangSelect(sel) {
