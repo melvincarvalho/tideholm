@@ -193,6 +193,7 @@ th { background: #eadfc4; }
 .tbl-scroll { overflow-x: auto; }
 #army-table td:not(:first-child), #army-table th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 #army-table tr.active { background: #f7f0dd; font-weight: bold; }
+#army-table td.atk, #army-table th.atk { color: #8a5a2b; font-weight: 600; }
 #army-table tfoot th, #army-table tfoot td { border-top: 2px solid #b09a6c; font-weight: bold; }
 #islands-table td.warn { color: var(--error); }
 /* the production row: empire output per hour, green as growth should be */

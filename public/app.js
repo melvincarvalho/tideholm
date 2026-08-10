@@ -290,23 +290,31 @@ function renderIslands() {
 // this-island troops stationed abroad marked, and an empire total. Offensive
 // units (raider, flagship) lead; the defensive backbone follows.
 const ARMY_ORDER = ['raider', 'flagship', 'spearman', 'sentinel', 'scout', 'colonyship'];
+// Raw attack power of the units you actually raid with, HOME only — troops
+// stationed abroad are defending elsewhere, not launchable from here. Raw
+// meaning before morale (exact vs bots, an upper bound vs a much larger human).
+const ATK_WEIGHT = { raider: 24, spearman: 10 };
+const homeAtk = (a) => Object.entries(ATK_WEIGHT).reduce(
+  (n, [u, w]) => n + ((a && a.home[u]) || 0) * w, 0);
 function renderArmy(rows) {
   const own = ARMY_ORDER.filter((u) => rows.some((i) =>
     (i.army && (i.army.home[u] || i.army.abroad[u])) > 0));
   const head = $('army-head');
   head.innerHTML = '<th>' + T('ui.tab.island') + '</th>'
+    + '<th class="n">' + T('ui.islands.atk') + '</th>'
     + own.map((u) => `<th class="n">${T(`unit.${u}.name`)}</th>`).join('');
   const body = $('army-table').querySelector('tbody');
   body.innerHTML = '';
   if (!own.length) {
-    body.innerHTML = `<tr><td colspan="${1}"><i>${T('ui.islands.armyNone')}</i></td></tr>`;
+    body.innerHTML = `<tr><td colspan="2"><i>${T('ui.islands.armyNone')}</i></td></tr>`;
     $('army-total').innerHTML = '';
     return;
   }
   for (const i of rows) {
     const tr = document.createElement('tr');
     if (i.id === state.island.id) tr.className = 'active';
-    let cells = `<td>${i.name}</td>`;
+    const atk = homeAtk(i.army);
+    let cells = `<td>${i.name}</td><td class="n atk">${atk ? fmtNum(atk) : '·'}</td>`;
     for (const u of own) {
       const home = (i.army && i.army.home[u]) || 0;
       const away = (i.army && i.army.abroad[u]) || 0;
@@ -319,7 +327,9 @@ function renderArmy(rows) {
   }
   const sum = (u) => rows.reduce((n, i) =>
     n + ((i.army && (i.army.home[u] || 0) + (i.army.abroad[u] || 0)) || 0), 0);
+  const totalAtk = rows.reduce((n, i) => n + homeAtk(i.army), 0);
   $('army-total').innerHTML = `<th>${T('ui.islands.total')}</th>`
+    + `<td class="n atk">${fmtNum(totalAtk)}</td>`
     + own.map((u) => `<td class="n">${sum(u)}</td>`).join('');
 }
 
