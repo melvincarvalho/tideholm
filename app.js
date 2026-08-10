@@ -487,6 +487,23 @@ export function createApp(opts = {}) {
             + game.WALL_FLAT_DEF * i.buildings.wall)
           * (1 + game.WALL_DEF_BONUS * i.buildings.wall),
         ),
+        // Army disposition (#113): units garrisoned here, plus this island's own
+        // troops currently stationed as support on ANOTHER island. Only
+        // non-zero types are sent, so the client table hides empty columns.
+        // 'abroad' pairs with popAbroad above.
+        army: (() => {
+          const home = {};
+          for (const [k, n] of Object.entries(i.units)) if (n > 0) home[k] = n;
+          const abroad = {};
+          for (const other of world.islands) {
+            for (const c of other.support || []) {
+              if (c.fromId === i.id && c.ownerId === i.ownerId) {
+                for (const [k, n] of Object.entries(c.units || {})) if (n > 0) abroad[k] = (abroad[k] || 0) + n;
+              }
+            }
+          }
+          return { home, abroad };
+        })(),
         // Infinity does not survive JSON; null is the wire form of "unlimited".
         tradeSlots: game.tradeSlotsPerHarbor(world) == null
           ? null

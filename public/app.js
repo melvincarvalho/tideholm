@@ -282,6 +282,45 @@ function renderIslands() {
     fbody.appendChild(tr);
   }
   paintCountdowns(Date.now() + clockSkew);
+  renderArmy(rows);
+}
+
+// #113: the whole holding's military on one screen. A column per unit type you
+// actually own (empty types hidden), a row per island with home counts and any
+// this-island troops stationed abroad marked, and an empire total. Offensive
+// units (raider, flagship) lead; the defensive backbone follows.
+const ARMY_ORDER = ['raider', 'flagship', 'spearman', 'sentinel', 'scout', 'colonyship'];
+function renderArmy(rows) {
+  const own = ARMY_ORDER.filter((u) => rows.some((i) =>
+    (i.army && (i.army.home[u] || i.army.abroad[u])) > 0));
+  const head = $('army-head');
+  head.innerHTML = '<th>' + T('ui.tab.island') + '</th>'
+    + own.map((u) => `<th class="n">${T(`unit.${u}.name`)}</th>`).join('');
+  const body = $('army-table').querySelector('tbody');
+  body.innerHTML = '';
+  if (!own.length) {
+    body.innerHTML = `<tr><td colspan="${1}"><i>${T('ui.islands.armyNone')}</i></td></tr>`;
+    $('army-total').innerHTML = '';
+    return;
+  }
+  for (const i of rows) {
+    const tr = document.createElement('tr');
+    if (i.id === state.island.id) tr.className = 'active';
+    let cells = `<td>${i.name}</td>`;
+    for (const u of own) {
+      const home = (i.army && i.army.home[u]) || 0;
+      const away = (i.army && i.army.abroad[u]) || 0;
+      // e.g. "45" or "45 +12" where 12 of this island's troops are abroad.
+      cells += `<td class="n">${home || away ? home : '·'}`
+        + (away ? ` <small class="hint">+${away}</small>` : '') + '</td>';
+    }
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  }
+  const sum = (u) => rows.reduce((n, i) =>
+    n + ((i.army && (i.army.home[u] || 0) + (i.army.abroad[u] || 0)) || 0), 0);
+  $('army-total').innerHTML = `<th>${T('ui.islands.total')}</th>`
+    + own.map((u) => `<td class="n">${sum(u)}</td>`).join('');
 }
 
 // ---------------------------------------------------------------- rendering
