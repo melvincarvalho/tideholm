@@ -47,6 +47,25 @@ panel was never affected — it's built on target-click, not the poll. Reported
 via phil's session (his second catch of the weekend, after the movements
 overview), filed #106, fixed #107.
 
+### 2026-08-10 · A tidy and a couple of fixes
+
+> A tidy and a couple of fixes. The Islands tab now counts reinforcements in an
+> island's defence - troops you send as support were defending in battle all
+> along, but the number ignored them; it now tells the truth. The top bar has
+> dropped the island dropdown - switch islands with the dock at the bottom
+> (click a chip, or the arrow keys) or from the Islands tab. And the Help link
+> opens the new Almanac properly now. Fair winds.
+
+Three ships in one note. **Reinforcements counted** (#109/#110): the overview
+summed home units only while combat sums support contingents too — a defender
+shoring up an island read far softer than it fought (M1 showed 558, fielded
+780). **Top-bar tidy** (#112): the island `<select>` is hidden always now; the
+dock and Islands tab are the switchers, and the select lives on invisibly as
+the state source-of-truth (a one-liner, not the full refactor). **Help fixed**:
+the links were reset to an absolute `/help.html` by applyStatic on every render,
+resolving to the host root under the mount — now resolved against
+`import.meta.url`, correct at any path. All reported or surfaced in play.
+
 ### 2026-08-10 · The Tideholm Almanac
 
 > The Help link now opens The Tideholm Almanac - a proper captain's handbook.
