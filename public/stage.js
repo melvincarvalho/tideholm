@@ -123,18 +123,25 @@
     // last so it sits above its neighbours. Matches drawMinimap in app.js.
     if (activePos) {
       const s = Math.max(2, px - 1);
-      const pad = 1.5;
+      const out = Math.max(1.5, px * 0.4); // gap outside the cell so its colour shows
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(1.5, px * 0.22);
-      ctx.strokeRect(activePos.x * px - pad, activePos.y * px - pad, s + 2 * pad, s + 2 * pad);
+      ctx.lineWidth = Math.max(1, px * 0.18);
+      ctx.strokeRect(activePos.x * px - out, activePos.y * px - out, s + 2 * out, s + 2 * out);
     }
     // Clicking the widget jumps to the real map tab.
     canvas.onclick = () => { const t = $('tab-map'); if (t) t.click(); };
   }
 
+  // Follow the island the main column is on (app.js publishes it), so the
+  // rails don't default to mine[0] and disagree with the view beside them.
+  function islandQuery() {
+    const id = localStorage.getItem('tideholm-island');
+    return id ? '?island=' + encodeURIComponent(id) : '';
+  }
+
   async function tickState() {
     try {
-      const s = await get('api/state');
+      const s = await get('api/state' + islandQuery());
       fillState(s);
     } catch (e) { /* logged out or offline: rails just go stale */ }
   }

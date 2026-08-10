@@ -410,6 +410,10 @@ function renderState() {
   if (!state) return;
   const isl = state.island;
   activeIslandId = isl.id;
+  // Publish the selection so the stage rails (stage.js, a separate poller)
+  // can show the SAME island as this column — otherwise they default to
+  // mine[0] and disagree with the main view (#119 follow-up).
+  localStorage.setItem('tideholm-island', String(isl.id));
 
   // The server knows the account's language; follow it.
   if (state.lang && state.lang !== LANG && I18N.LANGS.includes(state.lang)) {
@@ -1075,10 +1079,10 @@ function drawMinimap(data) {
   // needed. Outset a touch to stay legible when a cell is only a few pixels.
   if (active) {
     const s = Math.max(2, px - 1);
-    const pad = 1.5;
+    const out = Math.max(1.5, px * 0.4); // gap outside the cell so its colour shows
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = Math.max(1.5, px * 0.22);
-    ctx.strokeRect(active.x * px - pad, active.y * px - pad, s + 2 * pad, s + 2 * pad);
+    ctx.lineWidth = Math.max(1, px * 0.18);
+    ctx.strokeRect(active.x * px - out, active.y * px - out, s + 2 * out, s + 2 * out);
   }
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
