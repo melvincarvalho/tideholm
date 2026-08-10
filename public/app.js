@@ -1739,10 +1739,13 @@ let _tidegate = null;
 async function getTidegate() {
   if (_tidegate) return _tidegate;
   const base = 'https://melvincarvalho.github.io/tidegate/';
-  const [core, local] = await Promise.all([
+  const [core, keys] = await Promise.all([
     import(base + 'tidegate.js'),
-    import(base + 'local.js'),
+    import(base + 'keys.js'),
   ]);
+  // Real signer: prompts for a 64-hex nostr key ONCE, keeps it in localStorage,
+  // and BIP340-signs every peg (#135). PoC — later a NIP-07/xlogin signer.
+  const signer = await keys.keySigner();
   _tidegate = core.createTidegate({
     backend: {
       balance: async () => (state && state.player && state.player.pegged) || 0,
@@ -1755,7 +1758,7 @@ async function getTidegate() {
       },
       subscribe: () => () => {},
     },
-    signer: local.localSigner(state.player.did || state.player.name),
+    signer,
   });
   return _tidegate;
 }
