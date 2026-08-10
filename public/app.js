@@ -391,9 +391,12 @@ function renderState() {
     ` · 👥 ${T('ui.pop')} ${isl.popUsed + (isl.popAbroad || 0)}/${isl.popCap}` +
     (isl.popAbroad ? ` (${T('ui.popAbroad', { n: isl.popAbroad })})` : '');
 
-  // Island switcher (visible once you hold more than one island)
+  // The island switcher stays hidden (#112): the dock and the Islands tab are
+  // the switchers now. The <select> lives on as the invisible source of truth
+  // — selectIsland() sets its value and fires its change event, the dock reads
+  // it — so its options must still populate even though it never shows.
   const sel = $('island-select');
-  sel.classList.toggle('hidden', state.islands.length < 2);
+  sel.classList.add('hidden');
   sel.innerHTML = '';
   for (const i of state.islands) {
     const opt = document.createElement('option');
