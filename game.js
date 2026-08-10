@@ -1163,6 +1163,38 @@ function sendPoolWithdraw(world, player, island, shares, now) {
   return { ok: true, arrive, burned: plan.burn, out: plan.out, shares: player.lpShares };
 }
 
+// ---- the Vault (#132)
+//
+// A personal, raid-proof gold treasury. Deposit moves gold off an island — and
+// raiders only ever loot island.resources, so vaulted gold cannot be taken —
+// onto the player. Withdraw returns it to the island's stock, capped by
+// storehouse room so it can't overflow and silently vanish. Instant, gold
+// only. Later (#132 phase 2) a peg-out will seal this balance cross-chain.
+function vaultDeposit(world, player, island, amount, now) {
+  resolveIsland(island, now);
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
+  if (amount > Math.floor(island.resources.gold)) return { error: 'err.noResources' };
+  island.resources.gold -= amount;
+  player.vault = Math.floor((player.vault || 0) + amount);
+  return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold) };
+}
+
+function vaultWithdraw(world, player, island, amount, now) {
+  resolveIsland(island, now);
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
+  if (amount > Math.floor(player.vault || 0)) return { error: 'err.vaultEmpty' };
+  const cap = storageCapacity(island.buildings.storehouse);
+  const room = Math.floor(cap - island.resources.gold);
+  if (room <= 0 || amount > room) {
+    return { error: 'err.vaultNoRoom', errorParams: { room: Math.max(0, room) } };
+  }
+  island.resources.gold += amount;
+  player.vault = Math.floor(player.vault - amount);
+  return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold) };
+}
+
 // ---- swapping against the pool
 //
 // Travel. Originally flat 30 minutes for every island — the pool has no place
@@ -2232,7 +2264,7 @@ function createPlayer(world, name, password, isBot, lang) {
   const start = Math.max(Date.now(), world.startAt || 0);
   const player = {
     id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang,
-    questIndex: 0, stats: {}, joinedAt: start, lpShares: 0,
+    questIndex: 0, stats: {}, joinedAt: start, lpShares: 0, vault: 0,
   };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
@@ -2355,6 +2387,7 @@ function migrateWorld(world) {
     if (p.questIndex == null) p.questIndex = 0;
     if (!p.stats) p.stats = {};
     if (p.lpShares == null) p.lpShares = 0; // liquidity position in world.pool (#46)
+    if (p.vault == null) p.vault = 0; // personal raid-proof gold treasury (#132)
   }
   for (const island of world.islands) {
     for (const key of Object.keys(BUILDINGS)) {
@@ -2421,6 +2454,7 @@ export {
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
+  vaultDeposit, vaultWithdraw,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,

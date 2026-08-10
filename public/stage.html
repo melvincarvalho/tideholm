@@ -239,6 +239,19 @@
 
         <section id="view-market" class="hidden">
           <h2 data-i18n="ui.tab.market"></h2>
+
+          <div id="vault-box">
+            <h3 data-i18n="ui.vault.title"></h3>
+            <p class="hint" data-i18n="ui.vault.hint"></p>
+            <p id="vault-balance"></p>
+            <div class="sim-row">
+              <input type="number" id="vault-amount" min="1" step="1" value="100">
+              <button id="vault-deposit" data-i18n="ui.vault.deposit"></button>
+              <button id="vault-withdraw" data-i18n="ui.vault.withdraw"></button>
+            </div>
+            <p class="hint error" id="vault-msg"></p>
+          </div>
+
           <h3 data-i18n="ui.market.create"></h3>
           <div class="sim-row">
             <span data-i18n="ui.market.give"></span>

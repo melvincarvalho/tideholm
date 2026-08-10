@@ -897,6 +897,58 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       lq && lq.finish === qFinish && lq.start === undefined, JSON.stringify(lq));
   }
 
+  // ---------------------------------------------------------------- the vault (#132)
+  // A fresh player, so its own act: rate-limit bucket isn't spent by the pool
+  // block above (20 POST / 10s per player).
+  {
+    console.log('\nvault (#132)');
+    let vr = await req(oa.port, 'POST', '/api/register',
+      { body: { name: 'Vault Tester', password: 'sekrit', lang: 'en' } });
+    const vcookie = (vr.headers.get('set-cookie') || '').split(';')[0];
+    const vp = openApp.world.players.find((p) => p.name === 'Vault Tester');
+    const visl = openApp.world.islands.find((i) => i.ownerId === vp.id);
+    gameMod.resolveIsland(visl, Date.now());
+    visl.buildings.storehouse = 14;                 // big cap so withdraw has room
+    visl.resources = { wood: 5000, stone: 5000, gold: 5000 };
+    vp.vault = 0;
+
+    vr = await req(oa.port, 'POST', '/api/vault/deposit', { body: { islandId: visl.id, amount: 1200 } });
+    check('#132 depositing without a session is refused', vr.status === 401);
+
+    vr = await req(oa.port, 'POST', '/api/vault/deposit',
+      { body: { islandId: visl.id, amount: 1200 }, cookie: vcookie });
+    check('#132 deposit moves gold island -> vault',
+      vr.status === 200 && vp.vault === 1200 && Math.floor(visl.resources.gold) === 3800,
+      JSON.stringify({ status: vr.status, vault: vp.vault, gold: visl.resources.gold }));
+    check('#132 the payload carries the vault balance',
+      vr.data.player && vr.data.player.vault === 1200, JSON.stringify(vr.data.player));
+
+    // Raid-proof: a raid loots island.resources; the vault sits on the player.
+    const beforeVault = vp.vault;
+    for (const rr of ['wood', 'stone', 'gold']) visl.resources[rr] = 0;
+    check('#132 a full sack of the island leaves the vault untouched',
+      vp.vault === beforeVault, `${vp.vault} vs ${beforeVault}`);
+
+    vr = await req(oa.port, 'POST', '/api/vault/withdraw',
+      { body: { islandId: visl.id, amount: 500 }, cookie: vcookie });
+    check('#132 withdraw moves gold vault -> island',
+      vr.status === 200 && vp.vault === 700 && Math.floor(visl.resources.gold) === 500,
+      JSON.stringify({ status: vr.status, vault: vp.vault, gold: visl.resources.gold }));
+
+    vr = await req(oa.port, 'POST', '/api/vault/withdraw',
+      { body: { islandId: visl.id, amount: 99999 }, cookie: vcookie });
+    check('#132 withdrawing more than the vault holds is refused',
+      vr.status !== 200 && vp.vault === 700, `${vr.status} vault=${vp.vault}`);
+
+    // Overflow guard: island at cap, a withdraw with no room is refused (gold not lost).
+    vp.vault = 5000;
+    visl.resources.gold = gameMod.storageCapacity(visl.buildings.storehouse);
+    vr = await req(oa.port, 'POST', '/api/vault/withdraw',
+      { body: { islandId: visl.id, amount: 100 }, cookie: vcookie });
+    check('#132 a withdraw with no storehouse room is refused (gold not lost)',
+      vr.status !== 200 && vp.vault === 5000, `${vr.status} vault=${vp.vault}`);
+  }
+
   oa.srv.close();
   openApp.stop();
 

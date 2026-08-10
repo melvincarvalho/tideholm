@@ -441,6 +441,10 @@ function renderState() {
   }
 
   $('who').textContent = state.player.name;
+  // Vault balance (#132) — raid-proof gold, shown in the Market tab.
+  if ($('vault-balance') && state.player.vault != null) {
+    $('vault-balance').textContent = T('ui.vault.balance', { n: fmtNum(state.player.vault) });
+  }
   // Loyalty and pop moved to the resbar meters (#116). The title now holds
   // only what is stable per island — which also keeps sound.js's "same
   // island?" snapshot from resetting on every loyalty tick.
@@ -1694,6 +1698,25 @@ if ($('lp-withdraw')) {
       $('lp-preview').textContent = err.message;
     }
   });
+}
+
+// The Vault (#132): move gold to/from a personal, raid-proof balance. Both
+// endpoints return the full state, so swap it in and re-render.
+async function vaultMove(path) {
+  $('vault-msg').textContent = '';
+  const amount = Math.floor(Number($('vault-amount').value));
+  if (!(amount > 0)) { $('vault-msg').textContent = T('err.badRequest'); return; }
+  try {
+    state = await api(path, { islandId: activeIslandId, amount });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+  } catch (err) {
+    $('vault-msg').textContent = err.message;
+  }
+}
+if ($('vault-deposit')) {
+  $('vault-deposit').addEventListener('click', () => vaultMove('/api/vault/deposit'));
+  $('vault-withdraw').addEventListener('click', () => vaultMove('/api/vault/withdraw'));
 }
 
 // Slippage tolerance. A quote is fetched, then the player acts; the pool can
