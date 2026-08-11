@@ -1838,10 +1838,56 @@ async function refreshFuel(force) {
   }
 }
 
+// The anchor (#140): commit the sealed trail to testnet4, signed IN THE BROWSER
+// with the same localStorage nostr key that seals pegs — non-custodial, the
+// server only records the txid. Two clicks by design: the first computes a
+// keyless preview (what will be spent, where, the fee) into the message line;
+// the second signs, broadcasts, and reports the commitment for stamping.
+let _anchorArmed = false;
+async function anchorFlow() {
+  const btn = $('tidegate-anchor');
+  const msg = $('tidegate-msg');
+  if (btn.disabled) return; // one flight at a time — a double-click must not double-broadcast
+  btn.disabled = true;
+  msg.textContent = '';
+  try {
+    const mod = await import('https://melvincarvalho.github.io/tidegate/anchor.js');
+    const did = state.player.did;
+    const { trail } = await api('/api/tidegate/trail');
+    if (!_anchorArmed) {
+      const p = await mod.previewAnchor(did, trail);
+      const o = p.outputs[0];
+      msg.textContent = T('ui.tidegate.anchorPreview', { sats: fmtNum(o.value), addr: o.address.slice(0, 12) + '…', fee: p.fee });
+      btn.textContent = T('ui.tidegate.anchorConfirm');
+      _anchorArmed = true;
+      return;
+    }
+    const c = await mod.anchor(did, trail);          // sign + broadcast, in-browser
+    _anchorArmed = false;
+    btn.textContent = T('ui.tidegate.anchor');
+    await api('/api/tidegate/anchor', { commitment: { seq: c.seq, txid: c.txid, address: c.address, network: c.network } });
+    msg.textContent = T('ui.tidegate.anchored', { seq: c.seq }) + ' ';
+    const a = document.createElement('a');
+    a.href = c.explorer; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = c.txid.slice(0, 12) + '…';
+    msg.appendChild(a);
+    refreshFuel(true);                                // the float just moved
+  } catch (err) {
+    _anchorArmed = false;
+    if (btn) btn.textContent = T('ui.tidegate.anchor');
+    msg.textContent = err.message || String(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+if ($('tidegate-anchor')) $('tidegate-anchor').addEventListener('click', anchorFlow);
+
 // Render-only: paints whatever is in the cache. Safe to call any time; never fetches.
 function renderFuel() {
   const el = $('tidegate-fuel');
   if (!el) return;
+  const ab = $('tidegate-anchor');
+  if (ab) ab.classList.toggle('hidden', !fuelDid()); // anchor needs an identity, like the gauge
   if (!fuelDid()) { el.classList.add('hidden'); el.textContent = ''; return; }
   el.classList.remove('hidden');
   el.textContent = '';

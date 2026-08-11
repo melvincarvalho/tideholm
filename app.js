@@ -1275,6 +1275,16 @@ export function createApp(opts = {}) {
       return sendJson(res, 200, { trail: game.tidegateTrail(player) });
     }
 
+    // The browser anchored the trail tip on testnet4 (#140) and reports the
+    // commitment; the server stamps it onto the tip (seq-checked, once).
+    if (req.method === 'POST' && pathname === '/api/tidegate/anchor') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const trail = game.tidegateStamp(player, body.commitment || body);
+      if (!trail) return sendErr(res, 400, lang, 'err.badRequest');
+      return sendJson(res, 200, { ok: true, trail });
+    }
+
     if (req.method === 'POST' && pathname === '/api/market/create') {
       const body = await readBody(req);
       if (!body) return sendErr(res, 400, lang, 'err.badRequest');
