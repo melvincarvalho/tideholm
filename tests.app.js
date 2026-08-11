@@ -1060,6 +1060,83 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   oa.srv.close();
   openApp.stop();
 
+  // -------------------------------------------- the Tavern: Tide Dice (#135 ph3)
+  // A fake chain injected via opts.tavernChain — tests never touch the network.
+  {
+    console.log('\ntavern: Tide Dice (#135 phase 3)');
+    const { createHash } = await import('node:crypto');
+    const chain = {
+      h: 100,
+      async tip() { return this.h; },
+      async hash(x) { return 'e'.repeat(60) + String(x).padStart(4, '0'); },
+    };
+    const tApp = createApp({ botCount: 1, freeIsles: 1, log: silent, tavernChain: chain });
+    const ta = await serve(tApp);
+    let tr = await req(ta.port, 'POST', '/api/register',
+      { body: { name: 'Dicer', password: 'sekrit', lang: 'en' } });
+    const tcookie = (tr.headers.get('set-cookie') || '').split(';')[0];
+    const tp = tApp.world.players.find((p) => p.name === 'Dicer');
+    const tisl = tApp.world.islands.find((i) => i.ownerId === tp.id);
+    tp.pegged = 500;
+
+    tr = await req(ta.port, 'POST', '/api/tavern/bet',
+      { body: { islandId: tisl.id, amount: 100 }, cookie: tcookie });
+    check('#135ph3 a bet stakes sealed gold and rides at the tip height',
+      tr.status === 200 && tp.pegged === 400 && tr.data.bet && tr.data.bet.status === 'riding'
+        && tr.data.bet.height === 100 && tr.data.bet.stake === 100, JSON.stringify(tr.data.bet));
+
+    tr = await req(ta.port, 'POST', '/api/tavern/bet',
+      { body: { islandId: tisl.id, amount: 99999 }, cookie: tcookie });
+    check('#135ph3 a bet cannot exceed the sealed balance',
+      tr.status !== 200 && tp.pegged === 400, `${tr.status} pegged=${tp.pegged}`);
+
+    tr = await req(ta.port, 'GET', '/api/tavern', { cookie: tcookie });
+    check('#135ph3 before the next block the bet keeps riding',
+      tr.status === 200 && tr.data.bets[0].status === 'riding', JSON.stringify(tr.data.bets));
+
+    // The tide comes in: block 101 exists; settling is deterministic, so the
+    // test recomputes the roll and checks the SAME verdict the server reached.
+    chain.h = 101;
+    tr = await req(ta.port, 'GET', '/api/tavern', { cookie: tcookie });
+    const bet = tr.data.bets[0];
+    const wantRoll = parseInt(createHash('sha256')
+      .update((await chain.hash(101)) + bet.id).digest('hex').slice(0, 8), 16) % 100;
+    check('#135ph3 the next block rolls the dice, verifiably',
+      bet.roll === wantRoll && bet.hash === await chain.hash(101)
+        && bet.status === (wantRoll >= 52 ? 'won' : 'lost'), JSON.stringify(bet));
+    check('#135ph3 a win pays 2x, a loss pays nothing',
+      bet.status === 'lost' ? bet.payout == null : bet.payout === 200, JSON.stringify(bet));
+
+    // Collect: craft a won bet directly so the path is deterministic.
+    tp.tavern.push({ id: 'win-test', height: 100, stake: 50, side: 'high', status: 'won', payout: 100, roll: 90, at: Date.now() });
+    const beforeCollect = tp.pegged;
+    tr = await req(ta.port, 'POST', '/api/tavern/collect',
+      { body: { islandId: tisl.id, betId: 'win-test' }, cookie: tcookie });
+    check('#135ph3 collecting a win credits the sealed balance',
+      tr.status === 200 && tp.pegged === beforeCollect + 100
+        && tp.tavern.find((b) => b.id === 'win-test').status === 'collected', `pegged=${tp.pegged}`);
+    tr = await req(ta.port, 'POST', '/api/tavern/collect',
+      { body: { islandId: tisl.id, betId: 'win-test' }, cookie: tcookie });
+    check('#135ph3 a wager collects at most once', tr.status !== 200 && tp.pegged === beforeCollect + 100, tr.status);
+    tr = await req(ta.port, 'POST', '/api/tavern/collect',
+      { body: { islandId: tisl.id, betId: 'nope' }, cookie: tcookie });
+    check('#135ph3 an unknown wager is refused', tr.status !== 200, tr.status);
+
+    // Chain trouble is soft on GET (riding stays riding) and hard on bet.
+    chain.tip = async () => { throw new Error('tide out'); };
+    tp.tavern.push({ id: 'stuck', height: 101, stake: 10, side: 'high', status: 'riding', at: Date.now() });
+    tr = await req(ta.port, 'GET', '/api/tavern', { cookie: tcookie });
+    check('#135ph3 an unreadable chain leaves riding bets riding',
+      tr.status === 200 && tr.data.bets.find((b) => b.id === 'stuck').status === 'riding', tr.status);
+    tr = await req(ta.port, 'POST', '/api/tavern/bet',
+      { body: { islandId: tisl.id, amount: 10 }, cookie: tcookie });
+    check('#135ph3 an unreadable chain refuses new bets (no height, no bet)',
+      tr.status === 502 && tp.pegged === beforeCollect + 100, tr.status);
+
+    ta.srv.close();
+    tApp.stop();
+  }
+
   // ------------------------------------- the train quote is the real total (#62)
   //
   // The catalog can only carry a single-unit price, and the Colony Ship steps

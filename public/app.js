@@ -181,7 +181,7 @@ $('tab-islands').addEventListener('click', () => { showTab('islands'); renderIsl
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
-$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); });
+$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); refreshTavern(); });
 $('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
@@ -1929,6 +1929,94 @@ async function refreshAnchored() {
     const drift = trail.length - c.seq;
     if (drift > 0) el.appendChild(document.createTextNode(' · ' + T('ui.tidegate.sinceAnchor', { n: drift })));
   } catch (_) { /* leave whatever is shown */ }
+}
+
+// ---- the Tavern: Tide Dice (#135 phase 3) --------------------------------
+// Stake sealed gold on a call of High; the NEXT testnet4 block rolls the dice
+// (roll = sha256(blockHash ‖ betId) mod 100, 52+ wins, pays 2×). Every gold
+// move is a client-signed trail transition — the tavern is simply another app
+// advancing the same trail. Wins wait as "collect" until the player signs.
+
+// Sign a trail transition with the same key that seals pegs.
+async function signTransition(t) {
+  const base = 'https://melvincarvalho.github.io/tidegate/';
+  const [core, keys] = await Promise.all([import(base + 'tidegate.js'), import(base + 'keys.js')]);
+  const signer = await keys.keySigner();
+  t.sig = await signer.sign(core.transitionBytes(t));
+  t.pubkey = signer.pubkey;
+  return t;
+}
+
+async function tavernBetFlow() {
+  const msg = $('tavern-msg');
+  msg.textContent = '';
+  const amount = Math.floor(Number($('tavern-amount').value));
+  if (!(amount > 0)) { msg.textContent = T('err.badRequest'); return; }
+  const btn = $('tavern-bet');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const did = state.player.did;
+    const prev = Math.floor(state.player.pegged || 0);
+    const t = await signTransition({ did, prev, delta: -amount, next: prev - amount });
+    state = await api('/api/tavern/bet', { islandId: activeIslandId, amount, transition: t });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+    refreshTavern();
+  } catch (err) {
+    msg.textContent = err.message || String(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+if ($('tavern-bet')) $('tavern-bet').addEventListener('click', tavernBetFlow);
+
+async function tavernCollectFlow(bet) {
+  const msg = $('tavern-msg');
+  msg.textContent = '';
+  try {
+    const did = state.player.did;
+    const prev = Math.floor(state.player.pegged || 0);
+    const t = await signTransition({ did, prev, delta: bet.payout, next: prev + bet.payout });
+    state = await api('/api/tavern/collect', { islandId: activeIslandId, betId: bet.id, transition: t });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+    refreshTavern();
+  } catch (err) {
+    msg.textContent = err.message || String(err);
+  }
+}
+
+// Fetch + render the table. Our own server (cheap); the server settles lazily
+// against its cached view of the chain — never from the poll loop.
+async function refreshTavern() {
+  const box = $('tavern-box');
+  if (!box) return;
+  box.classList.toggle('hidden', !fuelDid()); // needs a banner, like the gate
+  if (!fuelDid()) return;
+  try {
+    const { bets } = await api('/api/tavern');
+    const list = $('tavern-bets');
+    list.textContent = '';
+    for (const b of [...bets].reverse().slice(0, 10)) {
+      const row = document.createElement('p');
+      row.className = 'hint';
+      if (b.status === 'riding') {
+        row.textContent = `🎲 ${fmtNum(b.stake)} — ${T('ui.tavern.riding', { h: fmtNum(b.height + 1) })}`;
+      } else if (b.status === 'won') {
+        row.textContent = `🎲 ${fmtNum(b.stake)} — ${T('ui.tavern.won', { roll: b.roll, n: fmtNum(b.payout) })} `;
+        const c = document.createElement('button');
+        c.textContent = T('ui.tavern.collect');
+        c.addEventListener('click', () => tavernCollectFlow(b));
+        row.appendChild(c);
+      } else if (b.status === 'lost') {
+        row.textContent = `🎲 ${fmtNum(b.stake)} — ${T('ui.tavern.lost', { roll: b.roll })}`;
+      } else {
+        row.textContent = `🎲 ${fmtNum(b.stake)} — ${T('ui.tavern.collected', { roll: b.roll, n: fmtNum(b.payout) })}`;
+      }
+      list.appendChild(row);
+    }
+  } catch (_) { /* the tavern keeps its own counsel; retried next open */ }
 }
 
 // Render-only: paints whatever is in the cache. Safe to call any time; never fetches.

@@ -40,6 +40,7 @@ const PREGAME_BLOCKED = new Set([
   '/api/pool/swap', '/api/pool/deposit', '/api/pool/withdraw',
   '/api/vault/deposit', '/api/vault/withdraw',
   '/api/vault/pegin', '/api/vault/pegout',
+  '/api/tavern/bet', '/api/tavern/collect',
 ]);
 const BACKUP_KEEP = 24;
 
@@ -49,8 +50,39 @@ const MIME = {
   '.json': 'application/json',
 };
 
+// The Tavern's view of the chain (#135 phase 3): tip height + block hash by
+// height, from mempool.space testnet4. LAZY — hit only when a player opens the
+// tavern or bets, never from the poll loop. Tip cached 30s; hashes are
+// immutable, cached forever. Injectable (opts.tavernChain) so tests stay off
+// the network.
+function defaultTavernChain() {
+  const API = 'https://mempool.space/testnet4/api';
+  let tipH = null;
+  let tipAt = 0;
+  const hashes = new Map();
+  return {
+    async tip() {
+      if (tipH != null && Date.now() - tipAt < 30000) return tipH;
+      const r = await fetch(`${API}/blocks/tip/height`);
+      if (!r.ok) throw new Error(`tip ${r.status}`);
+      tipH = Number(await r.text());
+      tipAt = Date.now();
+      return tipH;
+    },
+    async hash(h) {
+      if (hashes.has(h)) return hashes.get(h);
+      const r = await fetch(`${API}/block-height/${h}`);
+      if (!r.ok) throw new Error(`hash ${r.status}`);
+      const x = (await r.text()).trim().toLowerCase();
+      hashes.set(h, x);
+      return x;
+    },
+  };
+}
+
 export function createApp(opts = {}) {
   const log = opts.log || console;
+  const tavernChain = opts.tavernChain || defaultTavernChain();
   const botCount = opts.botCount ?? Number(process.env.BOTS || 20);
   const freeIsles = opts.freeIsles ?? Number(process.env.FREE_ISLES || 30);
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
@@ -1273,6 +1305,52 @@ export function createApp(opts = {}) {
     // stand-in for reading a pod; the doc shape is identical.
     if (req.method === 'GET' && pathname === '/api/tidegate/trail') {
       return sendJson(res, 200, { trail: game.tidegateTrail(player) });
+    }
+
+    // ---- the Tavern: Tide Dice (#135 phase 3) ----------------------------
+
+    // Place a bet: the signed -stake transition seals it out (same path as a
+    // peg), and the bet rides until the NEXT block rolls the dice.
+    if (req.method === 'POST' && pathname === '/api/tavern/bet') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      let height;
+      try { height = await tavernChain.tip(); }
+      catch { return sendErr(res, 502, lang, 'err.tavernTide'); }
+      const result = game.tavernBet(player, Number(body.amount), height);
+      if (result.error) return gameErr(res, lang, result);
+      game.tidegateRecord(player, body.transition); // soft, like the pegs
+      return sendJson(res, 200, { ...stateFor(player, island.id), bet: result.bet });
+    }
+
+    // The tavern table: lazily settle any bet whose deciding block now exists,
+    // then list them. Chain trouble is soft — riding bets just keep riding.
+    if (req.method === 'GET' && pathname === '/api/tavern') {
+      const riding = (player.tavern || []).filter((b) => b.status === 'riding');
+      if (riding.length) {
+        try {
+          const tip = await tavernChain.tip();
+          for (const b of riding) {
+            if (b.height + 1 > tip) continue; // the tide hasn't come in yet
+            const hash = await tavernChain.hash(b.height + 1);
+            game.tavernSettle(player, b.id, hash);
+          }
+        } catch { /* settle next time */ }
+      }
+      return sendJson(res, 200, { bets: player.tavern || [], winFrom: game.TAVERN_WIN_FROM });
+    }
+
+    // Collect winnings: the player signs the +payout transition — sealed gold
+    // never moves without a signature.
+    if (req.method === 'POST' && pathname === '/api/tavern/collect') {
+      const body = await readBody(req);
+      if (!body) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      const result = game.tavernCollect(player, String(body.betId || ''));
+      if (result.error) return gameErr(res, lang, result);
+      game.tidegateRecord(player, body.transition);
+      return sendJson(res, 200, stateFor(player, island.id));
     }
 
     // The browser anchored the trail tip on testnet4 (#140) and reports the
