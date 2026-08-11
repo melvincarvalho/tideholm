@@ -24,6 +24,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import * as game from './game.js';
+import { rollFromHash, quote } from './tavern.js'; // vendored, unchanged — the tavern's own pricing
 import { spawnBots, botTick } from './bots.js';
 import { t } from './public/i18n.js';
 
@@ -50,8 +51,28 @@ const MIME = {
   '.json': 'application/json',
 };
 
+// The tide's ledger, for proving wins (#149): block hash by height from
+// mempool.space testnet4. Hashes are immutable — cached forever. Returns null
+// when the block does not exist (a false claim), throws on network trouble
+// (retryable). Injectable (opts.tideChain) so tests stay off the network.
+function defaultTideChain() {
+  const hashes = new Map();
+  return {
+    async hash(h) {
+      if (hashes.has(h)) return hashes.get(h);
+      const r = await fetch(`https://mempool.space/testnet4/api/block-height/${h}`);
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`hash ${r.status}`);
+      const x = (await r.text()).trim().toLowerCase();
+      hashes.set(h, x);
+      return x;
+    },
+  };
+}
+
 export function createApp(opts = {}) {
   const log = opts.log || console;
+  const tideChain = opts.tideChain || defaultTideChain();
   const botCount = opts.botCount ?? Number(process.env.BOTS || 20);
   const freeIsles = opts.freeIsles ?? Number(process.env.FREE_ISLES || 30);
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
@@ -1323,6 +1344,36 @@ export function createApp(opts = {}) {
           okSig = schnorr.verify(t.sig, sha256(bytes), t.pubkey);
         } catch { okSig = false; }
         if (!okSig) return sendErr(res, 400, lang, 'err.sealSync');
+      }
+      // Only the player can't cheat (#149): a positive delta is money claimed
+      // FROM the game, so its signature is not enough — the win itself must be
+      // provable. The slip carries the bet (height, mark, target, stake); we
+      // fetch the deciding block and re-derive the roll and payout with the
+      // tavern's own vendored maths. Wrong roll, wrong payout, or a block that
+      // does not exist → the whole slip is refused. The chain being unreadable
+      // is 502 — retry later, never trust meanwhile. (game.tidegateSync then
+      // enforces the ledger rules: the stake was paid, each bet credits once.)
+      for (const t of body.transitions) {
+        if (!(Number(t.delta) > 0)) continue;
+        const b = t.bet || {};
+        const height = Math.trunc(Number(b.height));
+        const target = Math.trunc(Number(b.target));
+        const stake = Math.trunc(Number(b.stake));
+        const mark = String(b.mark || '');
+        if (!Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64) {
+          return sendErr(res, 400, lang, 'err.sealSync');
+        }
+        let blockHash;
+        try { blockHash = await tideChain.hash(height + 1); }
+        catch { return sendErr(res, 502, lang, 'err.sealSync'); }
+        if (!blockHash) return sendErr(res, 400, lang, 'err.sealSync'); // no such block
+        const rollHex = crypto.createHash('sha256').update(`${blockHash}|${mark}`).digest('hex');
+        const roll = rollFromHash(rollHex);
+        const q = quote(target, stake);
+        if (roll == null || q.error || roll <= q.target
+          || Math.floor(q.payout) !== Math.trunc(Number(t.delta))) {
+          return sendErr(res, 400, lang, 'err.sealSync');
+        }
       }
       const result = game.tidegateSync(player, body.transitions);
       if (result.error) return gameErr(res, lang, result);

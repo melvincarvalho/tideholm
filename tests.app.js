@@ -1072,61 +1072,61 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       return t;
     };
 
-    const slip1 = [mkTx(150, -40), mkTx(110, 5)];
+    const slip1 = [mkTx(150, -40), mkTx(110, -5)]; // negatives: self-signed spends need no proof
     vr = await req(oa.port, 'POST', '/api/tidegate/sync',
       { body: { islandId: visl.id, transitions: slip1 }, cookie: vcookie });
     check('#146 a signed slip replays into the seal',
-      vr.status === 200 && vp.pegged === 115 && vr.data.applied === 2 && vr.data.player.pegged === 115,
+      vr.status === 200 && vp.pegged === 105 && vr.data.applied === 2 && vr.data.player.pegged === 105,
       JSON.stringify({ status: vr.status, pegged: vp.pegged }));
     vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
     check('#146 the slip lands on the trail, chained',
-      vr.data.trail.length === 2 && vr.data.trail[0].next === 110 && vr.data.trail[1].next === 115,
+      vr.data.trail.length === 2 && vr.data.trail[0].next === 110 && vr.data.trail[1].next === 105,
       JSON.stringify(vr.data.trail.map((t) => t.next)));
 
     // Tamper: the delta is altered after signing — the signature no longer covers it.
-    const bad = mkTx(115, -10); bad.delta = -20; bad.next = 95;
+    const bad = mkTx(105, -10); bad.delta = -20; bad.next = 85;
     vr = await req(oa.port, 'POST', '/api/tidegate/sync',
       { body: { islandId: visl.id, transitions: [bad] }, cookie: vcookie });
     check('#146 a tampered transition is refused — the signature does not cover it',
-      vr.status === 400 && vp.pegged === 115, `${vr.status} pegged=${vp.pegged}`);
+      vr.status === 400 && vp.pegged === 105, `${vr.status} pegged=${vp.pegged}`);
 
     // A valid signature over the WRONG chain position: refused by the chain check.
     vr = await req(oa.port, 'POST', '/api/tidegate/sync',
       { body: { islandId: visl.id, transitions: [mkTx(999, -1)] }, cookie: vcookie });
     check('#146 a slip that does not chain from the seal is refused',
-      vr.status === 400 && vp.pegged === 115, `${vr.status} pegged=${vp.pegged}`);
+      vr.status === 400 && vp.pegged === 105, `${vr.status} pegged=${vp.pegged}`);
 
     // A slip signed by a DIFFERENT key than the did: sig valid for its own key,
     // but the pubkey does not match the identity — refused.
     const KEY2 = '22'.repeat(32);
     const PUB2 = Buffer.from(schnorr.getPublicKey(KEY2)).toString('hex');
-    const forged = { did: vp.nostrDid, prev: 115, delta: -5, next: 110, pubkey: PUB2 };
-    const fb = new TextEncoder().encode(`tidegate/1|${forged.did}|115|-5|110`);
+    const forged = { did: vp.nostrDid, prev: 105, delta: -5, next: 100, pubkey: PUB2 };
+    const fb = new TextEncoder().encode(`tidegate/1|${forged.did}|105|-5|100`);
     forged.sig = Buffer.from(schnorr.sign(sh(fb), KEY2)).toString('hex');
     vr = await req(oa.port, 'POST', '/api/tidegate/sync',
       { body: { islandId: visl.id, transitions: [forged] }, cookie: vcookie });
     check('#146 a slip signed by a stranger\'s key is refused',
-      vr.status === 400 && vp.pegged === 115, `${vr.status} pegged=${vp.pegged}`);
+      vr.status === 400 && vp.pegged === 105, `${vr.status} pegged=${vp.pegged}`);
 
     // Draining below zero mid-chain is refused even when correctly signed.
     // (Direct call — the act rate-limit budget is spent by now, and the sig
     // path is already proven above; this guard is tidegateSync's own.)
-    const drain = gameMod.tidegateSync(vp, [mkTx(115, -200)]);
+    const drain = gameMod.tidegateSync(vp, [mkTx(105, -200)]);
     check('#146 a slip cannot take the seal below zero',
-      drain.error === 'err.sealSync' && vp.pegged === 115, JSON.stringify(drain));
+      drain.error === 'err.sealSync' && vp.pegged === 105, JSON.stringify(drain));
 
     // Idempotency: the tavern cannot know a slip was accepted, so a later slip
     // may re-carry already-redeemed moves. Replays no-op; a stale head must not
     // poison a new tail.
     const replay = gameMod.tidegateSync(vp, slip1);
     check('#146 a fully-redeemed slip replays as a no-op',
-      replay.ok && replay.applied === 0 && vp.pegged === 115, JSON.stringify(replay));
-    const mixed = gameMod.tidegateSync(vp, [slip1[1], mkTx(115, -15)]);
+      replay.ok && replay.applied === 0 && vp.pegged === 105, JSON.stringify(replay));
+    const mixed = gameMod.tidegateSync(vp, [slip1[1], mkTx(105, -15)]);
     check('#146 a stale head is skipped and only the new tail applies',
-      mixed.ok && mixed.applied === 1 && vp.pegged === 100, JSON.stringify(mixed));
-    const doubled = gameMod.tidegateSync(vp, [mkTx(115, -15)]);
+      mixed.ok && mixed.applied === 1 && vp.pegged === 90, JSON.stringify(mixed));
+    const doubled = gameMod.tidegateSync(vp, [mkTx(105, -15)]);
     check('#146 the new tail cannot be applied twice either',
-      doubled.error === 'err.sealSync' && vp.pegged === 100, JSON.stringify(doubled));
+      doubled.error === 'err.sealSync' && vp.pegged === 90, JSON.stringify(doubled));
 
     // The public blocktrails.json export: NO session, CORS-open, the shape
     // blocktrails.org/verify consumes. Stamp an anchor (with amount) onto the
@@ -1150,6 +1150,129 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
 
   oa.srv.close();
   openApp.stop();
+
+  // -------------------------- only the player can't cheat: provable wins (#149)
+  // A fresh app with an injected chain — the server re-derives every claimed
+  // win's roll and payout from the (fake) block hash; ledger rules enforce the
+  // stake was paid and each bet credits once. REAL Schnorr signatures on every
+  // transition; the proof is what stands between a signature and free money.
+  {
+    console.log("\nprovable wins (#149)");
+    const { schnorr: sch } = await import('@noble/curves/secp256k1');
+    const { sha256: sh2 } = await import('@noble/hashes/sha256');
+    const { createHash } = await import('node:crypto');
+    const KEY = '11'.repeat(32);
+    const PUB = Buffer.from(sch.getPublicKey(KEY)).toString('hex');
+    const HASHES = new Map();
+    let chainDown = false;
+    const chain = { async hash(h) {
+      if (chainDown) throw new Error('tide out');
+      if (h > 9000) return null;                    // "that block does not exist"
+      if (!HASHES.has(h)) HASHES.set(h, 'e'.repeat(56) + String(h).padStart(8, '0'));
+      return HASHES.get(h);
+    } };
+    const pApp = createApp({ botCount: 1, freeIsles: 1, log: silent, tideChain: chain });
+    const pa = await serve(pApp);
+    let pr = await req(pa.port, 'POST', '/api/register',
+      { body: { name: 'Prover', password: 'sekrit', lang: 'en' } });
+    const pcookie = (pr.headers.get('set-cookie') || '').split(';')[0];
+    const pp = pApp.world.players.find((x) => x.name === 'Prover');
+    const pisl = pApp.world.islands.find((i) => i.ownerId === pp.id);
+    pp.nostrDid = `did:nostr:${PUB}`;
+    pp.pegged = 500;
+
+    let running = 500;
+    const sign = (delta, bet) => {
+      const t = { did: pp.nostrDid, prev: running, delta, next: running + delta, pubkey: PUB };
+      const bytes = new TextEncoder().encode(`tidegate/1|${t.did}|${t.prev}|${t.delta}|${t.next}`);
+      t.sig = Buffer.from(sch.sign(sh2(bytes), KEY)).toString('hex');
+      if (bet) t.bet = bet;
+      running += delta;
+      return t;
+    };
+    const rollFor = async (height, mark) => {
+      const hx = createHash('sha256').update(`${await chain.hash(height + 1)}|${mark}`).digest('hex');
+      return (parseInt(hx.slice(0, 13), 16) % 100) + 1;
+    };
+    // find a mark whose roll can be beaten (roll >= 2), at height 200
+    let mark = 'm0'; let roll = await rollFor(200, mark);
+    for (let i = 1; roll < 2 && i < 20; i++) { mark = 'm' + i; roll = await rollFor(200, mark); }
+    const target = roll - 1;                         // guaranteed win
+    const stake = 100;
+    const payout = Math.floor(stake * (100 / (100 - target)) * 0.98);
+    const bet = { height: 200, mark, target, stake };
+
+    // 1. the honest night: stake and proven payout in one slip
+    pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: pisl.id, transitions: [sign(-stake, bet), sign(payout, bet)] }, cookie: pcookie });
+    check('#149 a provable win redeems: stake + payout in one slip',
+      pr.status === 200 && pp.pegged === 500 - stake + payout, `${pr.status} pegged=${pp.pegged}`);
+
+    // 2. the same win again, freshly signed — the ledger refuses a second credit
+    pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: pisl.id, transitions: [sign(payout, bet)] }, cookie: pcookie });
+    check('#149 a win credits exactly once, even freshly signed',
+      pr.status === 400, pr.status);
+    running -= payout; // the refused move never landed
+
+    // 3. a fabricated win with no stake behind it
+    const ghost = { height: 200, mark: mark + '-ghost', target: 1, stake: 1000 };
+    const gRoll = await rollFor(200, ghost.mark);
+    if (gRoll > 1) { // (almost always) a "winning" roll — but nothing was ever staked
+      const gPayout = Math.floor(1000 * (100 / 99) * 0.98);
+      pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+        { body: { islandId: pisl.id, transitions: [sign(gPayout, ghost)] }, cookie: pcookie });
+      check('#149 a win with no stake behind it is refused', pr.status === 400, pr.status);
+      running -= gPayout;
+    } else {
+      check('#149 a win with no stake behind it is refused', true, '(roll was 1 — vacuous)');
+    }
+
+    // 4. right bet, wrong maths: payout inflated by one sat
+    const bet2 = { height: 200, mark: mark + '-b2', target: 1, stake: 50 };
+    const r2 = await rollFor(200, bet2.mark);
+    if (r2 > 1) {
+      const good = Math.floor(50 * (100 / 99) * 0.98);
+      pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+        { body: { islandId: pisl.id, transitions: [sign(-50, bet2), sign(good + 1, bet2)] }, cookie: pcookie });
+      check('#149 an inflated payout is refused', pr.status === 400, pr.status);
+      running -= (-50) + (good + 1); // neither landed
+    } else {
+      check('#149 an inflated payout is refused', true, '(roll was 1 — vacuous)');
+    }
+
+    // 5. a losing roll claimed as a win: target = roll means roll is NOT above it
+    const bet3 = { height: 200, mark, target: roll, stake: 10 };
+    const lPayout = Math.floor(10 * (100 / (100 - roll)) * 0.98);
+    pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: pisl.id, transitions: [sign(-10, bet3), sign(lPayout, bet3)] }, cookie: pcookie });
+    check('#149 a losing roll claimed as a win is refused', pr.status === 400, pr.status);
+    running -= (-10) + lPayout;
+
+    // 6. a deciding block that does not exist
+    pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: pisl.id, transitions: [sign(7, { height: 99999, mark: 'x', target: 1, stake: 5 })] }, cookie: pcookie });
+    check('#149 a win on a block that does not exist is refused', pr.status === 400, pr.status);
+    running -= 7;
+
+    // 7. a bare positive delta with no evidence at all (the old self-mint)
+    pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: pisl.id, transitions: [sign(1000000)] }, cookie: pcookie });
+    check('#149 the self-mint is dead: unproven positive deltas are refused',
+      pr.status === 400 && pp.pegged === 500 - stake + payout, `${pr.status} pegged=${pp.pegged}`);
+    running -= 1000000;
+
+    // 8. the chain being unreadable refuses with 502 — retry, never trust
+    chainDown = true;
+    pr = await req(pa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: pisl.id, transitions: [sign(payout, { ...bet, mark: mark + '-later' })] }, cookie: pcookie });
+    check('#149 an unreadable chain is 502, nothing applied',
+      pr.status === 502 && pp.pegged === 500 - stake + payout, pr.status);
+    chainDown = false;
+
+    pa.srv.close();
+    pApp.stop();
+  }
 
   // ------------------------------------- the train quote is the real total (#62)
   //

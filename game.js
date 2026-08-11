@@ -2188,13 +2188,24 @@ function tidegateRecord(player, t) {
     // balance the player already held before we began recording (pegged - delta).
     const expectedPrev = trail.length ? trail[trail.length - 1].next : pegged - delta;
     if (prev !== expectedPrev) return null;
-    trail.push({
+    const entry = {
       did: player.nostrDid || t.did || null,
       prev, delta, next,
       sig: typeof t.sig === 'string' ? t.sig : null,
       pubkey: typeof t.pubkey === 'string' ? t.pubkey : null,
       at: Date.now(),
-    });
+    };
+    // Bet evidence (#149) rides along, sanitized — outside the canonical tip
+    // fields, so anchoring is unaffected. It is what makes a win provable.
+    if (t.bet && typeof t.bet === 'object') {
+      entry.bet = {
+        height: Math.trunc(Number(t.bet.height)) || 0,
+        mark: String(t.bet.mark || '').slice(0, 64),
+        target: Math.trunc(Number(t.bet.target)) || 0,
+        stake: Math.trunc(Number(t.bet.stake)) || 0,
+      };
+    }
+    trail.push(entry);
     fs.mkdirSync(TIDEGATE_DIR, { recursive: true });
     fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
     return trail;
@@ -2229,6 +2240,7 @@ function tidegateSync(player, txs) {
     txs = txs.filter((t) => !(t && typeof t.sig === 'string' && seen.has(t.sig)));
     if (txs.length === 0) return { ok: true, pegged: Math.floor(player.pegged || 0), applied: 0 };
     let prev = Math.floor(player.pegged || 0);
+    const working = tidegateTrail(player).slice(); // trail + validated-so-far
     for (const t of txs) {
       if (!t || typeof t !== 'object') return { error: 'err.sealSync' };
       if (t.did !== player.nostrDid || t.pubkey !== pubkey) return { error: 'err.sealSync' };
@@ -2236,6 +2248,28 @@ function tidegateSync(player, txs) {
       if (![p, d, n].every(Number.isSafeInteger) || d === 0) return { error: 'err.sealSync' };
       if (p !== prev || n !== p + d || n < 0) return { error: 'err.sealSync' }; // chains from pegged, never negative
       if (typeof t.sig !== 'string' || !/^[0-9a-f]{128}$/.test(t.sig)) return { error: 'err.sealSync' };
+      if (d > 0) {
+        // Only the player can't cheat (#149): a positive delta must be a
+        // provable Tide payout. The endpoint has already re-derived the roll
+        // and payout from the public block hash; here we enforce the LEDGER
+        // rules — the stake was actually paid, and each bet credits once.
+        const b = t.bet;
+        if (!b || typeof b !== 'object') return { error: 'err.sealSync' };
+        const bh = Math.trunc(Number(b.height)); const bt2 = Math.trunc(Number(b.target));
+        const bs = Math.trunc(Number(b.stake)); const mark = String(b.mark || '');
+        if (!Number.isSafeInteger(bh) || bh <= 0 || bt2 < 1 || bt2 > 99 || bs <= 0
+          || !mark || mark.length > 64) return { error: 'err.sealSync' };
+        const same = (e) => e.bet
+          && Math.trunc(Number(e.bet.height)) === bh && String(e.bet.mark) === mark
+          && Math.trunc(Number(e.bet.target)) === bt2 && Math.trunc(Number(e.bet.stake)) === bs;
+        if (!working.some((e) => Math.trunc(Number(e.delta)) === -bs && same(e))) {
+          return { error: 'err.sealSync' }; // no such stake ever left the seal
+        }
+        if (working.some((e) => Math.trunc(Number(e.delta)) > 0 && same(e))) {
+          return { error: 'err.sealSync' }; // that win is already credited
+        }
+      }
+      working.push(t);
       prev = n;
     }
     // Valid throughout — apply stepwise so each move lands on the trail with
