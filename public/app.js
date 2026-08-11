@@ -181,7 +181,7 @@ $('tab-islands').addEventListener('click', () => { showTab('islands'); renderIsl
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
-$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); });
+$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); renderTavernLine(); renderSlip(); });
 $('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
@@ -1929,6 +1929,76 @@ async function refreshAnchored() {
     const drift = trail.length - c.seq;
     if (drift > 0) el.appendChild(document.createTextNode(' · ' + T('ui.tidegate.sinceAnchor', { n: drift })));
   } catch (_) { /* leave whatever is shown */ }
+}
+
+// ---- the Tavern door + the courier slip (#146) ----------------------------
+// The tavern is a SEPARATE app (melvincarvalho.github.io/tavern) that stakes
+// sealed gold; Tideholm's whole integration surface is this link out and the
+// slip coming back. Out: ?did=&seal=&return= — the tavern's prefill seam. Home:
+// the player carries ?tavern=<b64 signed transitions>; Redeem posts them to
+// /api/tidegate/sync, where every signature is verified before the seal moves.
+
+function b64urlDecode(s) {
+  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64.padEnd(Math.ceil(b64.length / 4) * 4, '=');
+  return new TextDecoder().decode(Uint8Array.from(atob(padded), (c) => c.charCodeAt(0)));
+}
+let _slip = null; // parsed once from the arrival URL
+{
+  const raw = new URLSearchParams(location.search).get('tavern');
+  if (raw) {
+    try {
+      const txs = JSON.parse(b64urlDecode(raw));
+      if (Array.isArray(txs) && txs.length) _slip = txs;
+    } catch (_) { /* not a slip */ }
+  }
+}
+
+function renderTavernLine() {
+  const el = $('tidegate-tavern');
+  if (!el) return;
+  const did = fuelDid();
+  el.classList.toggle('hidden', !did);
+  if (!did) return;
+  el.textContent = '';
+  const a = document.createElement('a');
+  a.href = 'https://melvincarvalho.github.io/tavern/?did=' + encodeURIComponent(did)
+    + '&seal=' + Math.floor((state.player && state.player.pegged) || 0)
+    + '&return=' + encodeURIComponent(location.origin + location.pathname);
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.textContent = T('ui.tidegate.tavern');
+  el.appendChild(a);
+}
+
+function renderSlip() {
+  const el = $('tidegate-slip');
+  if (!el) return;
+  if (!_slip || !fuelDid()) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.classList.remove('hidden');
+  el.textContent = '';
+  const net = _slip.reduce((a, t) => a + (Number(t.delta) || 0), 0);
+  el.appendChild(document.createTextNode(
+    T('ui.tidegate.slip', { n: _slip.length, net: (net >= 0 ? '+' : '') + fmtNum(net) }) + ' '));
+  const b = document.createElement('button');
+  b.textContent = T('ui.tidegate.redeem');
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      state = await api('/api/tidegate/sync', { islandId: activeIslandId, transitions: _slip });
+      clockSkew = state.serverNow - Date.now();
+      _slip = null;
+      history.replaceState(null, '', location.pathname); // the slip is spent
+      renderState();
+      renderSlip();
+      renderTavernLine();
+      $('tidegate-msg').textContent = T('ui.tidegate.redeemed');
+    } catch (err) {
+      b.disabled = false;
+      $('tidegate-msg').textContent = err.message || String(err);
+    }
+  });
+  el.appendChild(b);
 }
 
 // Render-only: paints whatever is in the cache. Safe to call any time; never fetches.
