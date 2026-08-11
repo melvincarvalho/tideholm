@@ -2218,6 +2218,16 @@ function tidegateSync(player, txs) {
     if (!Array.isArray(txs) || txs.length < 1 || txs.length > TIDEGATE_SYNC_MAX) {
       return { error: 'err.badRequest' };
     }
+    // IDEMPOTENT: skip moves whose signature is already on the trail — they
+    // were applied by an earlier redeem. The tavern cannot know a slip was
+    // accepted (different origin), so a later slip may re-carry old moves; a
+    // stale head must not poison the new tail. This also closes a replay hole:
+    // an old winning slip re-sent when the balance happens to line up again
+    // would otherwise double-credit. Signatures are unique per signing, so the
+    // sig string identifies the exact applied move.
+    const seen = new Set(tidegateTrail(player).map((e) => e.sig).filter(Boolean));
+    txs = txs.filter((t) => !(t && typeof t.sig === 'string' && seen.has(t.sig)));
+    if (txs.length === 0) return { ok: true, pegged: Math.floor(player.pegged || 0), applied: 0 };
     let prev = Math.floor(player.pegged || 0);
     for (const t of txs) {
       if (!t || typeof t !== 'object') return { error: 'err.sealSync' };
