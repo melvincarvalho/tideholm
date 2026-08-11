@@ -201,12 +201,44 @@ if (!feeRate) {
   try { feeRate = Math.max(1, Math.ceil((await getJson(`${API}/v1/fees/recommended`)).halfHourFee)); }
   catch { feeRate = 1; }
 }
-const vsize = bt.estimateVsize(confirmed.length, 1);
-const fee = Math.ceil(vsize * feeRate);
-const forward = inputValue - fee;
-if (forward <= 546) { // dust floor
-  console.error(`fee ${fee} sat would leave ${forward} sat (dust) — not enough fuel to advance.`);
-  process.exit(1);
+
+// The float convention: an anchor that spends the BASE address carves only a
+// small float into the trail (default 10k sat, --float <n> to change, --all
+// for whole-balance-forward) and returns the rest to base as change. Amounts
+// are irrelevant to BlockTrails — verify() walks witness programs, not values —
+// so a small float anchors just as hard, while (a) the treasury stays at the
+// recognizable base address the DID doc and fuel gauge point at, (b) custody
+// exposure on the tweaked-address chain is capped at the float, and (c) faucet
+// refills land where the money already is. Tip-to-tip anchors forward the
+// whole float (it just rides).
+const DUST = 546;
+const wantAll = args.includes('--all');
+const floatSats = Math.max(1000, Math.trunc(Number(flag('--float')) || 10000));
+let carving = priorStates.length === 0 && !wantAll;
+
+let vsize, fee, outputsPlan;
+if (carving) {
+  vsize = bt.estimateVsize(confirmed.length, 2);
+  fee = Math.ceil(vsize * feeRate);
+  const change = inputValue - fee - floatSats;
+  if (change > DUST) {
+    outputsPlan = [
+      { xonly: nextXonly, address: nextAddress, value: floatSats, label: 'trail float' },
+      { xonly: bt.hexToBytes(hex), address: fromAddress, value: change, label: 'change → base' },
+    ];
+  } else {
+    carving = false; // not enough room for a change output — forward everything
+  }
+}
+if (!carving) {
+  vsize = bt.estimateVsize(confirmed.length, 1);
+  fee = Math.ceil(vsize * feeRate);
+  const forward = inputValue - fee;
+  if (forward <= DUST) {
+    console.error(`fee ${fee} sat would leave ${forward} sat (dust) — not enough fuel to advance.`);
+    process.exit(1);
+  }
+  outputsPlan = [{ xonly: nextXonly, address: nextAddress, value: forward, label: 'whole balance forward' }];
 }
 
 // ----------------------------------------------------------------- report
@@ -219,8 +251,10 @@ console.log(`  anchor #  ${priorStates.length + 1}${priorStates.length === 0 ? '
 console.log('');
 console.log(`  from      ${fromAddress}${priorStates.length === 0 ? '   (base = the fuel-gauge address)' : ''}`);
 console.log(`  inputs    ${confirmed.map((u) => `${u.txid}:${u.vout} (${u.value} sat)`).join('\n            ')}`);
-console.log(`  to        ${nextAddress}   ← P(${priorStates.length + 1}) = P_base + Σtweaks·G`);
-console.log(`  amount    ${forward} sat  (whole balance forward)`);
+for (const o of outputsPlan) {
+  const mark = bt.bytesToHex(o.xonly) === bt.bytesToHex(nextXonly) ? `   ← P(${priorStates.length + 1}) = P_base + Σtweaks·G` : '';
+  console.log(`  out       ${o.value} sat → ${o.address}  (${o.label})${mark}`);
+}
 console.log(`  fee       ${fee} sat  (${feeRate} sat/vB × ~${vsize} vB)`);
 
 if (!wantBroadcast) {
@@ -264,7 +298,7 @@ if (bt.bytesToHex(bt.p2trXonly(signingPub)) !== bt.bytesToHex(fromXonly)) {
 
 const tx = bt.buildTransaction({
   inputs: confirmed.map((u) => ({ txid: u.txid, vout: u.vout, witnessProgram: fromXonly, amount: u.value })),
-  outputs: [{ witnessProgram: nextXonly, value: forward }],
+  outputs: outputsPlan.map((o) => ({ witnessProgram: o.xonly, value: o.value })),
 });
 const prevouts = confirmed.map((u) => ({ txid: u.txid, vout: u.vout, witnessProgram: fromXonly, amount: BigInt(u.value) }));
 const signed = bt.signTransaction(tx, confirmed.map(() => signingKey), prevouts);
