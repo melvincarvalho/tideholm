@@ -40,6 +40,7 @@ const PREGAME_BLOCKED = new Set([
   '/api/pool/swap', '/api/pool/deposit', '/api/pool/withdraw',
   '/api/vault/deposit', '/api/vault/withdraw',
   '/api/vault/pegin', '/api/vault/pegout',
+  '/api/tidegate/sync',
 ]);
 const BACKUP_KEEP = 24;
 
@@ -1273,6 +1274,38 @@ export function createApp(opts = {}) {
     // stand-in for reading a pod; the doc shape is identical.
     if (req.method === 'GET' && pathname === '/api/tidegate/trail') {
       return sendJson(res, 200, { trail: game.tidegateTrail(player) });
+    }
+
+    // Redeem a courier slip (#146): signed transitions another app (the
+    // tavern) produced against this seal, carried home by the player. This is
+    // the ONE place external moves change `pegged`, so every Schnorr signature
+    // is verified server-side first — fail closed: no crypto, no sync. The
+    // chain/shape validation and the all-or-nothing apply live in game.js.
+    if (req.method === 'POST' && pathname === '/api/tidegate/sync') {
+      const body = await readBody(req);
+      if (!body || !Array.isArray(body.transitions)) return sendErr(res, 400, lang, 'err.badRequest');
+      const island = myIsland(player, body.islandId);
+      let schnorr, sha256;
+      try {
+        ({ schnorr } = await import('@noble/curves/secp256k1'));
+        ({ sha256 } = await import('@noble/hashes/sha256'));
+      } catch {
+        return sendErr(res, 500, lang, 'err.sealSync'); // verifier unavailable → refuse, never trust
+      }
+      const enc = new TextEncoder();
+      for (const t of body.transitions.slice(0, 50)) {
+        let okSig = false;
+        try {
+          // the tidegate signing convention: BIP340 over sha256 of the
+          // canonical transition bytes (tidegate/1|did|prev|delta|next)
+          const bytes = enc.encode(`tidegate/1|${t.did}|${t.prev}|${t.delta}|${t.next}`);
+          okSig = schnorr.verify(t.sig, sha256(bytes), t.pubkey);
+        } catch { okSig = false; }
+        if (!okSig) return sendErr(res, 400, lang, 'err.sealSync');
+      }
+      const result = game.tidegateSync(player, body.transitions);
+      if (result.error) return gameErr(res, lang, result);
+      return sendJson(res, 200, { ...stateFor(player, island.id), applied: result.applied });
     }
 
     // The browser anchored the trail tip on testnet4 (#140) and reports the

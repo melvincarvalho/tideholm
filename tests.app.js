@@ -1055,6 +1055,64 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     vr = await req(oa.port, 'POST', '/api/tidegate/anchor',
       { body: { commitment: { seq: 2, txid: 'cd'.repeat(32) } }, cookie: vcookie });
     check('#140 an already-stamped tip refuses a second stamp', vr.status === 400, vr.status);
+
+    // #146 the courier slip: signed transitions another app produced against
+    // this seal, replayed through /api/tidegate/sync — REAL Schnorr signatures,
+    // verified server-side, fail closed.
+    const { schnorr } = await import('@noble/curves/secp256k1');
+    const { sha256: sh } = await import('@noble/hashes/sha256');
+    const KEY = '11'.repeat(32);
+    const PUB = Buffer.from(schnorr.getPublicKey(KEY)).toString('hex');
+    vp.nostrDid = `did:nostr:${PUB}`; // the key IS the identity
+    vp.pegged = 150;
+    const mkTx = (prev, delta) => {
+      const t = { did: vp.nostrDid, prev, delta, next: prev + delta, pubkey: PUB };
+      const bytes = new TextEncoder().encode(`tidegate/1|${t.did}|${t.prev}|${t.delta}|${t.next}`);
+      t.sig = Buffer.from(schnorr.sign(sh(bytes), KEY)).toString('hex');
+      return t;
+    };
+
+    vr = await req(oa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: visl.id, transitions: [mkTx(150, -40), mkTx(110, 5)] }, cookie: vcookie });
+    check('#146 a signed slip replays into the seal',
+      vr.status === 200 && vp.pegged === 115 && vr.data.applied === 2 && vr.data.player.pegged === 115,
+      JSON.stringify({ status: vr.status, pegged: vp.pegged }));
+    vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
+    check('#146 the slip lands on the trail, chained',
+      vr.data.trail.length === 2 && vr.data.trail[0].next === 110 && vr.data.trail[1].next === 115,
+      JSON.stringify(vr.data.trail.map((t) => t.next)));
+
+    // Tamper: the delta is altered after signing — the signature no longer covers it.
+    const bad = mkTx(115, -10); bad.delta = -20; bad.next = 95;
+    vr = await req(oa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: visl.id, transitions: [bad] }, cookie: vcookie });
+    check('#146 a tampered transition is refused — the signature does not cover it',
+      vr.status === 400 && vp.pegged === 115, `${vr.status} pegged=${vp.pegged}`);
+
+    // A valid signature over the WRONG chain position: refused by the chain check.
+    vr = await req(oa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: visl.id, transitions: [mkTx(999, -1)] }, cookie: vcookie });
+    check('#146 a slip that does not chain from the seal is refused',
+      vr.status === 400 && vp.pegged === 115, `${vr.status} pegged=${vp.pegged}`);
+
+    // A slip signed by a DIFFERENT key than the did: sig valid for its own key,
+    // but the pubkey does not match the identity — refused.
+    const KEY2 = '22'.repeat(32);
+    const PUB2 = Buffer.from(schnorr.getPublicKey(KEY2)).toString('hex');
+    const forged = { did: vp.nostrDid, prev: 115, delta: -5, next: 110, pubkey: PUB2 };
+    const fb = new TextEncoder().encode(`tidegate/1|${forged.did}|115|-5|110`);
+    forged.sig = Buffer.from(schnorr.sign(sh(fb), KEY2)).toString('hex');
+    vr = await req(oa.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: visl.id, transitions: [forged] }, cookie: vcookie });
+    check('#146 a slip signed by a stranger\'s key is refused',
+      vr.status === 400 && vp.pegged === 115, `${vr.status} pegged=${vp.pegged}`);
+
+    // Draining below zero mid-chain is refused even when correctly signed.
+    // (Direct call — the act rate-limit budget is spent by now, and the sig
+    // path is already proven above; this guard is tidegateSync's own.)
+    const drain = gameMod.tidegateSync(vp, [mkTx(115, -200)]);
+    check('#146 a slip cannot take the seal below zero',
+      drain.error === 'err.sealSync' && vp.pegged === 115, JSON.stringify(drain));
   }
 
   oa.srv.close();

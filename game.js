@@ -2201,6 +2201,43 @@ function tidegateRecord(player, t) {
   } catch { return null; }
 }
 
+// Replay a courier slip (#146): signed transitions produced by ANOTHER app
+// (the tavern) and carried home by the player in a query string. This is the
+// one place external moves change `pegged` — so unlike tidegateRecord (which
+// mirrors moves the server itself made), everything is validated up front and
+// applied all-or-nothing. SIGNATURES ARE NOT CHECKED HERE — game.js carries no
+// crypto; the endpoint verifies every Schnorr signature BEFORE calling this,
+// and refuses the slip if it cannot verify. Never throws; { error } on refusal.
+const TIDEGATE_SYNC_MAX = 50; // a slip is a session, not a firehose
+
+function tidegateSync(player, txs) {
+  try {
+    const m = /^did:nostr:([0-9a-f]{64})$/.exec(player.nostrDid || '');
+    if (!m) return { error: 'err.badRequest' }; // only identity-keyed seals can sync
+    const pubkey = m[1];
+    if (!Array.isArray(txs) || txs.length < 1 || txs.length > TIDEGATE_SYNC_MAX) {
+      return { error: 'err.badRequest' };
+    }
+    let prev = Math.floor(player.pegged || 0);
+    for (const t of txs) {
+      if (!t || typeof t !== 'object') return { error: 'err.sealSync' };
+      if (t.did !== player.nostrDid || t.pubkey !== pubkey) return { error: 'err.sealSync' };
+      const p = Number(t.prev), d = Number(t.delta), n = Number(t.next);
+      if (![p, d, n].every(Number.isSafeInteger) || d === 0) return { error: 'err.sealSync' };
+      if (p !== prev || n !== p + d || n < 0) return { error: 'err.sealSync' }; // chains from pegged, never negative
+      if (typeof t.sig !== 'string' || !/^[0-9a-f]{128}$/.test(t.sig)) return { error: 'err.sealSync' };
+      prev = n;
+    }
+    // Valid throughout — apply stepwise so each move lands on the trail with
+    // the mirror intact (tidegateRecord checks next === pegged after the move).
+    for (const t of txs) {
+      player.pegged = Math.floor(Number(t.next));
+      tidegateRecord(player, t);
+    }
+    return { ok: true, pegged: player.pegged, applied: txs.length };
+  } catch { return { error: 'err.sealSync' }; }
+}
+
 // Stamp a client-reported anchor commitment onto the trail tip (#140). The
 // browser signs and broadcasts non-custodially — the same key that seals pegs —
 // and the server merely RECORDS the resulting txid so /api/tidegate/trail shows
@@ -2586,7 +2623,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
-  tidegateRecord, tidegateTrail, tidegateStamp,
+  tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
