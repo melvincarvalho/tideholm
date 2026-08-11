@@ -1072,8 +1072,9 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       return t;
     };
 
+    const slip1 = [mkTx(150, -40), mkTx(110, 5)];
     vr = await req(oa.port, 'POST', '/api/tidegate/sync',
-      { body: { islandId: visl.id, transitions: [mkTx(150, -40), mkTx(110, 5)] }, cookie: vcookie });
+      { body: { islandId: visl.id, transitions: slip1 }, cookie: vcookie });
     check('#146 a signed slip replays into the seal',
       vr.status === 200 && vp.pegged === 115 && vr.data.applied === 2 && vr.data.player.pegged === 115,
       JSON.stringify({ status: vr.status, pegged: vp.pegged }));
@@ -1113,6 +1114,19 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     const drain = gameMod.tidegateSync(vp, [mkTx(115, -200)]);
     check('#146 a slip cannot take the seal below zero',
       drain.error === 'err.sealSync' && vp.pegged === 115, JSON.stringify(drain));
+
+    // Idempotency: the tavern cannot know a slip was accepted, so a later slip
+    // may re-carry already-redeemed moves. Replays no-op; a stale head must not
+    // poison a new tail.
+    const replay = gameMod.tidegateSync(vp, slip1);
+    check('#146 a fully-redeemed slip replays as a no-op',
+      replay.ok && replay.applied === 0 && vp.pegged === 115, JSON.stringify(replay));
+    const mixed = gameMod.tidegateSync(vp, [slip1[1], mkTx(115, -15)]);
+    check('#146 a stale head is skipped and only the new tail applies',
+      mixed.ok && mixed.applied === 1 && vp.pegged === 100, JSON.stringify(mixed));
+    const doubled = gameMod.tidegateSync(vp, [mkTx(115, -15)]);
+    check('#146 the new tail cannot be applied twice either',
+      doubled.error === 'err.sealSync' && vp.pegged === 100, JSON.stringify(doubled));
   }
 
   oa.srv.close();
