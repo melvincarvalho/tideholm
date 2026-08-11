@@ -290,6 +290,7 @@
 
   // --- polls ---------------------------------------------------------------
   function pollBase() {
+    if (document.hidden) return; // hidden tab: no polling (#158)
     apiGet('/api/state').then(function (s) {
       if (!s || !Array.isArray(s.islands)) return;
       islands = s.islands;
@@ -318,6 +319,7 @@
     islands.forEach(function (i, idx) {
       // stagger so N islands don't fire simultaneously
       setTimeout(function () {
+        if (document.hidden) return; // tab hidden mid-burst (#158)
         apiGet('/api/state?island=' + i.id).then(function (s) {
           if (!s || !s.island) return;
           var isl = s.island, cap = Number(isl.capacity) || 0;
@@ -338,9 +340,22 @@
       ensureDock();
       pollBase();
       pollDetail();
-      setInterval(pollBase, BASE_POLL_MS);
-      setInterval(pollDetail, DETAIL_POLL_MS);
+      startPolling();
+      // Hidden tabs stop polling (#158); on return, catch up once and resume.
+      document.addEventListener('visibilitychange', function () {
+        while (timers.length) clearInterval(timers.pop());
+        if (document.hidden) return;
+        pollBase();
+        pollDetail();
+        startPolling();
+      });
     } catch (e) { /* fail silent: the game must never break because of the dock */ }
+  }
+
+  var timers = [];
+  function startPolling() {
+    timers.push(setInterval(pollBase, BASE_POLL_MS));
+    timers.push(setInterval(pollDetail, DETAIL_POLL_MS));
   }
 
   if (document.readyState === 'loading') {

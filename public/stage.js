@@ -86,6 +86,7 @@
   }
 
   async function tickStanding() {
+    if (document.hidden) return; // hidden tab: no polling (#158)
     try {
       const data = await get('api/rankings');
       const i = data.rankings.findIndex((r) => r.isYou);
@@ -120,6 +121,7 @@
   }
 
   async function tickState() {
+    if (document.hidden) return; // hidden tab: no polling (#158)
     try {
       const s = await get('api/state' + islandQuery());
       fillState(s);
@@ -127,6 +129,7 @@
   }
 
   async function tickMap() {
+    if (document.hidden) return; // hidden tab: no polling (#158)
     try {
       lastMap = await get('api/map');
       drawMap(lastMap);
@@ -139,9 +142,22 @@
     if (e.detail) { activePos = e.detail; if (lastMap) drawMap(lastMap); }
   });
 
+  // Hidden tabs stop polling (#158); on return, catch up once and resume.
+  var timers = [];
+  function startTimers() {
+    timers.push(setInterval(tickState, 5000));
+    timers.push(setInterval(tickMap, 30000));
+    timers.push(setInterval(tickStanding, 60000));
+  }
+  document.addEventListener('visibilitychange', function () {
+    while (timers.length) clearInterval(timers.pop());
+    if (document.hidden) return;
+    tickStanding().then(tickState);
+    tickMap();
+    startTimers();
+  });
+
   tickStanding().then(tickState);
   tickMap();
-  setInterval(tickState, 5000);
-  setInterval(tickMap, 30000);
-  setInterval(tickStanding, 60000);
+  startTimers();
 })();

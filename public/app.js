@@ -904,6 +904,7 @@ async function refresh() {
   // return AFTER the switch's fetch and clobber state back to it — the "switch
   // goes gold, then ticks back to the wrong island" bug. Only the newest
   // refresh's response is applied; older ones are dropped.
+  if (document.hidden) return; // hidden tab: no polling (#158), independent of event delivery
   const seq = ++refreshSeq;
   try {
     const next = await api('/api/state' + (activeIslandId ? `?island=${activeIslandId}` : ''));
@@ -2587,6 +2588,19 @@ function enterGame() {
   clearInterval(pollTimer);
   pollTimer = setInterval(refresh, 5000);
 }
+
+// Hidden tabs stop polling (#158): a forgotten background tab otherwise drains
+// the per-player request budget forever (#157). On return, refresh once right
+// away — through the #131 sequence guard, so a stale in-flight poll can't
+// clobber it — then resume the normal cadence. Local tickers (next-chip,
+// countdowns) keep running; they cost no requests.
+document.addEventListener('visibilitychange', () => {
+  clearInterval(pollTimer);
+  if (document.hidden) return;
+  if ($('game').classList.contains('hidden')) return; // login screen: nothing to poll
+  refresh();
+  pollTimer = setInterval(refresh, 5000);
+});
 
 function setupPodAuth() {
   // One button ("sign in with your pod"), pod-username placeholder, and a
