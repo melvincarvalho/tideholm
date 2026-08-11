@@ -1934,7 +1934,7 @@ async function refreshAnchored() {
     const v = document.createElement('a');
     const pub = fuelDid().slice('did:nostr:'.length);
     v.href = 'https://blocktrails.org/verify/?uri=' + encodeURIComponent(
-      location.origin + location.pathname.replace(/\/[^/]*$/, '/') + 'api/tidegate/blocktrails/' + pub + '.json');
+      location.origin + location.pathname.replace(/\/[^/]*$/, '/') + 'api/tidegate/blocktrails/' + pub + '/blocktrails.json');
     v.target = '_blank'; v.rel = 'noopener noreferrer';
     v.textContent = T('ui.tidegate.verify');
     el.appendChild(v);
