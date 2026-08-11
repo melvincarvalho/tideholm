@@ -1196,7 +1196,8 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     };
     // find a mark whose roll can be beaten (roll >= 2), at height 200
     let mark = 'm0'; let roll = await rollFor(200, mark);
-    for (let i = 1; roll < 2 && i < 20; i++) { mark = 'm' + i; roll = await rollFor(200, mark); }
+    for (let i = 1; roll < 2 && i < 200; i++) { mark = 'm' + i; roll = await rollFor(200, mark); }
+    if (roll < 2) throw new Error('#149 setup: no winnable mark in 200 tries — check rollFor');
     const target = roll - 1;                         // guaranteed win
     const stake = 100;
     const payout = Math.floor(stake * (100 / (100 - target)) * 0.98);

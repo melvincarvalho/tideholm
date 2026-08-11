@@ -2198,12 +2198,16 @@ function tidegateRecord(player, t) {
     // Bet evidence (#149) rides along, sanitized — outside the canonical tip
     // fields, so anchoring is unaffected. It is what makes a win provable.
     if (t.bet && typeof t.bet === 'object') {
-      entry.bet = {
-        height: Math.trunc(Number(t.bet.height)) || 0,
-        mark: String(t.bet.mark || '').slice(0, 64),
-        target: Math.trunc(Number(t.bet.target)) || 0,
-        stake: Math.trunc(Number(t.bet.stake)) || 0,
-      };
+      const bh = Math.trunc(Number(t.bet.height));
+      const bt2 = Math.trunc(Number(t.bet.target));
+      const bs = Math.trunc(Number(t.bet.stake));
+      const mark = String(t.bet.mark || '').slice(0, 64);
+      // well-formed or omitted — the trail is public, and a malformed tuple
+      // could never match a validated payout anyway
+      if (Number.isSafeInteger(bh) && bh > 0 && bt2 >= 1 && bt2 <= 99
+        && Number.isSafeInteger(bs) && bs > 0 && mark) {
+        entry.bet = { height: bh, mark, target: bt2, stake: bs };
+      }
     }
     trail.push(entry);
     fs.mkdirSync(TIDEGATE_DIR, { recursive: true });

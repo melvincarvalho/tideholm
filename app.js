@@ -1360,7 +1360,11 @@ export function createApp(opts = {}) {
         const target = Math.trunc(Number(b.target));
         const stake = Math.trunc(Number(b.stake));
         const mark = String(b.mark || '');
-        if (!Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64) {
+        // cheap checks first — an obviously-bad slip must cost zero fetches
+        const delta = Math.trunc(Number(t.delta));
+        const q = quote(target, stake);
+        if (!Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64
+          || q.error || Math.floor(q.payout) !== delta) {
           return sendErr(res, 400, lang, 'err.sealSync');
         }
         let blockHash;
@@ -1369,9 +1373,7 @@ export function createApp(opts = {}) {
         if (!blockHash) return sendErr(res, 400, lang, 'err.sealSync'); // no such block
         const rollHex = crypto.createHash('sha256').update(`${blockHash}|${mark}`).digest('hex');
         const roll = rollFromHash(rollHex);
-        const q = quote(target, stake);
-        if (roll == null || q.error || roll <= q.target
-          || Math.floor(q.payout) !== Math.trunc(Number(t.delta))) {
+        if (roll == null || roll <= q.target) {
           return sendErr(res, 400, lang, 'err.sealSync');
         }
       }
