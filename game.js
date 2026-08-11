@@ -2268,12 +2268,48 @@ function tidegateStamp(player, c) {
       txid,
       // data part restricted to the actual bech32 charset (no 1/b/i/o)
       address: typeof c.address === 'string' && /^tb1p[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{20,80}$/.test(c.address) ? c.address : null,
+      // the trail output's sats: lets the public blocktrails.json carry an
+      // amount the verifier checks. Older stamps lack it — the verifier
+      // skips a missing amount, so they still verify.
+      amount: Number.isSafeInteger(Number(c.amount)) && Number(c.amount) > 0 ? Number(c.amount) : null,
+      vout: 0, // the trail float is always output 0 by the anchor convention
       explorer: `https://mempool.space/testnet4/tx/${txid}`,
       at: Date.now(),
     };
     fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
     return trail;
   } catch { return null; }
+}
+
+// A player's anchored trail as a blocktrails.json document (#135) — the shape
+// blocktrails.org/verify consumes, so anyone can check the marks against
+// Bitcoin on a page we don't run. Built from the trail's own commitment
+// stamps; states are short human lines (the verifier displays them, checks
+// only txids/amounts/spend-chain). Null when the player has no anchors.
+function tidegateBlocktrails(hex) {
+  if (!/^[0-9a-f]{64}$/.test(hex)) return null;
+  let trail;
+  try { trail = JSON.parse(fs.readFileSync(path.join(TIDEGATE_DIR, `${hex}.json`), 'utf8')); }
+  catch { return null; }
+  if (!Array.isArray(trail)) return null;
+  const marks = trail.filter((e) => e && e.commitment && e.commitment.txid);
+  if (!marks.length) return null;
+  return {
+    '@type': 'Blocktrail',
+    version: '0.0.3',
+    profile: 'tidegate',
+    pubkeyBase: '02' + hex, // the even-Y convention: derivable from the npub alone
+    chain: 'tbtc4',
+    states: marks.map((e) => {
+      const c = e.commitment;
+      return `tideholm seq ${c.seq} · sealed ${e.next} 🪙`;
+    }),
+    txo: marks.map((e) => {
+      const c = e.commitment;
+      const amt = Number.isSafeInteger(c.amount) && c.amount > 0 ? `?amount=${c.amount}` : '';
+      return `txo:${c.network || 'tbtc4'}:${c.txid}:${c.vout || 0}${amt}`;
+    }),
+  };
 }
 
 function crownWinner(world, winner, now) {
@@ -2633,7 +2669,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
-  tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync,
+  tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,

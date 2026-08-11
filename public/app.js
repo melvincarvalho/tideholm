@@ -1871,7 +1871,7 @@ async function anchorFlow() {
     const c = await mod.anchor(did, trail);          // sign + broadcast, in-browser
     _anchorArmed = false;
     btn.textContent = T('ui.tidegate.anchor');
-    await api('/api/tidegate/anchor', { commitment: { seq: c.seq, txid: c.txid, address: c.address, network: c.network } });
+    await api('/api/tidegate/anchor', { commitment: { seq: c.seq, txid: c.txid, address: c.address, network: c.network, amount: c.value } });
     msg.textContent = T('ui.tidegate.anchored', { seq: c.seq }) + ' ';
     const a = document.createElement('a');
     a.href = c.explorer; a.target = '_blank'; a.rel = 'noopener noreferrer';
@@ -1928,6 +1928,16 @@ async function refreshAnchored() {
     el.appendChild(document.createTextNode(' (' + T(_anchored.confirmed ? 'ui.tidegate.confirmed' : 'ui.tidegate.pending') + ')'));
     const drift = trail.length - c.seq;
     if (drift > 0) el.appendChild(document.createTextNode(' · ' + T('ui.tidegate.sinceAnchor', { n: drift })));
+    // Independent verification (#135): the whole trail's marks, checked against
+    // Bitcoin by blocktrails.org's own page — a site this game does not run.
+    el.appendChild(document.createTextNode(' · '));
+    const v = document.createElement('a');
+    const pub = fuelDid().slice('did:nostr:'.length);
+    v.href = 'https://blocktrails.org/verify/?uri=' + encodeURIComponent(
+      location.origin + location.pathname.replace(/\/[^/]*$/, '/') + 'api/tidegate/blocktrails/' + pub + '.json');
+    v.target = '_blank'; v.rel = 'noopener noreferrer';
+    v.textContent = T('ui.tidegate.verify');
+    el.appendChild(v);
   } catch (_) { /* leave whatever is shown */ }
 }
 

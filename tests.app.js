@@ -1127,6 +1127,25 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     const doubled = gameMod.tidegateSync(vp, [mkTx(115, -15)]);
     check('#146 the new tail cannot be applied twice either',
       doubled.error === 'err.sealSync' && vp.pegged === 100, JSON.stringify(doubled));
+
+    // The public blocktrails.json export: NO session, CORS-open, the shape
+    // blocktrails.org/verify consumes. Stamp an anchor (with amount) onto the
+    // current tip first so there is a mark to export.
+    const stampTrail = gameMod.tidegateTrail(vp);
+    vr = await req(oa.port, 'GET', `/api/tidegate/blocktrails/${PUB}.json`);
+    // tip may or may not be stamped yet depending on prior tests; stamp now
+    gameMod.tidegateStamp(vp, { seq: stampTrail.length, txid: 'ee'.repeat(32), address: 'tb1p' + 'q'.repeat(58), amount: 9778 });
+    vr = await req(oa.port, 'GET', `/api/tidegate/blocktrails/${PUB}.json`);
+    check('#135 the blocktrails export is public — no session needed',
+      vr.status === 200 && vr.data['@type'] === 'Blocktrail' && vr.data.profile === 'tidegate',
+      JSON.stringify(vr.data).slice(0, 120));
+    check('#135 marks carry txo URIs with the stamped amount',
+      Array.isArray(vr.data.txo) && vr.data.txo[vr.data.txo.length - 1] === `txo:tbtc4:${'ee'.repeat(32)}:0?amount=9778`,
+      JSON.stringify(vr.data.txo));
+    check('#135 pubkeyBase is the even-Y form of the npub',
+      vr.data.pubkeyBase === '02' + PUB, vr.data.pubkeyBase);
+    vr = await req(oa.port, 'GET', '/api/tidegate/blocktrails/' + 'f'.repeat(64) + '.json');
+    check('#135 an unknown pubkey is a plain 404', vr.status === 404, vr.status);
   }
 
   oa.srv.close();
