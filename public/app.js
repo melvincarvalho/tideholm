@@ -1901,8 +1901,13 @@ async function refreshAnchored() {
   if (!fuelDid()) { el.classList.add('hidden'); el.textContent = ''; return; }
   try {
     const { trail } = await api('/api/tidegate/trail');
-    const tip = trail && trail.length ? trail[trail.length - 1] : null;
-    const c = tip && tip.commitment;
+    // The LAST anchored entry, not the tip: a peg after an anchor moves the tip
+    // past the stamp, but the anchor still happened — keep showing it, plus how
+    // far the trail has drifted since (which is also the nudge to anchor again).
+    let c = null;
+    for (let i = (trail || []).length - 1; i >= 0; i--) {
+      if (trail[i] && trail[i].commitment) { c = trail[i].commitment; break; }
+    }
     if (!c) { el.classList.add('hidden'); el.textContent = ''; return; }
     if (_anchored.txid !== c.txid) _anchored = { txid: c.txid, confirmed: false, checkedAt: 0 };
     if (!_anchored.confirmed && Date.now() - _anchored.checkedAt > 60000) {
@@ -1921,6 +1926,8 @@ async function refreshAnchored() {
     a.textContent = c.txid.slice(0, 10) + '…';
     el.appendChild(a);
     el.appendChild(document.createTextNode(' (' + T(_anchored.confirmed ? 'ui.tidegate.confirmed' : 'ui.tidegate.pending') + ')'));
+    const drift = trail.length - c.seq;
+    if (drift > 0) el.appendChild(document.createTextNode(' · ' + T('ui.tidegate.sinceAnchor', { n: drift })));
   } catch (_) { /* leave whatever is shown */ }
 }
 
