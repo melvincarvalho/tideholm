@@ -79,7 +79,15 @@ catch { console.error(`no trail for ${did} at ${trailFile} — has this player s
 if (!Array.isArray(trail) || trail.length === 0) { console.error('empty trail — nothing to anchor'); process.exit(1); }
 
 const sha256hex = (s) => crypto.createHash('sha256').update(s).digest('hex');
-const tip = 'sha256:' + sha256hex(JSON.stringify(trail));
+// The tip hashes a CANONICAL, commitment-free view: exactly the signed fields,
+// in fixed key order. The push step stamps `commitment` onto the stored trail —
+// operator metadata that must not change the tip it anchored, or every anchor
+// would invalidate itself and verifiers re-hashing /api/tidegate/trail would
+// never match.
+const canonicalTrail = (t) => JSON.stringify(t.map((e) => ({
+  did: e.did, prev: e.prev, delta: e.delta, next: e.next, sig: e.sig, pubkey: e.pubkey, at: e.at,
+})));
+const tip = 'sha256:' + sha256hex(canonicalTrail(trail));
 const seq = trail.length;
 const state = JSON.stringify({ app: 'tideholm', did, seq, tip });
 
@@ -177,7 +185,10 @@ async function getJson(url) {
 }
 
 const utxos = await getJson(`${API}/address/${fromAddress}/utxo`);
-const confirmed = utxos.filter((u) => u.status && u.status.confirmed);
+// Deterministic input order: the API doesn't guarantee one, and SIGN and PUSH
+// are separate runs — sorting is what makes "pushed hex ≡ inspected hex" true.
+const confirmed = utxos.filter((u) => u.status && u.status.confirmed)
+  .sort((a, b) => a.txid.localeCompare(b.txid) || a.vout - b.vout);
 if (confirmed.length === 0) {
   console.error(`no confirmed funds at ${fromAddress} — the trail has no fuel to advance.`);
   console.error(`fund the base address and retry. (pending UTXOs: ${utxos.length - confirmed.length})`);
