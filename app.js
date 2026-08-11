@@ -624,7 +624,9 @@ export function createApp(opts = {}) {
     // the seal's whole point is verifiability by strangers; the did is the
     // only key, and dids are public.
     {
-      const m = /^\/api\/tidegate\/blocktrails\/([0-9a-f]{64})\.json$/.exec(pathname);
+      // two spellings: <hex>.json for humans, <hex>/blocktrails.json for the
+      // verifier (it appends 'blocktrails.json' to any uri not ending in it)
+      const m = /^\/api\/tidegate\/blocktrails\/([0-9a-f]{64})(?:\.json|\/blocktrails\.json)$/.exec(pathname);
       if (req.method === 'GET' && m) {
         const doc = game.tidegateBlocktrails(m[1]);
         res.setHeader('access-control-allow-origin', '*');
