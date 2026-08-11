@@ -618,6 +618,21 @@ export function createApp(opts = {}) {
       });
     }
 
+    // A player's anchored trail as a public blocktrails.json (#135): the shape
+    // blocktrails.org/verify eats, so anyone can check the marks against
+    // Bitcoin on a site we don't control. Public and CORS-open on purpose —
+    // the seal's whole point is verifiability by strangers; the did is the
+    // only key, and dids are public.
+    {
+      const m = /^\/api\/tidegate\/blocktrails\/([0-9a-f]{64})\.json$/.exec(pathname);
+      if (req.method === 'GET' && m) {
+        const doc = game.tidegateBlocktrails(m[1]);
+        res.setHeader('access-control-allow-origin', '*');
+        if (!doc) return sendErr(res, 404, 'en', 'err.notFound');
+        return sendJson(res, 200, doc);
+      }
+    }
+
     // Password auth is Tideholm's own; a host with `identify` owns identity
     // and these endpoints go dark.
     if (req.method === 'POST' && pathname === '/api/register') {
