@@ -1939,7 +1939,9 @@ async function refreshAnchored() {
 // /api/tidegate/sync, where every signature is verified before the seal moves.
 
 function b64urlDecode(s) {
-  return decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+  const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64.padEnd(Math.ceil(b64.length / 4) * 4, '=');
+  return new TextDecoder().decode(Uint8Array.from(atob(padded), (c) => c.charCodeAt(0)));
 }
 let _slip = null; // parsed once from the arrival URL
 {

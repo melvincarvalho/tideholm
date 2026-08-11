@@ -1283,7 +1283,11 @@ export function createApp(opts = {}) {
     // chain/shape validation and the all-or-nothing apply live in game.js.
     if (req.method === 'POST' && pathname === '/api/tidegate/sync') {
       const body = await readBody(req);
-      if (!body || !Array.isArray(body.transitions)) return sendErr(res, 400, lang, 'err.badRequest');
+      // Bound first, then verify EXACTLY what will be applied — never a subset.
+      if (!body || !Array.isArray(body.transitions)
+        || body.transitions.length < 1 || body.transitions.length > 50) {
+        return sendErr(res, 400, lang, 'err.badRequest');
+      }
       const island = myIsland(player, body.islandId);
       let schnorr, sha256;
       try {
@@ -1293,7 +1297,7 @@ export function createApp(opts = {}) {
         return sendErr(res, 500, lang, 'err.sealSync'); // verifier unavailable → refuse, never trust
       }
       const enc = new TextEncoder();
-      for (const t of body.transitions.slice(0, 50)) {
+      for (const t of body.transitions) {
         let okSig = false;
         try {
           // the tidegate signing convention: BIP340 over sha256 of the
