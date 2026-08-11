@@ -560,6 +560,21 @@ announcement is the right place to say these out loud:
 
 ### Fixes you may have noticed
 
+- **Returning fleets show their passengers** (#160, PR #161) — reported by
+  Phil, who watched two flagships sail home invisibly after taking Gull Cry.
+  A combat return carries troops *and* loot, and both movement views only
+  showed the loot, so a returning flagship read exactly like a trade shipment
+  and fleets "rematerialized" at home with no visible journey. Now every
+  movement lists whatever is actually aboard, troops first. (His third
+  flagship isn't lost, by the way — the conquering flagship becomes the seat
+  of power and stays to govern. It's in the conquest report, but now the
+  other two visibly sail home around it.)
+- **Background tabs stop polling** (#158, PR #159) — a forgotten Tideholm tab
+  polled at full rate forever, and eight restored tabs could saturate the
+  per-player request budget: the "429 Too Many Requests" storms in the
+  console (#157). Hidden tabs now go silent and catch up the moment you
+  return; two visible windows side by side still both poll. If the game ever
+  told you to *Slow down*, this was why, and it shouldn't again.
 - Shipments carrying a fractional amount printed the full float — a delivery
   once read `107.20775939008854 wood`. Now floored for display; the exact
   amount still arrives. (#57)
