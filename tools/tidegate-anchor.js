@@ -325,7 +325,8 @@ console.log(`\nbroadcast accepted: ${body.trim()}`);
 console.log(`explorer: https://mempool.space/testnet4/tx/${txid}`);
 
 // Record the advance and stamp the commitment onto the trail tip.
-const commitment = { network: NETWORK, seq, address: nextAddress, txid, explorer: `https://mempool.space/testnet4/tx/${txid}`, at: new Date().toISOString() };
+// numeric `at`, matching the server's stamp shape (and the trail's own entries)
+const commitment = { network: NETWORK, seq, address: nextAddress, txid, explorer: `https://mempool.space/testnet4/tx/${txid}`, at: Date.now() };
 chain.states.push({ state, ...commitment });
 fs.writeFileSync(chainFile, JSON.stringify(chain, null, 2));
 try {

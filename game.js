@@ -2219,7 +2219,8 @@ function tidegateStamp(player, c) {
       network: 'tbtc4',
       seq: trail.length,
       txid,
-      address: typeof c.address === 'string' && /^tb1p[a-z0-9]{20,80}$/.test(c.address) ? c.address : null,
+      // data part restricted to the actual bech32 charset (no 1/b/i/o)
+      address: typeof c.address === 'string' && /^tb1p[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{20,80}$/.test(c.address) ? c.address : null,
       explorer: `https://mempool.space/testnet4/tx/${txid}`,
       at: Date.now(),
     };

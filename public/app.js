@@ -1847,6 +1847,8 @@ let _anchorArmed = false;
 async function anchorFlow() {
   const btn = $('tidegate-anchor');
   const msg = $('tidegate-msg');
+  if (btn.disabled) return; // one flight at a time — a double-click must not double-broadcast
+  btn.disabled = true;
   msg.textContent = '';
   try {
     const mod = await import('https://melvincarvalho.github.io/tidegate/anchor.js');
@@ -1874,6 +1876,8 @@ async function anchorFlow() {
     _anchorArmed = false;
     if (btn) btn.textContent = T('ui.tidegate.anchor');
     msg.textContent = err.message || String(err);
+  } finally {
+    btn.disabled = false;
   }
 }
 if ($('tidegate-anchor')) $('tidegate-anchor').addEventListener('click', anchorFlow);
