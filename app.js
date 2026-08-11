@@ -24,6 +24,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import * as game from './game.js';
+import { rollFromHash, quote } from './tavern.js'; // vendored, unchanged — the tavern's own pricing
 import { spawnBots, botTick } from './bots.js';
 import { t } from './public/i18n.js';
 
@@ -50,8 +51,28 @@ const MIME = {
   '.json': 'application/json',
 };
 
+// The tide's ledger, for proving wins (#149): block hash by height from
+// mempool.space testnet4. Hashes are immutable — cached forever. Returns null
+// when the block does not exist (a false claim), throws on network trouble
+// (retryable). Injectable (opts.tideChain) so tests stay off the network.
+function defaultTideChain() {
+  const hashes = new Map();
+  return {
+    async hash(h) {
+      if (hashes.has(h)) return hashes.get(h);
+      const r = await fetch(`https://mempool.space/testnet4/api/block-height/${h}`);
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`hash ${r.status}`);
+      const x = (await r.text()).trim().toLowerCase();
+      hashes.set(h, x);
+      return x;
+    },
+  };
+}
+
 export function createApp(opts = {}) {
   const log = opts.log || console;
+  const tideChain = opts.tideChain || defaultTideChain();
   const botCount = opts.botCount ?? Number(process.env.BOTS || 20);
   const freeIsles = opts.freeIsles ?? Number(process.env.FREE_ISLES || 30);
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
@@ -1323,6 +1344,44 @@ export function createApp(opts = {}) {
           okSig = schnorr.verify(t.sig, sha256(bytes), t.pubkey);
         } catch { okSig = false; }
         if (!okSig) return sendErr(res, 400, lang, 'err.sealSync');
+      }
+      // Positive deltas are money claimed FROM the game, so a signature alone
+      // is not enough — we re-derive the roll and payout from the deciding
+      // block with the tavern's own vendored maths and refuse a wrong roll,
+      // wrong payout, or nonexistent block (unreadable chain → 502; retry,
+      // never trust). game.tidegateSync then enforces the ledger: the stake
+      // was paid, each bet credits once.
+      //
+      // ⚠ NOT A COMPLETE SECURITY BOUNDARY (#154). This checks the ARITHMETIC
+      // of a claimed win, not that the bet was committed BEFORE its seed
+      // existed. The player picks both the block height and the mark, so they
+      // can pick an already-mined block and brute-force a mark that wins — a
+      // deterministic self-mint. Closing that needs the stake witnessed
+      // on-trail before its deciding block is mined (a server round-trip at
+      // bet time). Fine for testnet-with-friends; do not treat as trustless.
+      for (const t of body.transitions) {
+        if (!(Number(t.delta) > 0)) continue;
+        const b = t.bet || {};
+        const height = Math.trunc(Number(b.height));
+        const target = Math.trunc(Number(b.target));
+        const stake = Math.trunc(Number(b.stake));
+        const mark = String(b.mark || '');
+        // cheap checks first — an obviously-bad slip must cost zero fetches
+        const delta = Math.trunc(Number(t.delta));
+        const q = quote(target, stake);
+        if (!Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64
+          || q.error || Math.floor(q.payout) !== delta) {
+          return sendErr(res, 400, lang, 'err.sealSync');
+        }
+        let blockHash;
+        try { blockHash = await tideChain.hash(height + 1); }
+        catch { return sendErr(res, 502, lang, 'err.sealSync'); }
+        if (!blockHash) return sendErr(res, 400, lang, 'err.sealSync'); // no such block
+        const rollHex = crypto.createHash('sha256').update(`${blockHash}|${mark}`).digest('hex');
+        const roll = rollFromHash(rollHex);
+        if (roll == null || roll <= q.target) {
+          return sendErr(res, 400, lang, 'err.sealSync');
+        }
       }
       const result = game.tidegateSync(player, body.transitions);
       if (result.error) return gameErr(res, lang, result);
