@@ -2201,73 +2201,6 @@ function tidegateRecord(player, t) {
   } catch { return null; }
 }
 
-// ---- the Tavern: Tide Dice (#135 phase 3)
-//
-// The first CONSUMER of the seal — another app advancing the same trail. Stake
-// sealed gold on a call of High; the NEXT testnet4 block rolls the dice:
-//   roll = sha256(blockHash ‖ betId) mod 100, High wins on 52-99 (48%), pays 2×.
-// Nobody knows the roll when the bet is placed — the entropy doesn't exist yet —
-// and anyone can recompute it from the public block hash. The per-bet id salts
-// the roll so simultaneous bets ride the same tide with their own dice.
-//
-// Money stays signed end to end: the stake leaves `pegged` with a client-signed
-// trail transition at bet time; a win waits as "winnings to collect" until the
-// player signs the +payout transition (Collect). The server never moves sealed
-// gold without a signature, so the trail⟺pegged mirror holds. The house pot is
-// the sea itself for now: wins mint, losses burn, the 4% edge nets a burn.
-
-const TAVERN_WIN_FROM = 52; // roll 52-99 wins: 48% at 2× — a 4% house edge
-
-function tavernBet(player, amount, height) {
-  amount = Math.floor(Number(amount));
-  if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
-  if (amount > Math.floor(player.pegged || 0)) return { error: 'err.pegEmpty' };
-  if (!Number.isInteger(height) || height <= 0) return { error: 'err.tavernTide' };
-  if (!Array.isArray(player.tavern)) player.tavern = [];
-  player.pegged = Math.floor((player.pegged || 0) - amount);
-  const bet = {
-    id: crypto.randomBytes(8).toString('hex'),
-    height,                       // the chain tip when placed; block height+1 decides
-    stake: amount,
-    side: 'high',
-    status: 'riding',
-    at: Date.now(),
-  };
-  player.tavern.push(bet);
-  return { ok: true, bet, pegged: player.pegged };
-}
-
-// Settle one riding bet against the deciding block's hash. Pure — the caller
-// (app.js) fetches the hash; this just rolls. Deterministic and public, so any
-// consumer can verify the roll.
-function tavernSettle(player, betId, blockHash) {
-  const bet = (player.tavern || []).find((b) => b.id === betId);
-  if (!bet || bet.status !== 'riding') return null;
-  if (!/^[0-9a-f]{64}$/.test(String(blockHash))) return null;
-  const roll = parseInt(
-    crypto.createHash('sha256').update(blockHash + bet.id).digest('hex').slice(0, 8), 16,
-  ) % 100;
-  bet.roll = roll;
-  bet.hash = blockHash;
-  if (roll >= TAVERN_WIN_FROM) {
-    bet.status = 'won';
-    bet.payout = bet.stake * 2;
-  } else {
-    bet.status = 'lost';
-  }
-  return bet;
-}
-
-// The player signs for their winnings: move payout into `pegged` (the caller
-// records the signed transition, same as a peg).
-function tavernCollect(player, betId) {
-  const bet = (player.tavern || []).find((b) => b.id === betId);
-  if (!bet || bet.status !== 'won') return { error: 'err.tavernBet' };
-  player.pegged = Math.floor((player.pegged || 0) + bet.payout);
-  bet.status = 'collected';
-  return { ok: true, payout: bet.payout, pegged: player.pegged };
-}
-
 // Stamp a client-reported anchor commitment onto the trail tip (#140). The
 // browser signs and broadcasts non-custodially — the same key that seals pegs —
 // and the server merely RECORDS the resulting txid so /api/tidegate/trail shows
@@ -2461,7 +2394,7 @@ function createPlayer(world, name, password, isBot, lang) {
   const start = Math.max(Date.now(), world.startAt || 0);
   const player = {
     id: world.nextId++, name, isBot: !!isBot, protectionBroken: !!isBot, lang,
-    questIndex: 0, stats: {}, joinedAt: start, lpShares: 0, vault: 0, tavern: [],
+    questIndex: 0, stats: {}, joinedAt: start, lpShares: 0, vault: 0,
   };
   if (!isBot) {
     player.salt = crypto.randomBytes(8).toString('hex');
@@ -2586,7 +2519,6 @@ function migrateWorld(world) {
     if (p.lpShares == null) p.lpShares = 0; // liquidity position in world.pool (#46)
     if (p.vault == null) p.vault = 0; // personal raid-proof gold treasury (#132)
     if (p.pegged == null) p.pegged = 0; // gold sealed out to the Tidegate (#135)
-    if (!Array.isArray(p.tavern)) p.tavern = []; // Tide Dice bets (#135 phase 3)
   }
   for (const island of world.islands) {
     for (const key of Object.keys(BUILDINGS)) {
@@ -2655,7 +2587,6 @@ export {
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
   tidegateRecord, tidegateTrail, tidegateStamp,
-  tavernBet, tavernSettle, tavernCollect, TAVERN_WIN_FROM,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
