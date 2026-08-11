@@ -1544,7 +1544,24 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('#104 outgoing rows carry an origin', out.length === 1 && typeof out[0].from === 'string'
       && out[0].from.includes(String(botIsle.x)), JSON.stringify(out));
     check('#104 cargo survives into the payload', out[0].loot && out[0].loot.wood === 120);
+    // #160: a combat return carries troops AND loot in the same row — the
+    // client hid the troops whenever loot was present, so a returning
+    // flagship rendered exactly like a trade shipment. Guard the contract
+    // both sides depend on: both fields, one movement.
+    check('#160 troops and loot ride the same payload row',
+      out[0].units && out[0].units.raider === 3 && out[0].loot.wood === 120,
+      JSON.stringify(out[0]));
     srv.close(); mv.stop();
+  }
+  {
+    // #160: both render sites show whatever is aboard — the shared formatters
+    // must exist and be used by the empire table AND the per-island box.
+    const appJs = fs.readFileSync(path.join(HERE, 'public', 'app.js'), 'utf8');
+    check('#160 shared cargo formatters exist',
+      appJs.includes('function moveUnitsStr') && appJs.includes('function moveLootStr'));
+    check('#160 both movement views use them',
+      (appJs.match(/moveUnitsStr\(/g) || []).length >= 3
+      && (appJs.match(/moveLootStr\(/g) || []).length >= 3);
   }
   {
     const html = fs.readFileSync(path.join(HERE, 'public', 'index.html'), 'utf8');
