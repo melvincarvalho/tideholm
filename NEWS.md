@@ -16,6 +16,28 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-11 · The Tidegate anchors to Bitcoin
+
+> ⚓ The Tidegate opens in the Market. Seal gold out of your vault into a
+> balance keyed to your nostr banner — and now anchor it to Bitcoin. One
+> click, signed by your own key in your own browser, writes your seal into
+> testnet4 stone: a proof any soul can check with nothing but your public
+> key. No harbourmaster holds your coin, no ledger but the chain. The first
+> anchor is already on the water. Fly a banner to try it. Fair winds.
+
+Vault phase 2, landed whole (#135, #140). **Peg in/out** seals vaulted gold to
+a balance keyed to your did:nostr, every move signed in the browser and kept as
+a verifiable trail on the server (PR #138). A **fuel gauge** shows the testnet4
+satoshis your banner's taproot address holds — same secp256k1 key, so your
+identity *is* a Bitcoin address (PR #139). **Anchor ⚓** then commits the trail
+on-chain as a BlockTrails state advance: two clicks, non-custodial, the key
+never leaves the browser; a small 10k-sat float rides the trail while the
+change returns home to base (PRs #141 operator CLI, #142 the button, #143
+persistent status). The first anchor is real: [`3ae578e4…`](https://mempool.space/testnet4/tx/3ae578e43115c54d234e90b3b1c5a10e951833e9160dcc565849c69efe32a7b2)
+spends the genesis UTXO to P(1) — and the whole thing verifies from nothing but
+the public key and the trail. Only banner-flying players see the crypto; everyone
+else's market is unchanged.
+
 ### 2026-08-10 · The Vault opens
 
 > 🏦 The Vault opens in the Market. Deposit gold into a personal strongroom and
