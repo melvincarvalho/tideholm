@@ -240,6 +240,25 @@
         <section id="view-market" class="hidden">
           <h2 data-i18n="ui.tab.market"></h2>
 
+
+          <h3 data-i18n="ui.market.create"></h3>
+          <div class="sim-row">
+            <span data-i18n="ui.market.give"></span>
+            <select id="offer-give-res"></select>
+            <input type="number" id="offer-give-n" min="1" max="1000" value="100">
+            <span data-i18n="ui.market.want"></span>
+            <select id="offer-want-res"></select>
+            <input type="number" id="offer-want-n" min="1" max="1000" value="100">
+            <button id="offer-post" data-i18n="ui.market.post"></button>
+          </div>
+          <p id="market-error" class="error"></p>
+          <div id="offers-mine-box" class="hidden">
+            <h3 data-i18n="ui.market.mine"></h3>
+            <div id="offers-mine"></div>
+          </div>
+          <h3 data-i18n="ui.market.open"></h3>
+          <div id="offers-open"></div>
+
           <div id="vault-box">
             <h3 data-i18n="ui.vault.title"></h3>
             <p class="hint" data-i18n="ui.vault.hint"></p>
@@ -268,24 +287,6 @@
             </div>
             <p class="hint error" id="tidegate-msg"></p>
           </div>
-
-          <h3 data-i18n="ui.market.create"></h3>
-          <div class="sim-row">
-            <span data-i18n="ui.market.give"></span>
-            <select id="offer-give-res"></select>
-            <input type="number" id="offer-give-n" min="1" max="1000" value="100">
-            <span data-i18n="ui.market.want"></span>
-            <select id="offer-want-res"></select>
-            <input type="number" id="offer-want-n" min="1" max="1000" value="100">
-            <button id="offer-post" data-i18n="ui.market.post"></button>
-          </div>
-          <p id="market-error" class="error"></p>
-          <div id="offers-mine-box" class="hidden">
-            <h3 data-i18n="ui.market.mine"></h3>
-            <div id="offers-mine"></div>
-          </div>
-          <h3 data-i18n="ui.market.open"></h3>
-          <div id="offers-open"></div>
         </section>
 
         <section id="view-alliance" class="hidden">
