@@ -16,6 +16,34 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-11 · The Tavern opens its doors
+
+> 🎲 The Tavern is open. Walk in through the Tidegate and stake your sealed
+> gold on the Tide Dice — the next Bitcoin block rolls, so nobody, not even
+> the house, knows the roll before the tide comes in. Every wager is signed
+> by your own key, every roll can be proven by anyone, and your winnings walk
+> home with you on a signed slip. The tavern keeps its book; take it with you
+> anytime. Fair winds and honest dice.
+
+Phase 3 of #135, done the modular way. The tavern is a **separate app** —
+[melvincarvalho.github.io/tavern](https://melvincarvalho.github.io/tavern/),
+built on its own pure wager maths (`tavern.js`: quotes, settlement, a
+share-based bankroll, an offline verifier) — and Tideholm's entire integration
+is one link out and one endpoint home (PR #147). **The Tide**: dice seeded by
+the hash of the next testnet4 block, which exists for nobody at bet time — the
+chain is the commitment, so even a purely client-side page is provably fair.
+**Sealed mode**: arrive through the Tidegate link and your purse is your sealed
+gold; every stake and payout is a signed trail transition. **The courier slip**:
+your signed record rides home in a query string; Redeem verifies every Schnorr
+signature server-side before the seal moves — no pods needed, because the trail
+is a signed document and the player is the transport. **The Log**: the tavern
+keeps its book — every wager, totals, verify links, settled slips archived, the
+whole book exportable. Tavern history lands on the same trail as pegs, so the
+⚓ anchor covers your nights at the dice as faithfully as your banking. A
+first-in-#145 attempt that put the game inside Tideholm was reverted whole —
+the tavern belongs to its own house. Player guide:
+[the gist](https://gist.github.com/melvincarvalho/b1ea0b3aec3b6d4103a4200241a0403d).
+
 ### 2026-08-11 · The Tidegate anchors to Bitcoin
 
 > ⚓ The Tidegate opens in the Market. Seal gold out of your vault into a
