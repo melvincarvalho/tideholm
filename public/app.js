@@ -268,10 +268,12 @@ function renderIslands() {
   }
   for (const m of moves) {
     const tr = document.createElement('tr');
-    const cargo = m.loot
-      ? `🪵${fmtNum(Math.floor(m.loot.wood))} 🪨${fmtNum(Math.floor(m.loot.stone))} 🪙${fmtNum(Math.floor(m.loot.gold))}`
-      : Object.entries(m.units || {}).filter(([, n]) => n > 0)
-          .map(([k, n]) => `${n}× ${T(`unit.${k}.name`)}`).join(', ') || '—';
+    // Troops AND loot (#160): a combat return carries both, and the old
+    // loot-first ternary hid every soldier aboard — a returning flagship
+    // rendered exactly like a trade shipment, so fleets "rematerialized"
+    // at home with no visible journey.
+    const cargo = [moveUnitsStr(m.units), moveLootStr(m.loot)]
+      .filter(Boolean).join(' · ') || '—';
     tr.innerHTML = `<td>${T('ui.move.' + m.type, { target: m.target })}</td>
       <td>${m.from || '—'}</td><td>${cargo}</td>
       <td class="countdown" data-finish="${m.arrive}"></td>`;
@@ -343,6 +345,21 @@ function fmtNum(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
   if (n >= 1e4) return (n / 1e3).toFixed(1) + 'k';
   return String(n);
+}
+
+// Movement-cargo formatters (#160). A movement can carry troops, resources,
+// or both — a combat return carries both — and every render site must show
+// whatever is actually aboard. The old loot-first ternary hid every soldier
+// on a looted return, so a returning flagship rendered exactly like a trade
+// shipment and fleets "rematerialized" at home with no visible journey.
+// Zero-loot returns show no 🪵0 🪨0 🪙0 noise.
+function moveUnitsStr(units) {
+  return Object.entries(units || {}).filter(([, n]) => n > 0)
+    .map(([k, n]) => `${n}× ${T(`unit.${k}.name`)}`).join(', ');
+}
+function moveLootStr(loot) {
+  if (!loot || !Object.values(loot).some((v) => v >= 1)) return '';
+  return `🪵${fmtNum(Math.floor(loot.wood))} 🪨${fmtNum(Math.floor(loot.stone))} 🪙${fmtNum(Math.floor(loot.gold))}`;
 }
 
 // The next-completion chip (#87): the soonest committed finish across the
@@ -620,16 +637,18 @@ function renderMovements() {
     div.className = 'movement outgoing';
     // One key per movement type — including 'trade', which the old ternary
     // chain had no branch for, so every shipment rendered as "Returning to".
+    // Troops aboard first, then loot (#160): this box never showed units at
+    // all, so a return full of soldiers read as an empty errand.
+    // Floor for display. Pool swaps and withdrawals are the first source of
+    // fractional loot in the game — combat floors it, sendTrade floors it, and
+    // offers are integers — so this printed 107.20775939008854 at a player.
+    // The stored value stays fractional: the pool debited exactly `out`, and
+    // rounding here changes only what is shown, not what arrives.
+    const troopsAboard = moveUnitsStr(out.units);
+    const lootAboard = moveLootStr(out.loot);
     const what = T('ui.move.' + out.type, { target: out.target })
-      // Floor for display. Pool swaps and withdrawals are the first source of
-      // fractional loot in the game — combat floors it, sendTrade floors it, and
-      // offers are integers — so this printed 107.20775939008854 at a player.
-      // The stored value stays fractional: the pool debited exactly `out`, and
-      // rounding here changes only what is shown, not what arrives.
-      + (out.loot
-        ? ` ${T('ui.move.withLoot')} 🪵${fmtNum(Math.floor(out.loot.wood))}`
-          + ` 🪨${fmtNum(Math.floor(out.loot.stone))} 🪙${fmtNum(Math.floor(out.loot.gold))}`
-        : '');
+      + (troopsAboard ? ` — ${troopsAboard}` : '')
+      + (lootAboard ? ` ${T('ui.move.withLoot')} ${lootAboard}` : '');
     div.innerHTML = `${what} — <span class="countdown" data-finish="${out.arrive}"></span>`;
     box.appendChild(div);
   }
