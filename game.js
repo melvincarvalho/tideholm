@@ -2201,6 +2201,33 @@ function tidegateRecord(player, t) {
   } catch { return null; }
 }
 
+// Stamp a client-reported anchor commitment onto the trail tip (#140). The
+// browser signs and broadcasts non-custodially — the same key that seals pegs —
+// and the server merely RECORDS the resulting txid so /api/tidegate/trail shows
+// what is anchored. Guards: txid shape, seq must equal the current trail length
+// (the tip the client actually anchored), and a tip is stamped at most once.
+// Never throws; null = not stamped.
+function tidegateStamp(player, c) {
+  try {
+    if (!c || typeof c !== 'object') return null;
+    const txid = String(c.txid || '').toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(txid)) return null;
+    const trail = tidegateTrail(player);
+    if (!trail.length || Math.trunc(Number(c.seq)) !== trail.length) return null;
+    if (trail[trail.length - 1].commitment) return null; // one stamp per tip
+    trail[trail.length - 1].commitment = {
+      network: 'tbtc4',
+      seq: trail.length,
+      txid,
+      address: typeof c.address === 'string' && /^tb1p[a-z0-9]{20,80}$/.test(c.address) ? c.address : null,
+      explorer: `https://mempool.space/testnet4/tx/${txid}`,
+      at: Date.now(),
+    };
+    fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
+    return trail;
+  } catch { return null; }
+}
+
 function crownWinner(world, winner, now) {
   world.winner = { ...winner, time: now };
   appendHall(world.winner);
@@ -2558,7 +2585,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
-  tidegateRecord, tidegateTrail,
+  tidegateRecord, tidegateTrail, tidegateStamp,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,

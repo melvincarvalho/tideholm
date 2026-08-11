@@ -1034,6 +1034,27 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
     check('#135 an inconsistent transition is not sealed, but the peg still moved',
       vp.pegged === 250 && vr.data.trail.length === 2, JSON.stringify({ pegged: vp.pegged, len: vr.data.trail.length }));
+
+    // #140: the browser anchors non-custodially and reports the commitment;
+    // the server stamps the tip — seq-checked, txid-shaped, at most once.
+    vr = await req(oa.port, 'POST', '/api/tidegate/anchor',
+      { body: { commitment: { seq: 1, txid: 'aa'.repeat(32) } }, cookie: vcookie });
+    check('#140 a stamp with the wrong seq is refused', vr.status === 400, vr.status);
+    vr = await req(oa.port, 'POST', '/api/tidegate/anchor',
+      { body: { commitment: { seq: 2, txid: 'not-a-txid' } }, cookie: vcookie });
+    check('#140 a malformed txid is refused', vr.status === 400, vr.status);
+    vr = await req(oa.port, 'POST', '/api/tidegate/anchor',
+      { body: { commitment: { seq: 2, txid: 'ab'.repeat(32), address: 'tb1p' + 'q'.repeat(58), network: 'tbtc4' } }, cookie: vcookie });
+    check('#140 a valid commitment stamps the trail tip',
+      vr.status === 200 && vr.data.trail[1].commitment && vr.data.trail[1].commitment.txid === 'ab'.repeat(32)
+        && vr.data.trail[1].commitment.seq === 2, JSON.stringify(vr.data.trail && vr.data.trail[1]));
+    vr = await req(oa.port, 'GET', '/api/tidegate/trail', { cookie: vcookie });
+    check('#140 the stamp is served with the trail',
+      vr.data.trail[1].commitment && vr.data.trail[1].commitment.explorer.includes(vr.data.trail[1].commitment.txid),
+      JSON.stringify(vr.data.trail[1].commitment));
+    vr = await req(oa.port, 'POST', '/api/tidegate/anchor',
+      { body: { commitment: { seq: 2, txid: 'cd'.repeat(32) } }, cookie: vcookie });
+    check('#140 an already-stamped tip refuses a second stamp', vr.status === 400, vr.status);
   }
 
   oa.srv.close();
