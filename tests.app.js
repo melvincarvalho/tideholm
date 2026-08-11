@@ -1151,13 +1151,13 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   oa.srv.close();
   openApp.stop();
 
-  // -------------------------- only the player can't cheat: provable wins (#149)
+  // -------- win arithmetic is checked (not yet unpredictable to the player) (#149)
   // A fresh app with an injected chain — the server re-derives every claimed
   // win's roll and payout from the (fake) block hash; ledger rules enforce the
   // stake was paid and each bet credits once. REAL Schnorr signatures on every
   // transition; the proof is what stands between a signature and free money.
   {
-    console.log("\nprovable wins (#149)");
+    console.log("\nwin arithmetic checks (#149; not a full boundary — #154)");
     const { schnorr: sch } = await import('@noble/curves/secp256k1');
     const { sha256: sh2 } = await import('@noble/hashes/sha256');
     const { createHash } = await import('node:crypto');
@@ -1259,7 +1259,7 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     // 7. a bare positive delta with no evidence at all (the old self-mint)
     pr = await req(pa.port, 'POST', '/api/tidegate/sync',
       { body: { islandId: pisl.id, transitions: [sign(1000000)] }, cookie: pcookie });
-    check('#149 the self-mint is dead: unproven positive deltas are refused',
+    check('#149 a bare positive delta with no bet evidence is refused (naive self-mint)',
       pr.status === 400 && pp.pegged === 500 - stake + payout, `${pr.status} pegged=${pp.pegged}`);
     running -= 1000000;
 

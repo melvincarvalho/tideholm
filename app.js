@@ -1345,14 +1345,20 @@ export function createApp(opts = {}) {
         } catch { okSig = false; }
         if (!okSig) return sendErr(res, 400, lang, 'err.sealSync');
       }
-      // Only the player can't cheat (#149): a positive delta is money claimed
-      // FROM the game, so its signature is not enough — the win itself must be
-      // provable. The slip carries the bet (height, mark, target, stake); we
-      // fetch the deciding block and re-derive the roll and payout with the
-      // tavern's own vendored maths. Wrong roll, wrong payout, or a block that
-      // does not exist → the whole slip is refused. The chain being unreadable
-      // is 502 — retry later, never trust meanwhile. (game.tidegateSync then
-      // enforces the ledger rules: the stake was paid, each bet credits once.)
+      // Positive deltas are money claimed FROM the game, so a signature alone
+      // is not enough — we re-derive the roll and payout from the deciding
+      // block with the tavern's own vendored maths and refuse a wrong roll,
+      // wrong payout, or nonexistent block (unreadable chain → 502; retry,
+      // never trust). game.tidegateSync then enforces the ledger: the stake
+      // was paid, each bet credits once.
+      //
+      // ⚠ NOT A COMPLETE SECURITY BOUNDARY (#154). This checks the ARITHMETIC
+      // of a claimed win, not that the bet was committed BEFORE its seed
+      // existed. The player picks both the block height and the mark, so they
+      // can pick an already-mined block and brute-force a mark that wins — a
+      // deterministic self-mint. Closing that needs the stake witnessed
+      // on-trail before its deciding block is mined (a server round-trip at
+      // bet time). Fine for testnet-with-friends; do not treat as trustless.
       for (const t of body.transitions) {
         if (!(Number(t.delta) > 0)) continue;
         const b = t.bet || {};

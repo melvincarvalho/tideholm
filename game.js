@@ -2253,10 +2253,11 @@ function tidegateSync(player, txs) {
       if (p !== prev || n !== p + d || n < 0) return { error: 'err.sealSync' }; // chains from pegged, never negative
       if (typeof t.sig !== 'string' || !/^[0-9a-f]{128}$/.test(t.sig)) return { error: 'err.sealSync' };
       if (d > 0) {
-        // Only the player can't cheat (#149): a positive delta must be a
-        // provable Tide payout. The endpoint has already re-derived the roll
-        // and payout from the public block hash; here we enforce the LEDGER
-        // rules — the stake was actually paid, and each bet credits once.
+        // A positive delta must be a Tide payout whose arithmetic the endpoint
+        // has already re-derived from the block hash (#149). Here we enforce
+        // the LEDGER rules — the stake was actually paid, and each bet credits
+        // once. NOTE: not a full boundary — the seed can be an already-mined
+        // block the player chose; see the ⚠ in app.js and #154.
         const b = t.bet;
         if (!b || typeof b !== 'object') return { error: 'err.sealSync' };
         const bh = Math.trunc(Number(b.height)); const bt2 = Math.trunc(Number(b.target));
