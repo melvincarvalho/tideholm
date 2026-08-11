@@ -181,7 +181,7 @@ $('tab-islands').addEventListener('click', () => { showTab('islands'); renderIsl
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
-$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); });
+$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); });
 $('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
@@ -1827,7 +1827,13 @@ async function refreshFuel(force) {
     if (!r.ok) throw new Error('http ' + r.status);
     const j = await r.json();
     const c = j.chain_stats || {};
-    _fuel.data = { sat: (c.funded_txo_sum || 0) - (c.spent_txo_sum || 0) };
+    const m = j.mempool_stats || {};
+    _fuel.data = {
+      sat: (c.funded_txo_sum || 0) - (c.spent_txo_sum || 0),
+      // unconfirmed delta (e.g. an anchor's change on its way back) — shown so
+      // the confirmed number changing later doesn't look like a glitch
+      pending: (m.funded_txo_sum || 0) - (m.spent_txo_sum || 0),
+    };
     _fuel.at = Date.now();
   } catch (_) {
     _fuel.data = { error: true };
@@ -1872,6 +1878,7 @@ async function anchorFlow() {
     a.textContent = c.txid.slice(0, 12) + '…';
     msg.appendChild(a);
     refreshFuel(true);                                // the float just moved
+    refreshAnchored();                                // the stamp just landed
   } catch (err) {
     _anchorArmed = false;
     if (btn) btn.textContent = T('ui.tidegate.anchor');
@@ -1881,6 +1888,41 @@ async function anchorFlow() {
   }
 }
 if ($('tidegate-anchor')) $('tidegate-anchor').addEventListener('click', anchorFlow);
+
+// Persistent anchored status (#140): rendered from the trail's OWN stamp, so it
+// survives refreshes — the transient message line was lost on reload. Fetched
+// only on market-open / after an anchor (our server, cheap). Confirmation is
+// checked against mempool at most once a minute and is STICKY: once confirmed,
+// never asked again.
+let _anchored = { txid: null, confirmed: false, checkedAt: 0 };
+async function refreshAnchored() {
+  const el = $('tidegate-anchored');
+  if (!el) return;
+  if (!fuelDid()) { el.classList.add('hidden'); el.textContent = ''; return; }
+  try {
+    const { trail } = await api('/api/tidegate/trail');
+    const tip = trail && trail.length ? trail[trail.length - 1] : null;
+    const c = tip && tip.commitment;
+    if (!c) { el.classList.add('hidden'); el.textContent = ''; return; }
+    if (_anchored.txid !== c.txid) _anchored = { txid: c.txid, confirmed: false, checkedAt: 0 };
+    if (!_anchored.confirmed && Date.now() - _anchored.checkedAt > 60000) {
+      _anchored.checkedAt = Date.now();
+      try {
+        const s = await (await fetch(`https://mempool.space/testnet4/api/tx/${c.txid}/status`)).json();
+        _anchored.confirmed = !!s.confirmed;
+      } catch (_) { /* stays pending; re-checked on the next open */ }
+    }
+    el.textContent = '';
+    el.classList.remove('hidden');
+    el.appendChild(document.createTextNode(T('ui.tidegate.anchoredSeq', { seq: c.seq }) + ' '));
+    const a = document.createElement('a');
+    a.href = c.explorer || `https://mempool.space/testnet4/tx/${c.txid}`;
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.textContent = c.txid.slice(0, 10) + '…';
+    el.appendChild(a);
+    el.appendChild(document.createTextNode(' (' + T(_anchored.confirmed ? 'ui.tidegate.confirmed' : 'ui.tidegate.pending') + ')'));
+  } catch (_) { /* leave whatever is shown */ }
+}
 
 // Render-only: paints whatever is in the cache. Safe to call any time; never fetches.
 function renderFuel() {
@@ -1894,7 +1936,13 @@ function renderFuel() {
   const label = document.createElement('span');
   if (!_fuel.data) label.textContent = '⛽ ' + T('ui.tidegate.fuelChecking');
   else if (_fuel.data.error) label.textContent = '⛽ ' + T('ui.tidegate.fuelOffline');
-  else label.textContent = '⛽ ' + T('ui.tidegate.fuel', { sat: fmtNum(_fuel.data.sat) });
+  else {
+    label.textContent = '⛽ ' + T('ui.tidegate.fuel', { sat: fmtNum(_fuel.data.sat) });
+    if (_fuel.data.pending) {
+      label.textContent += ' · ' + T('ui.tidegate.fuelPending',
+        { sat: (_fuel.data.pending > 0 ? '+' : '') + fmtNum(_fuel.data.pending) });
+    }
+  }
   el.appendChild(label);
   if (_fuel.addr) {
     el.appendChild(document.createTextNode(' · '));
