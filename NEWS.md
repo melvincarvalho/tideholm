@@ -502,6 +502,17 @@ Shipped in #60.
 
 Player-visible, but not worth a report at the time. Listed newest first.
 
+### The resbar gets its signs painted
+
+The six top-bar chips — wood, stone, gold, capacity, population, loyalty —
+swap their emoji for hand-painted SVG icons: stacked logs, a boulder, a coin
+stack, a crate, two islanders, the loyalty banner. Same warm palette on both
+themes (fixed fills with a dark outline, so one drawing reads on cream paper
+and carved wood alike), and the empire table's resource columns match. The
+first strokes of a painted icon set in the kampfinsel spirit; the style spec
+lives beside the symbols in `index.html`. Emoji elsewhere are untouched —
+they follow as the set grows.
+
 ### Keyboard shortcuts
 
 Letter keys jump between tabs — `i` island, `m` map, `r` reports, `l`
