@@ -25,6 +25,12 @@ import { fileURLToPath } from 'node:url';
 
 import * as game from './game.js';
 import { rollFromHash, quote } from './tavern.js'; // vendored, unchanged — the tavern's own pricing
+// vendored, unchanged — the regatta's own maths, for re-deriving claimed wins
+// (bet.venue === 'regatta'). Pure module, same roll convention as the tavern.
+import {
+  rollFromHash as regattaRoll, winnerIndex as regattaWinner, quote as regattaQuote,
+  WEIGHT_SPACE as REGATTA_SPACE,
+} from './regatta.js';
 import { spawnBots, botTick } from './bots.js';
 import { t } from './public/i18n.js';
 
@@ -1371,25 +1377,52 @@ export function createApp(opts = {}) {
       for (const t of body.transitions) {
         if (!(Number(t.delta) > 0)) continue;
         const b = t.bet || {};
+        // Which house maths re-derives this win (TRAIL.md §3.2): absent =
+        // tavern (the original venue); 'regatta' = the boat race. Anything
+        // else is a venue this house doesn't know — refuse, never trust.
+        const venue = b.venue === undefined || b.venue === 'tavern' ? 'tavern'
+          : b.venue === 'regatta' ? 'regatta' : null;
         const height = Math.trunc(Number(b.height));
-        const target = Math.trunc(Number(b.target));
         const stake = Math.trunc(Number(b.stake));
         const mark = String(b.mark || '');
         // cheap checks first — an obviously-bad slip must cost zero fetches
         const delta = Math.trunc(Number(t.delta));
-        const q = quote(target, stake);
-        if (!Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64
-          || q.error || Math.floor(q.payout) !== delta) {
+        if (!venue || !Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64) {
           return sendErr(res, 400, lang, 'err.sealSync');
         }
-        let blockHash;
-        try { blockHash = await tideChain.hash(height + 1); }
-        catch { return sendErr(res, 502, lang, 'err.sealSync'); }
-        if (!blockHash) return sendErr(res, 400, lang, 'err.sealSync'); // no such block
-        const rollHex = crypto.createHash('sha256').update(`${blockHash}|${mark}`).digest('hex');
-        const roll = rollFromHash(rollHex);
-        if (roll == null || roll <= q.target) {
-          return sendErr(res, 400, lang, 'err.sealSync');
+        if (venue === 'tavern') {
+          const target = Math.trunc(Number(b.target));
+          const q = quote(target, stake);
+          if (q.error || Math.floor(q.payout) !== delta) {
+            return sendErr(res, 400, lang, 'err.sealSync');
+          }
+          let blockHash;
+          try { blockHash = await tideChain.hash(height + 1); }
+          catch { return sendErr(res, 502, lang, 'err.sealSync'); }
+          if (!blockHash) return sendErr(res, 400, lang, 'err.sealSync'); // no such block
+          const rollHex = crypto.createHash('sha256').update(`${blockHash}|${mark}`).digest('hex');
+          const roll = rollFromHash(rollHex);
+          if (roll == null || roll <= q.target) {
+            return sendErr(res, 400, lang, 'err.sealSync');
+          }
+        } else {
+          // The regatta: bet.height IS the deciding block (the race "sails on"
+          // it; the client settles at 1 conf on top). Seed and roll share the
+          // tavern's exact conventions — sha256(blockHash|mark), BigInt mod.
+          const boat = Math.trunc(Number(b.boat));
+          let q;
+          try { q = regattaQuote(boat, stake); }
+          catch { return sendErr(res, 400, lang, 'err.sealSync'); }
+          if (Math.floor(q.payout) !== delta) return sendErr(res, 400, lang, 'err.sealSync');
+          let blockHash;
+          try { blockHash = await tideChain.hash(height); }
+          catch { return sendErr(res, 502, lang, 'err.sealSync'); }
+          if (!blockHash) return sendErr(res, 400, lang, 'err.sealSync'); // no such block
+          const rollHex = crypto.createHash('sha256').update(`${blockHash}|${mark}`).digest('hex');
+          let winner;
+          try { winner = regattaWinner(regattaRoll(rollHex, REGATTA_SPACE)); }
+          catch { return sendErr(res, 400, lang, 'err.sealSync'); }
+          if (winner !== boat) return sendErr(res, 400, lang, 'err.sealSync');
         }
       }
       const result = game.tidegateSync(player, body.transitions);

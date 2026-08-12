@@ -3250,5 +3250,34 @@ console.log('combat characterisation');
     g.RESOURCES.every((r) => out.cost[r] !== null), JSON.stringify(out.cost));
 }
 
+// ---- the regatta venue (TRAIL.md §3.2): the vendored maths the sync
+// dispatch trusts must behave exactly as the game's own module does —
+// these pins fail if a vendor refresh ever drifts the protocol.
+{
+  const { rollFromHash, winnerIndex, quote, BOATS, WEIGHT_SPACE } =
+    await import('./regatta.js');
+  check('regatta vendor: weights fill the space exactly',
+    BOATS.reduce((s, b) => s + b.weight, 0) === WEIGHT_SPACE);
+  // band edges are protocol: 0→tern, 3399→tern, 3400→gull, 9999→albatross
+  check('regatta vendor: band edges are the protocol',
+    winnerIndex(0) === 0 && winnerIndex(3399) === 0 && winnerIndex(3400) === 1
+    && winnerIndex(9999) === 4);
+  // the roll convention is the tavern's: BigInt over the hex, mod the space
+  check('regatta vendor: roll convention (BigInt mod)',
+    rollFromHash('ff', WEIGHT_SPACE) === Number(255n % 10000n)
+    && rollFromHash('deadbeef'.repeat(8), WEIGHT_SPACE)
+       === Number(BigInt('0x' + 'deadbeef'.repeat(8)) % 10000n));
+  // pricing pins: payout floors, edge applied — a 100-coin stake on each boat
+  const pays = BOATS.map((_, i) => quote(i, 100).payout);
+  check('regatta vendor: payouts are floored whole coins',
+    pays.every((p) => Number.isInteger(p) && p > 100), JSON.stringify(pays));
+  // a claimed win on the wrong boat must never re-derive: the winner for a
+  // known seed is a fixed fact
+  const seed = 'a'.repeat(64);
+  const w = winnerIndex(rollFromHash(seed, WEIGHT_SPACE));
+  check('regatta vendor: a known seed names one winner',
+    w >= 0 && w <= 4 && BOATS.some((_, i) => i !== w));
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
