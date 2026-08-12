@@ -6,13 +6,18 @@ talk to each other. This document is written so another agent can build a **new*
 game (or a new venue) on the same stack. Everything here is live on testnet4;
 none of it is aspirational.*
 
+**The spec is [TRAIL.md](TRAIL.md).** This guide is the tour; the spec is the
+law. Where they disagree, the spec wins — section references below point into it.
+
 The reference implementations:
 
 | repo | what it is | branch/host |
 |---|---|---|
 | [tideholm](https://github.com/melvincarvalho/tideholm) | the reference game (a browser strategy game) | `gh-pages`, served at `nostr.social/tideholm/` |
 | [tidegate](https://github.com/melvincarvalho/tidegate) | the seal library (ESM, browser+node) | `gh-pages`, `melvincarvalho.github.io/tidegate/` |
-| [tavern](https://github.com/tide-games/tavern) | provably-fair wager maths + a venue | `gh-pages`, `tide-games.github.io/tavern/` |
+| [tavern](https://github.com/tide-games/tavern) | provably-fair wager maths + the first venue | `gh-pages`, `tide-games.github.io/tavern/` |
+| [regatta](https://github.com/tide-games/regatta) | the second seal-wired venue (a boat race) | `gh-pages`, `tide-games.github.io/regatta/` |
+| [tide-games](https://tide-games.github.io/) | the fleet lobby (passes `?did=&seal=&return=` through to each boat) | `gh-pages` |
 | [blocktrails](https://www.npmjs.com/package/blocktrails) | the chained-tweak Bitcoin anchoring crypto | npm `blocktrails@0.0.11` |
 
 > **Everything is gh-pages / static where it can be.** Libraries are plain ESM
@@ -63,7 +68,7 @@ Import what you need from the URL (browser) or npm (node). Exports:
 | `tidegate` | `createTidegate`, `trailBackend`, `transitionBytes` — the core state machine |
 | `tidegate/keys` | `keySigner()` — reads a 64-hex nostr key from `localStorage` (prompts once), returns `{ pubkey, sign }` |
 | `tidegate/btc` | `taprootAddress(pubkeyHex, 'testnet'|'mainnet')` — the address a key controls |
-| `tidegate/anchor` | `previewAnchor(did, trail)`, `anchor(did, trail)` — build/sign/broadcast a BlockTrails anchor in the browser |
+| `tidegate/anchor` | `previewAnchor(did, trail)`, `anchor(did, trail)` — build/sign/broadcast a BlockTrails anchor in the browser; `previewSweep`/`sweep` — close a chain by spending its tip mark back to the base address ([TRAIL.md §7.4](TRAIL.md#74-chain-lifecycle-closed-retired-re-genesis-normative)). `anchor` also *detects* a swept chain (tip outspent) and re-geneses onto a fresh chain by itself — callers get `{ chain, regenesis }` back |
 | `tidegate/nip98` | `nip98Fetch()` — a `fetch` that adds a NIP-98 auth header signed by the key |
 | `tidegate/store` | `memStore`, `localStore` — where a trail lives |
 | `tidegate/pod` | `podStore({ authFetch, base })` — a trail in a Solid pod (durable, cross-device; needs routing) |
@@ -134,14 +139,23 @@ The server MUST:
 4. **Gate positive deltas** — see §5. Money *entering* from outside must be
    provable, not merely signed.
 
-A public, CORS-open export completes the set:
+Two public, CORS-open exports complete the set:
 
 ### `GET /api/tidegate/blocktrails/<pubkey>/blocktrails.json`
 No session. Returns the trail's anchor stamps as a
 [blocktrails.json](https://blocktrails.org/verify/) document, so **anyone** can
 verify the marks against Bitcoin on a page you don't run. `pubkeyBase = "02"+npub`
 (even-Y convention), `txo:` URIs carry `?amount=`. This is the demystifier: a
-player's proof becomes one click of green checkmarks.
+player's proof becomes one click of green checkmarks. Note it is a **projection
+of the latest chain**, not the whole history — a swept-and-re-genesed trail
+serves only the current epoch's marks, per
+[TRAIL.md §7.5](TRAIL.md#75-the-public-projection-normative).
+
+### `GET /api/tidegate/trail/<pubkey>/trail.json`
+No session. The full signed trail itself — every transition with its signature,
+plus anchor stamps. Where `blocktrails.json` lets a stranger verify the *marks*,
+this lets a stranger verify the *money*: replay the chain, check every Schnorr
+signature, recompute every balance. Serve both; they answer different questions.
 
 ---
 
@@ -167,14 +181,25 @@ island/game gold ──▶ [your raid-safe store] ──peg in──▶ SEALED B
   change returns to the base address. Prior anchor states reconstruct from the
   trail's own stamps: **npub + trail ⇒ every address, forever** — no side file.
 - **verify ↗**: link to `blocktrails.org/verify/?uri=<your blocktrails.json>`.
+- **Chain lifecycle** ([TRAIL.md §7.4](TRAIL.md#74-chain-lifecycle-closed-retired-re-genesis-normative)):
+  a chain **closes** when its tip mark is spent — deliberately via `sweep` (the
+  float sails home to the base address), or by any wallet spend. Closure is
+  **detected, not notified**: the next `anchor` call sees the outspent tip and
+  starts chain `N+1` from the base address (*re-genesis*) with no coordination.
+  Display `chain N · seq M` so a retired chain reads as history, not loss —
+  the balance lives in the trail; only the notary chain rolls over. The whole
+  lap (anchor → sweep → detect → re-genesis) is exercised live on testnet4.
 
 ---
 
 ## 5. The courier pattern — value between apps with no backchannel
 
 This is how a **separate** venue (different origin, different repo, no shared
-server) spends the same sealed gold. The tavern is the reference; a shop, an
-auction house, another game would work identically.
+server) spends the same sealed gold. The tavern and the regatta are the two
+live references; a shop, an auction house, another game would work identically.
+The loop itself is normative in [TRAIL.md §6](TRAIL.md#6-the-courier-loop-normative),
+and the server-side checks are its
+[§6.1 seven-rung ladder](TRAIL.md#61-sync-validation--the-ladder-normative).
 
 1. **Out** — the game links to the venue with a query string:
    `venue/?did=<did>&seal=<balance>&return=<game url>`.
@@ -201,6 +226,27 @@ A signed transition proves *authorship*, not *entitlement*. So:
   block, re-derives `roll = rollFromHash(sha256(blockHash|mark))` and the payout
   with `tavern.js`'s own maths, and refuses a wrong roll/payout. The ledger also
   enforces: the stake actually left the balance, and each bet credits once.
+
+### The venue registry — how a new venue plugs in
+
+Evidence is **venue-shaped**, and `bet.venue` names whose maths judges it
+([TRAIL.md §3.2](TRAIL.md#32-bet-evidence-positive-deltas) — the normative
+registry). Absent or `"tavern"` = Tide Dice (`{height, mark, target, stake}`,
+deciding block `height+1`, win = roll > target). `"regatta"` = the boat race
+(`{venue, height, mark, boat, stake}`, boat 0–4, deciding block `height`
+itself, win = `winnerIndex(roll) === boat`, payout from the regatta's own
+`quote`). An **unknown venue is refused outright**: no venue, no credit.
+
+Adding your venue to a house is therefore three moves, all small:
+
+1. **Keep your maths pure** — a no-DOM, no-network module (like `tavern.js` /
+   `regatta.js`) that derives winner and payout from hex hashes alone.
+2. **Stamp your evidence** — every positive delta in your slips carries
+   `bet: { venue: '<yours>', height, mark, ...your fields }`, enough for a
+   stranger to re-derive the win from the deciding block.
+3. **Ask the house for a dispatch arm** — the house vendors your pure module
+   verbatim and adds one `case` to its sync: re-derive, compare, refuse on any
+   mismatch. The registry in TRAIL.md §3.2 is the source of truth for shapes.
 
 > ⚠ **Known limitation (tideholm #154).** The current check verifies a win's
 > *arithmetic*, not that the bet was committed *before its seed existed*. The
@@ -251,9 +297,10 @@ A signed transition proves *authorship*, not *entitlement*. So:
 4. **Client** — import `tidegate/keys`, `tidegate/btc`, `tidegate/anchor` from
    the gh-pages URL; wire peg buttons, a fuel gauge, an Anchor ⚓ button, and a
    verify ↗ link.
-5. **A venue (optional)** — either add a courier link out to the tavern, or build
-   your own venue that reads `?did=&seal=&return=`, signs transitions, and hands
-   a slip back. If it grants positive deltas, implement §5's timestamp rule.
+5. **A venue (optional)** — either add a courier link out to an existing venue,
+   or build your own that reads `?did=&seal=&return=`, signs transitions, and
+   hands a slip back. If it grants positive deltas, register its evidence shape
+   (§5's venue registry / TRAIL.md §3.2) — and mind the timestamp caveat.
 6. **Verify** — anchor once and open your `blocktrails.json` in
    `blocktrails.org/verify`. Green marks mean you did it right.
 
@@ -271,3 +318,9 @@ bar-raised, not trustless (#154). A real house bankroll on-trail is designed
 (`tavern.js` has the maths) but not wired. None of these block a **demo**; all of
 them block **real value**. Build accordingly, and keep your claims as honest as
 your code — when a boundary isn't airtight, say so in the boundary itself.
+
+What *has* been exercised end-to-end on testnet4, by a real player in a browser:
+peg-in, venue stakes at two origins (tavern and regatta, including a sealed
+regatta bet redeemed through the venue dispatch), anchoring, third-party
+verification, sweep, retirement detection, and re-genesis onto chain 2. The
+full lap of [TRAIL.md](TRAIL.md) §5–§7 is lived code, not paper.
