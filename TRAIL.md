@@ -92,6 +92,17 @@ payout, refusing anything that does not reproduce exactly (§6.2). Negative
 deltas carry no evidence — they are money the player chose to stake; the
 trust boundary for them is the player's choice of game (§8, T7).
 
+**Venues.** `bet.venue` names which house maths re-derives the win: absent
+or `"tavern"` = Tide Dice (`{height, mark, target, stake}`, deciding block
+`height+1`, win = roll > target); `"regatta"` = the boat race
+(`{venue, height, mark, boat, stake}`, boat 0–4, deciding block `height`
+itself, win = `winnerIndex(roll) === boat`, payout from the regatta's own
+`quote`). Both share the roll convention — `sha256(blockHash|mark)`, BigInt
+mod space — and both maths are vendored pure modules (`tavern.js`,
+`regatta.js`) in the house. An unknown venue is refused outright: no venue,
+no credit. Each new seal-ready game adds one dispatch arm and its vendored
+maths — this list is the protocol registry.
+
 ## 4. The trail document [NORMATIVE]
 
 Server-side, one file per identity: `tidegate/<hex>.json` — a JSON array of

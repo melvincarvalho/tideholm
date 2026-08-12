@@ -2199,14 +2199,23 @@ function tidegateRecord(player, t) {
     // fields, so anchoring is unaffected. It is what makes a win provable.
     if (t.bet && typeof t.bet === 'object') {
       const bh = Math.trunc(Number(t.bet.height));
-      const bt2 = Math.trunc(Number(t.bet.target));
       const bs = Math.trunc(Number(t.bet.stake));
       const mark = String(t.bet.mark || '').slice(0, 64);
       // well-formed or omitted — the trail is public, and a malformed tuple
-      // could never match a validated payout anyway
-      if (Number.isSafeInteger(bh) && bh > 0 && bt2 >= 1 && bt2 <= 99
-        && Number.isSafeInteger(bs) && bs > 0 && mark) {
-        entry.bet = { height: bh, mark, target: bt2, stake: bs };
+      // could never match a validated payout anyway. Venue-shaped (§3.2):
+      // tavern bets carry target (1-99), regatta bets carry boat (0-4).
+      if (Number.isSafeInteger(bh) && bh > 0 && Number.isSafeInteger(bs) && bs > 0 && mark) {
+        if (t.bet.venue === 'regatta') {
+          const boat = Math.trunc(Number(t.bet.boat));
+          if (boat >= 0 && boat <= 4) {
+            entry.bet = { venue: 'regatta', height: bh, mark, boat, stake: bs };
+          }
+        } else {
+          const bt2 = Math.trunc(Number(t.bet.target));
+          if (bt2 >= 1 && bt2 <= 99) {
+            entry.bet = { height: bh, mark, target: bt2, stake: bs };
+          }
+        }
       }
     }
     trail.push(entry);
@@ -2260,13 +2269,23 @@ function tidegateSync(player, txs) {
         // block the player chose; see the ⚠ in app.js and #154.
         const b = t.bet;
         if (!b || typeof b !== 'object') return { error: 'err.sealSync' };
-        const bh = Math.trunc(Number(b.height)); const bt2 = Math.trunc(Number(b.target));
+        const bh = Math.trunc(Number(b.height));
         const bs = Math.trunc(Number(b.stake)); const mark = String(b.mark || '');
-        if (!Number.isSafeInteger(bh) || bh <= 0 || bt2 < 1 || bt2 > 99 || bs <= 0
-          || !mark || mark.length > 64) return { error: 'err.sealSync' };
+        const isRegatta = b.venue === 'regatta';
+        // per-venue shape (§3.2): tavern carries target 1-99, regatta boat 0-4
+        const bt2 = Math.trunc(Number(b.target));
+        const boat = Math.trunc(Number(b.boat));
+        if (!Number.isSafeInteger(bh) || bh <= 0 || bs <= 0
+          || !mark || mark.length > 64
+          || (isRegatta ? (boat < 0 || boat > 4) : (bt2 < 1 || bt2 > 99))) {
+          return { error: 'err.sealSync' };
+        }
         const same = (e) => e.bet
           && Math.trunc(Number(e.bet.height)) === bh && String(e.bet.mark) === mark
-          && Math.trunc(Number(e.bet.target)) === bt2 && Math.trunc(Number(e.bet.stake)) === bs;
+          && Math.trunc(Number(e.bet.stake)) === bs
+          && (isRegatta
+            ? (e.bet.venue === 'regatta' && Math.trunc(Number(e.bet.boat)) === boat)
+            : (e.bet.venue === undefined && Math.trunc(Number(e.bet.target)) === bt2));
         if (!working.some((e) => Math.trunc(Number(e.delta)) === -bs && same(e))) {
           return { error: 'err.sealSync' }; // no such stake ever left the seal
         }
