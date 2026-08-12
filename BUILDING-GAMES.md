@@ -12,7 +12,7 @@ The reference implementations:
 |---|---|---|
 | [tideholm](https://github.com/melvincarvalho/tideholm) | the reference game (a browser strategy game) | `gh-pages`, served at `nostr.social/tideholm/` |
 | [tidegate](https://github.com/melvincarvalho/tidegate) | the seal library (ESM, browser+node) | `gh-pages`, `melvincarvalho.github.io/tidegate/` |
-| [tavern](https://github.com/melvincarvalho/tavern) | provably-fair wager maths + a venue | `gh-pages`, `melvincarvalho.github.io/tavern/` |
+| [tavern](https://github.com/tide-games/tavern) | provably-fair wager maths + a venue | `gh-pages`, `tide-games.github.io/tavern/` |
 | [blocktrails](https://www.npmjs.com/package/blocktrails) | the chained-tweak Bitcoin anchoring crypto | npm `blocktrails@0.0.11` |
 
 > **Everything is gh-pages / static where it can be.** Libraries are plain ESM
@@ -78,7 +78,7 @@ t.sig = await signer.sign(transitionBytes(t));        // BIP-340 over sha256(byt
 t.pubkey = signer.pubkey;                             // x-only, == did's hex
 ```
 
-### tavern (provably-fair wagers) — `melvincarvalho.github.io/tavern/`
+### tavern (provably-fair wagers) — `tide-games.github.io/tavern/`
 
 `tavern.js` is **pure**: no DOM, no clock, no network, no crypto — the caller
 supplies hashes as hex. It is designed to be **lifted into a server unchanged**
