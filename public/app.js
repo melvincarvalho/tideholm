@@ -1961,12 +1961,14 @@ async function refreshAnchored() {
   } catch (_) { /* leave whatever is shown */ }
 }
 
-// ---- the Tavern door + the courier slip (#146) ----------------------------
-// The tavern is a SEPARATE app (melvincarvalho.github.io/tavern) that stakes
-// sealed gold; Tideholm's whole integration surface is this link out and the
-// slip coming back. Out: ?did=&seal=&return= — the tavern's prefill seam. Home:
-// the player carries ?tavern=<b64 signed transitions>; Redeem posts them to
-// /api/tidegate/sync, where every signature is verified before the seal moves.
+// ---- the fleet door + the courier slip (#146) -----------------------------
+// The games are SEPARATE apps behind one lobby (tide-games.github.io) that
+// passes the query string through, unparsed, to whichever game the player
+// picks. Tideholm's whole integration surface is this link out and the slip
+// coming back. Out: ?did=&seal=&return= — the prefill seam every seal-ready
+// game understands. Home: the player carries ?tavern=<b64 signed transitions>;
+// Redeem posts them to /api/tidegate/sync, where every signature is verified
+// before the seal moves.
 
 function b64urlDecode(s) {
   const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
@@ -1992,7 +1994,7 @@ function renderTavernLine() {
   if (!did) return;
   el.textContent = '';
   const a = document.createElement('a');
-  a.href = 'https://melvincarvalho.github.io/tavern/?did=' + encodeURIComponent(did)
+  a.href = 'https://tide-games.github.io/?did=' + encodeURIComponent(did)
     + '&seal=' + Math.floor((state.player && state.player.pegged) || 0)
     + '&return=' + encodeURIComponent(location.origin + location.pathname);
   a.target = '_blank';
