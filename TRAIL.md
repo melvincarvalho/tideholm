@@ -108,7 +108,7 @@ Anchored tips additionally carry a `commitment` (§7.2). The trail is served:
 - authenticated, in full: `GET /api/tidegate/trail` (the player's own copy —
   "the KISS stand-in for reading a pod; the doc shape is identical"),
 - public, as a projection: `GET /api/tidegate/blocktrails/<hex>/blocktrails.json`
-  (§7.4) — only anchored marks, for third-party verification.
+  (§7.5) — only anchored marks, for third-party verification.
 
 ## 5. Peg-in and peg-out [CURRENT]
 
@@ -259,7 +259,7 @@ output 0"). The stamp is metadata on the tip entry:
 ```
 
 ⚠ The server records the *claim* and does not itself check the chain — the
-public verifier does (§7.4). A false stamp thus pollutes only the claimant's
+public verifier does (§7.5). A false stamp thus pollutes only the claimant's
 own public trail, where it visibly fails verification. **[OPEN]** — the
 server could cheaply confirm the txid exists before stamping.
 
@@ -282,7 +282,40 @@ schedule? — and who funds the fee (the anchor chain float is sats, spent
 forward each mark). Until fixed, an anchor proves history *up to its seq*
 and nothing about later transitions.
 
-### 7.4 The public projection [NORMATIVE]
+### 7.4 Chain lifecycle: closed, retired, re-genesis [NORMATIVE]
+
+A trail's anchor chain has three ends, only one of them final:
+
+- **closed** — sealed balance 0 and the tip anchored: a complete episode
+  (0 → activity → 0), verifiable forever, chain still able to advance.
+- **retired** — the tip output spent by an **explicit-closure sweep** (the
+  blocktrails spec's sanctioned ordinary spend; `sweep()` in
+  tidegate/anchor.js, surfaced on blocktrails.org/verify/advanced). No
+  future anchor can spend forward. History stays readable and verifiable;
+  only the ability to advance ends.
+- **re-genesis** — anchoring after a retirement starts **chain n+1** from
+  the base address (a fresh float carve), stamped with `chain: n+1` on its
+  commitment (missing = 1).
+
+Rules that make this verifiable from public data alone:
+
+1. **Key accumulation restarts per chain** — only the current chain's
+   states sum into the next address. The *state strings* never reset: `seq`
+   keeps counting the whole trail, so committed content stays linear across
+   chains.
+2. **Retirement is detected, never reported.** The anchor tooling checks
+   the tip's outspend before advancing: spent → re-genesis. The sweep never
+   phones home; Bitcoin is the shared source of truth, and every surface
+   (Tideholm's Tidegate box included) reads it independently.
+3. **One blocktrails.json = one linear spend chain**: the projection (§7.5)
+   serves the latest chain's marks only. Earlier chains remain in the full
+   trail.json — confirmed forever, just no longer the live spine.
+4. Edge: an anchor that broadcast but was never stamped also reads as
+   "tip spent" — re-genesis branches past it and the orphaned mark simply
+   never enters the projection. Accepted; the alternative (trusting the
+   server's stamp over the chain) inverts rule 2.
+
+### 7.5 The public projection [NORMATIVE]
 
 `GET /api/tidegate/blocktrails/<hex>/blocktrails.json` — the shape
 `blocktrails.org/verify` consumes (the route also answers the bare `<hex>.json`

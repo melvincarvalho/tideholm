@@ -1889,7 +1889,8 @@ async function anchorFlow() {
     if (!_anchorArmed) {
       const p = await mod.previewAnchor(did, trail);
       const o = p.outputs[0];
-      msg.textContent = T('ui.tidegate.anchorPreview', { sats: fmtNum(o.value), addr: o.address.slice(0, 12) + '…', fee: p.fee });
+      msg.textContent = T('ui.tidegate.anchorPreview', { sats: fmtNum(o.value), addr: o.address.slice(0, 12) + '…', fee: p.fee })
+        + (p.regenesis ? ' · ' + T('ui.tidegate.regenesis') : '');
       btn.textContent = T('ui.tidegate.anchorConfirm');
       _anchorArmed = true;
       return;
@@ -1897,7 +1898,7 @@ async function anchorFlow() {
     const c = await mod.anchor(did, trail);          // sign + broadcast, in-browser
     _anchorArmed = false;
     btn.textContent = T('ui.tidegate.anchor');
-    await api('/api/tidegate/anchor', { commitment: { seq: c.seq, txid: c.txid, address: c.address, network: c.network, amount: c.value } });
+    await api('/api/tidegate/anchor', { commitment: { seq: c.seq, txid: c.txid, address: c.address, network: c.network, amount: c.value, chain: c.chain } });
     msg.textContent = T('ui.tidegate.anchored', { seq: c.seq }) + ' ';
     const a = document.createElement('a');
     a.href = c.explorer; a.target = '_blank'; a.rel = 'noopener noreferrer';
@@ -1920,7 +1921,7 @@ if ($('tidegate-anchor')) $('tidegate-anchor').addEventListener('click', anchorF
 // only on market-open / after an anchor (our server, cheap). Confirmation is
 // checked against mempool at most once a minute and is STICKY: once confirmed,
 // never asked again.
-let _anchored = { txid: null, confirmed: false, checkedAt: 0 };
+let _anchored = { txid: null, confirmed: false, retired: false, checkedAt: 0 };
 async function refreshAnchored() {
   const el = $('tidegate-anchored');
   if (!el) return;
@@ -1935,13 +1936,20 @@ async function refreshAnchored() {
       if (trail[i] && trail[i].commitment) { c = trail[i].commitment; break; }
     }
     if (!c) { el.classList.add('hidden'); el.textContent = ''; return; }
-    if (_anchored.txid !== c.txid) _anchored = { txid: c.txid, confirmed: false, checkedAt: 0 };
-    if (!_anchored.confirmed && Date.now() - _anchored.checkedAt > 60000) {
+    if (_anchored.txid !== c.txid) _anchored = { txid: c.txid, confirmed: false, retired: false, checkedAt: 0 };
+    if ((!_anchored.confirmed || !_anchored.retired) && Date.now() - _anchored.checkedAt > 60000) {
       _anchored.checkedAt = Date.now();
       try {
         const s = await (await fetch(`https://mempool.space/testnet4/api/tx/${c.txid}/status`)).json();
         _anchored.confirmed = !!s.confirmed;
       } catch (_) { /* stays pending; re-checked on the next open */ }
+      // Retirement detection (re-genesis): the tip output spent with no newer
+      // stamp means the chain was swept closed — the next anchor starts fresh.
+      // Read from the chain itself; the sweep never phones home.
+      try {
+        const os = await (await fetch(`https://mempool.space/testnet4/api/tx/${c.txid}/outspend/${c.vout || 0}`)).json();
+        _anchored.retired = !!(os && os.spent);
+      } catch (_) { /* unknown — say nothing rather than guess */ }
     }
     el.textContent = '';
     el.classList.remove('hidden');
@@ -1952,6 +1960,7 @@ async function refreshAnchored() {
     a.textContent = c.txid.slice(0, 10) + '…';
     el.appendChild(a);
     el.appendChild(document.createTextNode(' (' + T(_anchored.confirmed ? 'ui.tidegate.confirmed' : 'ui.tidegate.pending') + ')'));
+    if (_anchored.retired) el.appendChild(document.createTextNode(' · ' + T('ui.tidegate.retired')));
     const drift = trail.length - c.seq;
     if (drift > 0) el.appendChild(document.createTextNode(' · ' + T('ui.tidegate.sinceAnchor', { n: drift })));
     // Independent verification (#135): the whole trail's marks, checked against
