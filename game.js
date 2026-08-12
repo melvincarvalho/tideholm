@@ -2304,6 +2304,10 @@ function tidegateStamp(player, c) {
     trail[trail.length - 1].commitment = {
       network: 'tbtc4',
       seq: trail.length,
+      // Which key chain this mark belongs to (re-genesis, TRAIL.md §7.5):
+      // a swept chain cannot advance, so the next anchor starts chain n+1
+      // from the base address. Missing = 1 (the first chain).
+      chain: Math.max(1, Math.trunc(Number(c.chain)) || 1),
       txid,
       // data part restricted to the actual bech32 charset (no 1/b/i/o)
       address: typeof c.address === 'string' && /^tb1p[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{20,80}$/.test(c.address) ? c.address : null,
@@ -2348,17 +2352,23 @@ function tidegateBlocktrails(hex) {
   if (!Array.isArray(trail)) return null;
   const marks = trail.filter((e) => e && e.commitment && e.commitment.txid);
   if (!marks.length) return null;
+  // One blocktrails.json = one linear spend chain. After a re-genesis the
+  // projection serves the LATEST chain only; earlier chains are history the
+  // full trail.json still carries (their marks stay confirmed forever, they
+  // just aren't the live spine any more).
+  const epoch = marks.reduce((m, e) => Math.max(m, Math.trunc(Number(e.commitment.chain)) || 1), 1);
+  const live = marks.filter((e) => (Math.trunc(Number(e.commitment.chain)) || 1) === epoch);
   return {
     '@type': 'Blocktrail',
     version: '0.0.3',
     profile: 'tidegate',
     pubkeyBase: '02' + hex, // the even-Y convention: derivable from the npub alone
     chain: 'tbtc4',
-    states: marks.map((e) => {
+    states: live.map((e) => {
       const c = e.commitment;
       return `tideholm seq ${c.seq} · sealed ${e.next} 🪙`;
     }),
-    txo: marks.map((e) => {
+    txo: live.map((e) => {
       const c = e.commitment;
       const amt = Number.isSafeInteger(c.amount) && c.amount > 0 ? `?amount=${c.amount}` : '';
       return `txo:${c.network || 'tbtc4'}:${c.txid}:${c.vout || 0}${amt}`;
