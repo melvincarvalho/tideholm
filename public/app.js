@@ -247,7 +247,12 @@ function renderIslands() {
   $('isl-t-merch').textContent = rows.some((i) => !i.tradeSlots)
     ? '∞'
     : `${sum((i) => i.tradeSlots.free)}/${sum((i) => i.tradeSlots.total)}`;
-  $('isl-t-points').textContent = String(sum((i) => i.points));
+  // Points total carries its average — the benchmark that tells you which
+  // islands drag (develop next) without anyone doing the arithmetic.
+  const tPoints = sum((i) => i.points);
+  $('isl-t-points').textContent = rows.length > 1
+    ? `${tPoints} · ø ${Math.round(tPoints / rows.length)}`
+    : String(tPoints);
 
   // #104: wealth on the water. Cargo aboard outbound shipments and loot on
   // returning fleets — the resources every other ledger forgets until they
