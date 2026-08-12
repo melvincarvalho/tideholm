@@ -16,6 +16,22 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
+### 2026-08-12 · The harbour gets its signs painted
+
+> 🎨 The harbour got its signs painted. The top bar has retired its emoji —
+> wood, stone, gold, storage, crew and loyalty now wear proper hand-painted
+> icons: stacked logs, a boulder, a stack of coins, a crate, two islanders
+> and the loyalty banner. Same numbers, clearer at a glance, and the same
+> warm paint on both the parchment and retro looks. If you still see the old
+> emoji, give the page a hard refresh. Fair winds.
+
+The first strokes of the painted icon set (#162), in the kampfinsel spirit:
+six 24px SVG symbols with fixed warm-palette fills and one dark outline each,
+so a single drawing reads on cream paper and carved wood alike. The style
+spec lives beside the symbols in `index.html`'s sprite. Tabs stay stroke-only
+`currentColor` (#102 — chrome quiet, paint on content); JS-generated emoji
+strings migrate as the set grows.
+
 ### 2026-08-11 · The Tavern opens its doors
 
 > 🎲 The Tavern is open. Walk in through the Tidegate and stake your sealed
@@ -501,17 +517,6 @@ Shipped in #60.
 ## Shipped without an announcement
 
 Player-visible, but not worth a report at the time. Listed newest first.
-
-### The resbar gets its signs painted
-
-The six top-bar chips — wood, stone, gold, capacity, population, loyalty —
-swap their emoji for hand-painted SVG icons: stacked logs, a boulder, a coin
-stack, a crate, two islanders, the loyalty banner. Same warm palette on both
-themes (fixed fills with a dark outline, so one drawing reads on cream paper
-and carved wood alike), and the empire table's resource columns match. The
-first strokes of a painted icon set in the kampfinsel spirit; the style spec
-lives beside the symbols in `index.html`. Emoji elsewhere are untouched —
-they follow as the set grows.
 
 ### Keyboard shortcuts
 
