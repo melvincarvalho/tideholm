@@ -2325,6 +2325,21 @@ function tidegateStamp(player, c) {
 // Bitcoin on a page we don't run. Built from the trail's own commitment
 // stamps; states are short human lines (the verifier displays them, checks
 // only txids/amounts/spend-chain). Null when the player has no anchors.
+// The full trail document, public by hex (TRAIL.md §7.4) — every signed
+// transition plus operator stamps, exactly as stored. This is what a
+// re-deriving verifier (and the sweep tooling) consumes: npub + this doc
+// reconstruct every anchor address. Publishing it is deliberate — the trail
+// is a signed document and the states already expose the balances; the bet
+// evidence it carries is what makes wins publicly provable. Null when the
+// identity has no trail.
+function tidegatePublicTrail(hex) {
+  if (!/^[0-9a-f]{64}$/.test(hex)) return null;
+  try {
+    const t = JSON.parse(fs.readFileSync(path.join(TIDEGATE_DIR, `${hex}.json`), 'utf8'));
+    return Array.isArray(t) && t.length ? t : null;
+  } catch { return null; }
+}
+
 function tidegateBlocktrails(hex) {
   if (!/^[0-9a-f]{64}$/.test(hex)) return null;
   let trail;
@@ -2709,6 +2724,7 @@ export {
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
   tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
+  tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,

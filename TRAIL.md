@@ -302,6 +302,15 @@ commits to is §7.1's canonical state object. A verifier that re-derives
 addresses (§9) proves the binding; today's verifier proves existence,
 confirmation, amount, and (it should — see §9) the spend chain.
 
+The **full trail document** is also public, deliberately:
+`GET /api/tidegate/blocktrails/<hex>/trail.json` →
+`{ "@type": "TidegateTrail", "did", "trail": [ …every stored transition,
+stamps included… ] }`. This is what re-deriving verifiers and lifecycle
+tooling (sweep, top-up) consume — npub + this document reconstruct every
+anchor address. Publishing it exposes the complete signed history including
+bet evidence; that is the design (wins are *publicly* provable), decided
+2026-08-12.
+
 ## 8. Threat model
 
 | # | Threat | Defense | Status |
