@@ -116,6 +116,11 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 #resbar small { color: #6b5d40; }
 
+/* Painted resource icons: fixed-palette fills with a dark outline, so the
+   same drawing reads on both papers (they don't re-ink with the theme). */
+.res-ico { width: 18px; height: 18px; flex: 0 0 auto; align-self: center; }
+th .res-ico { width: 17px; height: 17px; vertical-align: -4px; }
+
 /* Meter bars (#116): a water-level line under each resbar chip. The top line
    (icon · number · rate) stays put; the meter wraps to a full-width second
    row. Storage & pop fill toward their cap (amber near full, red at it);

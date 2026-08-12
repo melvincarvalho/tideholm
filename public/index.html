@@ -47,6 +47,55 @@
         <g id="i-market"><path d="M4 4h16l1.5 5h-19z"/><path d="M5 9v11h14V9"/><path d="M9 20v-5h6v5"/></g>
         <g id="i-alliance"><path d="M8.5 3.5l4.5 1.7V10c0 3.2-1.9 5.4-4.5 6.5C5.9 15.4 4 13.2 4 10V5.2z"/><path d="M15.5 7.5L20 9.2v4.3c0 3.2-1.9 5.4-4.5 6.5c-1.2-.5-2.2-1.2-3-2.1"/></g>
         <g id="i-mail"><path d="M3 6h18v12H3z"/><path d="M3 6l9 7 9-7"/></g>
+        <!-- The painted set — content-surface icons (the resbar, table
+             headers). Style spec every later icon inherits: 24px grid,
+             warm fixed-palette fills (they do NOT re-ink with the theme,
+             so they must sit on both papers), one dark outline per shape,
+             one soft white highlight. Chunky over clever: each must read
+             at 18px. -->
+        <g id="p-wood">
+          <rect x="1.5" y="12.5" width="15" height="7.5" rx="3.6" fill="#a9743c" stroke="#4a3823" stroke-width="1.2"/>
+          <path d="M4.5 15.5h8M5.5 18h7" stroke="#7c5122" stroke-width="1" stroke-linecap="round"/>
+          <circle cx="17" cy="16.25" r="3.6" fill="#e2bd83" stroke="#4a3823" stroke-width="1.2"/>
+          <circle cx="17" cy="16.25" r="1.5" fill="none" stroke="#a97a44" stroke-width="1"/>
+          <rect x="5" y="4.5" width="15" height="7.5" rx="3.6" fill="#b8834a" stroke="#4a3823" stroke-width="1.2"/>
+          <path d="M8 7.5h8M9 10h7" stroke="#7c5122" stroke-width="1" stroke-linecap="round"/>
+          <circle cx="20" cy="8.25" r="3.6" fill="#ecc890" stroke="#4a3823" stroke-width="1.2"/>
+          <circle cx="20" cy="8.25" r="1.5" fill="none" stroke="#a97a44" stroke-width="1"/>
+        </g>
+        <g id="p-stone">
+          <path d="M4.2 20.5l-1.9-4.6 2.2-5.6 5.2-3.9 6.8 1.2 3.6 5.1-1.3 5.6-3.4 2.2z" fill="#8f959b" stroke="#41464b" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M4.5 10.3l6.6 1.5 4.9-4.2M11.1 11.8l1.5 8.7M11.1 11.8l-6.3 4.6" fill="none" stroke="#6b7176" stroke-width="1.1" stroke-linejoin="round"/>
+          <path d="M6 9l4.6-2.9 3.4.6" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>
+          <ellipse cx="19.8" cy="19.3" rx="2.6" ry="1.9" fill="#b0b6bb" stroke="#41464b" stroke-width="1.1"/>
+        </g>
+        <g id="p-gold">
+          <ellipse cx="8" cy="18.2" rx="6" ry="2.8" fill="#c79312" stroke="#6e5006" stroke-width="1.2"/>
+          <path d="M2 15v3.2M14 15v3.2" stroke="#6e5006" stroke-width="1.2"/>
+          <ellipse cx="8" cy="15" rx="6" ry="2.8" fill="#e8b923" stroke="#6e5006" stroke-width="1.2"/>
+          <circle cx="15.8" cy="9.2" r="5.9" fill="#e8b923" stroke="#6e5006" stroke-width="1.2"/>
+          <circle cx="15.8" cy="9.2" r="3.9" fill="none" stroke="#c79312" stroke-width="1.1"/>
+          <path d="M12.7 6.2a4.3 4.3 0 0 1 4.4-1.2" stroke="#fff" stroke-opacity=".6" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+        </g>
+        <g id="p-crate">
+          <rect x="3.5" y="4.5" width="17" height="16" rx="1.2" fill="#b08046" stroke="#4a3823" stroke-width="1.2"/>
+          <path d="M3.5 8h17M3.5 17h17" stroke="#4a3823" stroke-width="1.1"/>
+          <path d="M5 8.6l14 7.8M19 8.6l-14 7.8" stroke="#8a5f30" stroke-width="2.2"/>
+          <path d="M5 8.6l14 7.8M19 8.6l-14 7.8" stroke="#4a3823" stroke-width=".7" stroke-opacity=".4"/>
+          <path d="M4.6 5.6h6" stroke="#fff" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round"/>
+        </g>
+        <g id="p-pop">
+          <circle cx="8.4" cy="7.6" r="3.5" fill="#e8c298" stroke="#4a3823" stroke-width="1.2"/>
+          <path d="M2.8 20.4c0-4.2 2.4-6.6 5.6-6.6s5.6 2.4 5.6 6.6z" fill="#2e7f8f" stroke="#1d5560" stroke-width="1.2" stroke-linejoin="round"/>
+          <circle cx="16.6" cy="9.4" r="3.2" fill="#edcaa2" stroke="#4a3823" stroke-width="1.2"/>
+          <path d="M11.6 20.6c0-3.8 2.2-6 5-6s5 2.2 5 6z" fill="#a63d2e" stroke="#6d2417" stroke-width="1.2" stroke-linejoin="round"/>
+        </g>
+        <g id="p-loyal">
+          <path d="M3 4.2h18" stroke="#4a3823" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M6.5 5v14.6l5.5-3.4 5.5 3.4V5z" fill="#1e6f8e" stroke="#123f52" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M8.2 6.4v11.2" stroke="#fff" stroke-opacity=".25" stroke-width="1.1"/>
+          <circle cx="12" cy="10.2" r="3" fill="#e8b923" stroke="#8a6508" stroke-width="1"/>
+        </g>
       </defs>
     </svg>
 
@@ -100,12 +149,12 @@
     <div id="pregame-banner" class="hidden"></div>
 
     <div id="resbar">
-      <span class="res">🪵 <b id="res-wood">0</b> <small id="rate-wood"></small><span class="meter"><i id="bar-wood"></i></span></span>
-      <span class="res">🪨 <b id="res-stone">0</b> <small id="rate-stone"></small><span class="meter"><i id="bar-stone"></i></span></span>
-      <span class="res">🪙 <b id="res-gold">0</b> <small id="rate-gold"></small><span class="meter"><i id="bar-gold"></i></span></span>
-      <span class="res">📦 <b id="res-cap">0</b> <small data-i18n="ui.capacity"></small></span>
-      <span class="res" id="pop-chip">👥 <b id="pop-val">0</b><span class="meter"><i id="bar-pop"></i></span></span>
-      <span class="res" id="loyal-chip">⚜️ <b id="loyal-val">0</b><span class="meter"><i id="bar-loyal"></i></span></span>
+      <span class="res"><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-wood"/></svg><span class="sr-only" data-i18n="res.wood"></span> <b id="res-wood">0</b> <small id="rate-wood"></small><span class="meter"><i id="bar-wood"></i></span></span>
+      <span class="res"><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-stone"/></svg><span class="sr-only" data-i18n="res.stone"></span> <b id="res-stone">0</b> <small id="rate-stone"></small><span class="meter"><i id="bar-stone"></i></span></span>
+      <span class="res"><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-gold"/></svg><span class="sr-only" data-i18n="res.gold"></span> <b id="res-gold">0</b> <small id="rate-gold"></small><span class="meter"><i id="bar-gold"></i></span></span>
+      <span class="res"><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-crate"/></svg> <b id="res-cap">0</b> <small data-i18n="ui.capacity"></small></span>
+      <span class="res" id="pop-chip"><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-pop"/></svg> <b id="pop-val">0</b><span class="meter"><i id="bar-pop"></i></span></span>
+      <span class="res" id="loyal-chip"><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-loyal"/></svg> <b id="loyal-val">0</b><span class="meter"><i id="bar-loyal"></i></span></span>
       <span class="res next-chip hidden" id="next-chip" title="">⏳ <b id="next-chip-text"></b></span>
     </div>
 
@@ -186,9 +235,9 @@
             <thead>
               <tr>
                 <th data-i18n="ui.th.island"></th>
-                <th><span aria-hidden="true">🪵</span><span class="sr-only" data-i18n="res.wood"></span></th>
-                <th><span aria-hidden="true">🪨</span><span class="sr-only" data-i18n="res.stone"></span></th>
-                <th><span aria-hidden="true">🪙</span><span class="sr-only" data-i18n="res.gold"></span></th>
+                <th><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-wood"/></svg><span class="sr-only" data-i18n="res.wood"></span></th>
+                <th><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-stone"/></svg><span class="sr-only" data-i18n="res.stone"></span></th>
+                <th><svg class="res-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-gold"/></svg><span class="sr-only" data-i18n="res.gold"></span></th>
                 <th data-i18n="ui.pop"></th>
                 <th data-i18n="ui.th.def"></th>
                 <th data-i18n="building.wall.name"></th>
