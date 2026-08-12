@@ -1953,7 +1953,13 @@ async function refreshAnchored() {
     }
     el.textContent = '';
     el.classList.remove('hidden');
-    el.appendChild(document.createTextNode(T('ui.tidegate.anchoredSeq', { seq: c.seq }) + ' '));
+    // chain appears once a re-genesis has happened (chain ≥ 2) — before that,
+    // "chain 1" would be noise; seq alone tells the whole story (#TRAIL §7.4:
+    // seq counts the trail, chain names the spine carrying it)
+    const chainNo = Math.trunc(Number(c.chain)) || 1;
+    el.appendChild(document.createTextNode((chainNo > 1
+      ? T('ui.tidegate.anchoredChainSeq', { chain: chainNo, seq: c.seq })
+      : T('ui.tidegate.anchoredSeq', { seq: c.seq })) + ' '));
     const a = document.createElement('a');
     a.href = c.explorer || `https://mempool.space/testnet4/tx/${c.txid}`;
     a.target = '_blank'; a.rel = 'noopener noreferrer';
