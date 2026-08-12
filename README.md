@@ -225,6 +225,9 @@ devDependency; the game itself stays zero-dependency).
 - `tests.js` — engine math and invariant tests
 - `AMM.md` — the Tidepool: how the constant-product pool works, how its
   parameters were derived, and what to lift if you want one elsewhere
+- `TRAIL.md` — the Trail: peg-in/peg-out, the signed courier loop, Bitcoin
+  anchoring, threat model, and the open trust boundary (#154) — the spec for
+  sealed gold's whole lifecycle
 - `NEWS.md` — announcements sent to players in-game, with the exact text and
   what each one shipped
 - `deploy/` — systemd unit, Caddyfile, Dockerfile, fly.toml, deploy guide
