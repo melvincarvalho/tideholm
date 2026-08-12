@@ -654,6 +654,15 @@ export function createApp(opts = {}) {
         if (!doc) return sendErr(res, 404, 'en', 'err.notFound');
         return sendJson(res, 200, doc);
       }
+      // the full trail document (TRAIL.md §7.4): what re-deriving verifiers
+      // and the sweep tooling consume — npub + this doc ⇒ every address
+      const mt = /^\/api\/tidegate\/blocktrails\/([0-9a-f]{64})\/trail\.json$/.exec(pathname);
+      if (req.method === 'GET' && mt) {
+        const doc = game.tidegatePublicTrail(mt[1]);
+        res.setHeader('access-control-allow-origin', '*');
+        if (!doc) return sendErr(res, 404, 'en', 'err.notFound');
+        return sendJson(res, 200, { '@type': 'TidegateTrail', did: 'did:nostr:' + mt[1], trail: doc });
+      }
     }
 
     // Password auth is Tideholm's own; a host with `identify` owns identity
