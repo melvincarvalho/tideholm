@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tideholm — Season 5 Chronicle</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #0e2a3f; font-family: Georgia, serif; color: #3a2c17; }
+.sheet { max-width: 780px; margin: 26px auto; padding: 28px 34px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,248,225,.5), transparent 60%),
+    linear-gradient(180deg, #e8d9b0, #d8c493);
+  border: 2px solid #55401d; outline: 6px solid #241708; border-radius: 6px;
+  box-shadow: 0 14px 34px rgba(0,0,0,.6), inset 0 0 55px rgba(120,90,40,.25); }
+h1 { font-weight: normal; margin: 0; letter-spacing: .5px; }
+h2 { font-weight: normal; border-bottom: 1px solid rgba(124,95,50,.45); padding-bottom: 4px; }
+.mast { color: #6b5535; font-style: italic; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid rgba(124,95,50,.32); }
+th { background: rgba(160,128,70,.22); font-weight: normal; }
+.num { text-align: right; }
+tr:nth-child(odd) { background: rgba(255,246,220,.28); }
+#map { display: block; width: 100%; max-width: 560px; margin: 10px auto;
+  border: 2px solid #241708; border-radius: 4px; image-rendering: auto; }
+.dispatch { border-left: 3px solid #8a6a24; padding: 4px 12px; margin: 10px 0;
+  background: rgba(255,246,220,.4); }
+.dispatch small { color: #6b5535; }
+.quiet { color: #6b5535; }
+a { color: #55401d; }
+footer { margin-top: 22px; font-size: 12.5px; color: #6b5535; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>🏝️ Tideholm — Chronicle of Season 5</h1>
+  <p class="mast">2026-08-06 — 2026-08-16 · 10 days · Won by <b>melvin</b> by the Great Beacon — 14 of 72 islands (19%).</p>
+
+  <h2>The world at its end</h2>
+  <canvas id="map" width="560" height="560"></canvas>
+  <p class="quiet">🗼 The Great Beacon stood at level 7 on <b>M1</b> (33:7).</p>
+
+  <h2>Final standings</h2>
+  <table><tr><th>#</th><th>Player</th><th class="num">Islands</th><th class="num">Points</th></tr>
+<tr><td>1</td><td>melvin</td><td class="num">14</td><td class="num">3722</td></tr>
+<tr><td>2</td><td>philloster</td><td class="num">15</td><td class="num">3685</td></tr>
+<tr><td>3</td><td>akkieh</td><td class="num">1</td><td class="num">44</td></tr>
+<tr><td>4</td><td>akkie</td><td class="num">1</td><td class="num">6</td></tr>
+<tr><td>5</td><td>Nautilus Ned <small>[bot]</small></td><td class="num">3</td><td class="num">379</td></tr>
+<tr><td>6</td><td>Rockpool Rosa <small>[bot]</small></td><td class="num">1</td><td class="num">349</td></tr>
+<tr><td>7</td><td>Driftwood Dan <small>[bot]</small></td><td class="num">3</td><td class="num">340</td></tr>
+<tr><td>8</td><td>Pearl Diver <small>[bot]</small></td><td class="num">3</td><td class="num">340</td></tr>
+<tr><td>9</td><td>Saltmarsh Sam <small>[bot]</small></td><td class="num">3</td><td class="num">277</td></tr>
+  </table>
+
+  <h2>The record</h2>
+  <ul>
+    <li><b>melvin</b>: held 14 islands at the end, won 108 battles, trained 3480 units</li>
+    <li><b>philloster</b>: held 15 islands at the end, won 58 battles, trained 2792 units</li>
+    <li><b>akkieh</b>: held 1 island at the end, trained 21 units</li>
+    <li><b>akkie</b>: held 1 island at the end</li>
+    <li>Tallest wall: level 10 on <b>P1 Main</b> (philloster)</li>
+    <li>Richest hoard at the end: <b>Kelpie's Isle</b> with 120594 resources in store</li>
+    <li>akkieh landed on day 1</li>
+    <li>akkie landed on day 2</li>
+  </ul>
+
+  <h2>Dispatches from the last days</h2>
+  <div class="dispatch"><b>Your support fought at chewbacca (12:5)</b> <small>— 2026-08-16, from the log of melvin</small><br>Your contingent lost 8 Sentinels.</div>
+  <div class="dispatch"><b>Defeat at chewbacca (12:5)</b> <small>— 2026-08-16, from the log of philloster</small><br>Your army from MP8 (16:15) attacked chewbacca (12:5).</div>
+  <div class="dispatch"><b>chewbacca (12:5) repelled an attack</b> <small>— 2026-08-16, from the log of melvin</small><br>philloster attacked from MP8 (16:15) with 25 Raiders, 1 Flagship — all were slain.</div>
+  <div class="dispatch"><b>Your support fought at chewbacca (12:5)</b> <small>— 2026-08-16, from the log of melvin</small><br>Your contingent lost 6 Sentinels.</div>
+  <div class="dispatch"><b>Defeat at chewbacca (12:5)</b> <small>— 2026-08-16, from the log of philloster</small><br>Your army from MP14 (12:10) attacked chewbacca (12:5).</div>
+  <div class="dispatch"><b>chewbacca (12:5) repelled an attack</b> <small>— 2026-08-16, from the log of melvin</small><br>philloster attacked from MP14 (12:10) with 20 Raiders — all were slain.</div>
+
+  <h2>The grudge ledger</h2>
+  <p class="quiet">Trawler Tom still held 6 grudges against melvin; Coral Kate still held 17 grudges against melvin; Skerry Jack still held 4 grudges against philloster; Skerry Jack still held 8 grudges against melvin; Gull Cry still held 3 grudges against philloster; Gull Cry still held 5 grudges against melvin; Tide Turner still held 6 grudges against melvin; Reef Rat still held 7 grudges against melvin; Barnacle Bill still held 4 grudges against philloster; Barnacle Bill still held 18 grudges against melvin; Mangrove Mo still held 13 grudges against philloster; Mangrove Mo still held 2 grudges against melvin.</p>
+
+  <footer>Ruleset of the age: classic pace (speed 1), 72-hour newcomer shield, the 3× band, Beacon victory at level 7.
+  · <a href="../">Return to the living world</a></footer>
+</div>
+
+<script>
+// The season's final map, from the same seeded painter the game uses.
+const M = {"seed":1115083622,"size":40,"wonderId":74,"islands":[{"x":20,"y":26,"id":2,"k":"win","n":"V3","o":"melvin"},{"x":9,"y":14,"id":4,"k":"human","n":"WP13","o":"philloster"},{"x":3,"y":13,"id":6,"k":"bot","n":"Driftwood Dan's Isle","o":"Driftwood Dan"},{"x":3,"y":26,"id":8,"k":"bot","n":"Kelpie's Isle","o":"Kelpie"},{"x":35,"y":31,"id":10,"k":"bot","n":"Old Wrack's Isle","o":"Old Wrack"},{"x":37,"y":18,"id":12,"k":"bot","n":"Pearl Diver's Isle","o":"Pearl Diver"},{"x":35,"y":23,"id":14,"k":"win","n":"E1","o":"melvin"},{"x":17,"y":2,"id":16,"k":"bot","n":"Saltmarsh Sam's Isle","o":"Saltmarsh Sam"},{"x":18,"y":13,"id":18,"k":"human","n":"MP9","o":"philloster"},{"x":35,"y":3,"id":20,"k":"win","n":"M7","o":"melvin"},{"x":16,"y":15,"id":22,"k":"human","n":"MP8","o":"philloster"},{"x":19,"y":21,"id":24,"k":"human","n":"MP7","o":"philloster"},{"x":14,"y":39,"id":26,"k":"bot","n":"Nautilus Ned's Isle","o":"Nautilus Ned"},{"x":8,"y":29,"id":28,"k":"bot","n":"Osprey's Isle","o":"Osprey"},{"x":29,"y":32,"id":30,"k":"bot","n":"Puffin Pete's Isle","o":"Puffin Pete"},{"x":36,"y":26,"id":32,"k":"bot","n":"Quayside Quinn's Isle","o":"Quayside Quinn"},{"x":7,"y":24,"id":34,"k":"bot","n":"Rockpool Rosa's Isle","o":"Rockpool Rosa"},{"x":21,"y":1,"id":36,"k":"bot","n":"Seagrass Sue's Isle","o":"Seagrass Sue"},{"x":33,"y":9,"id":38,"k":"win","n":"M5","o":"melvin"},{"x":4,"y":27,"id":40,"k":"bot","n":"Undertow's Isle","o":"Undertow"},{"x":9,"y":21,"id":41,"k":"bot","n":"Saltmarsh Sam's Colony","o":"Saltmarsh Sam"},{"x":14,"y":26,"id":42,"k":"bot","n":"Seagrass Sue's Colony","o":"Seagrass Sue"},{"x":21,"y":29,"id":43,"k":"free","n":"Uncharted Isle","o":null},{"x":18,"y":5,"id":44,"k":"bot","n":"Saltmarsh Sam's Colony","o":"Saltmarsh Sam"},{"x":35,"y":11,"id":45,"k":"win","n":"M3","o":"melvin"},{"x":13,"y":35,"id":46,"k":"bot","n":"Nautilus Ned's Colony","o":"Nautilus Ned"},{"x":14,"y":23,"id":47,"k":"bot","n":"Seagrass Sue's Colony","o":"Seagrass Sue"},{"x":28,"y":6,"id":48,"k":"win","n":"M4","o":"melvin"},{"x":10,"y":7,"id":49,"k":"bot","n":"Driftwood Dan's Colony","o":"Driftwood Dan"},{"x":7,"y":32,"id":50,"k":"free","n":"Uncharted Isle","o":null},{"x":39,"y":23,"id":51,"k":"bot","n":"Pearl Diver's Colony","o":"Pearl Diver"},{"x":8,"y":37,"id":52,"k":"free","n":"Uncharted Isle","o":null},{"x":7,"y":31,"id":53,"k":"free","n":"Uncharted Isle","o":null},{"x":27,"y":37,"id":54,"k":"free","n":"Uncharted Isle","o":null},{"x":39,"y":35,"id":55,"k":"free","n":"Uncharted Isle","o":null},{"x":33,"y":22,"id":56,"k":"bot","n":"Pearl Diver's Colony","o":"Pearl Diver"},{"x":24,"y":15,"id":57,"k":"human","n":"MP4","o":"philloster"},{"x":9,"y":39,"id":58,"k":"bot","n":"Nautilus Ned's Colony","o":"Nautilus Ned"},{"x":2,"y":27,"id":59,"k":"free","n":"Uncharted Isle","o":null},{"x":21,"y":26,"id":60,"k":"win","n":"V1","o":"melvin"},{"x":26,"y":17,"id":61,"k":"human","n":"MP5","o":"philloster"},{"x":12,"y":34,"id":62,"k":"free","n":"Uncharted Isle","o":null},{"x":22,"y":26,"id":63,"k":"win","n":"V2","o":"melvin"},{"x":33,"y":26,"id":64,"k":"free","n":"Uncharted Isle","o":null},{"x":36,"y":34,"id":65,"k":"free","n":"Uncharted Isle","o":null},{"x":3,"y":17,"id":66,"k":"bot","n":"Driftwood Dan's Colony","o":"Driftwood Dan"},{"x":7,"y":35,"id":67,"k":"free","n":"Uncharted Isle","o":null},{"x":30,"y":9,"id":68,"k":"win","n":"M2","o":"melvin"},{"x":25,"y":19,"id":69,"k":"human","n":"MP6 Kamino","o":"philloster"},{"x":27,"y":25,"id":70,"k":"human","n":"EP10","o":"philloster"},{"x":29,"y":11,"id":72,"k":"human","n":"P1 Main","o":"philloster"},{"x":33,"y":7,"id":74,"k":"win","n":"M1","o":"melvin"},{"x":19,"y":35,"id":125,"k":"human","n":"Akkie's Isle","o":"akkieh"},{"x":8,"y":24,"id":169,"k":"human","n":"akkie's Isle","o":"akkie"},{"x":36,"y":11,"id":1791,"k":"win","n":"M6","o":"melvin"},{"x":13,"y":20,"id":2596,"k":"human","n":"WP15","o":"philloster"},{"x":24,"y":13,"id":3192,"k":"human","n":"MP3","o":"philloster"},{"x":34,"y":2,"id":4295,"k":"win","n":"M8","o":"melvin"},{"x":0,"y":10,"id":4542,"k":"bot","n":"Tide Turner's Refuge","o":"Tide Turner"},{"x":12,"y":5,"id":4707,"k":"win","n":"chewbacca","o":"melvin"},{"x":39,"y":20,"id":4934,"k":"win","n":"E2","o":"melvin"},{"x":12,"y":10,"id":5001,"k":"human","n":"MP14","o":"philloster"},{"x":10,"y":14,"id":5189,"k":"human","n":"WP12","o":"philloster"},{"x":27,"y":29,"id":6164,"k":"bot","n":"Skerry Jack's Refuge","o":"Skerry Jack"},{"x":7,"y":22,"id":6239,"k":"bot","n":"Coral Kate's Refuge","o":"Coral Kate"},{"x":26,"y":12,"id":6280,"k":"human","n":"MP2","o":"philloster"},{"x":11,"y":4,"id":6441,"k":"bot","n":"Trawler Tom's Refuge","o":"Trawler Tom"},{"x":12,"y":15,"id":6496,"k":"human","n":"WP11","o":"philloster"},{"x":17,"y":32,"id":6998,"k":"bot","n":"Gull Cry's Refuge","o":"Gull Cry"},{"x":15,"y":35,"id":7139,"k":"bot","n":"Reef Rat's Refuge","o":"Reef Rat"},{"x":13,"y":22,"id":8785,"k":"bot","n":"Mangrove Mo's Refuge","o":"Mangrove Mo"},{"x":28,"y":29,"id":9307,"k":"bot","n":"Barnacle Bill's Refuge","o":"Barnacle Bill"}]};
+function hash2(x, y, seed) {
+  let h = seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function valueNoise(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const sm = (t) => t * t * (3 - 2 * t);
+  const tx = sm(x - xi), ty = sm(y - yi);
+  const a = hash2(xi, yi, seed), b = hash2(xi + 1, yi, seed);
+  const c = hash2(xi, yi + 1, seed), d = hash2(xi + 1, yi + 1, seed);
+  return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
+}
+function fbm(x, y, seed) {
+  return 0.55 * valueNoise(x, y, seed) + 0.3 * valueNoise(x * 2.1, y * 2.1, seed ^ 99991)
+    + 0.15 * valueNoise(x * 4.3, y * 4.3, seed ^ 31337);
+}
+const P = 14, RES = M.size * P;
+const cv = document.getElementById('map');
+cv.width = RES; cv.height = RES;
+const ctx = cv.getContext('2d');
+const land = new Uint8Array(RES * RES);
+for (let y = 0; y < RES; y++) for (let x = 0; x < RES; x++)
+  land[y * RES + x] = fbm(x / (6.8 * P), y / (6.8 * P), M.seed) > 0.60 ? 1 : 0;
+for (const isl of M.islands) {
+  const cx = (isl.x + 0.5) * P, cy = (isl.y + 0.5) * P, r = P * 1.4;
+  for (let y = Math.max(0, cy - r | 0); y < Math.min(RES, cy + r); y++)
+    for (let x = Math.max(0, cx - r | 0); x < Math.min(RES, cx + r); x++)
+      if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) land[y * RES + x] = 0;
+}
+const img = ctx.createImageData(RES, RES);
+const isLand = (x, y) => x >= 0 && y >= 0 && x < RES && y < RES && land[y * RES + x] === 1;
+for (let y = 0; y < RES; y++) for (let x = 0; x < RES; x++) {
+  const i = y * RES + x, n = hash2(x, y, M.seed ^ 7) * 12 - 6;
+  let r, g, b;
+  if (land[i]) {
+    const coast = !isLand(x-1,y) || !isLand(x+1,y) || !isLand(x,y-1) || !isLand(x,y+1);
+    [r, g, b] = coast ? [143+n, 124+n, 82+n] : [201+n, 185+n, 138+n];
+  } else {
+    let sh = false;
+    for (let dy = -2; dy <= 2 && !sh; dy++) for (let dx = -2; dx <= 2 && !sh; dx++)
+      if (isLand(x+dx, y+dy)) sh = true;
+    [r, g, b] = sh ? [29+n, 90+n, 116+n] : [18+n, 52+n, 76+n];
+  }
+  img.data[i*4] = r; img.data[i*4+1] = g; img.data[i*4+2] = b; img.data[i*4+3] = 255;
+}
+ctx.putImageData(img, 0, 0);
+const COLORS = { win: '#c9a24b', human: '#3b7dd8', bot: '#c06a28', free: '#a9b0b8' };
+for (const isl of M.islands) {
+  const cx = (isl.x + 0.5) * P, cy = (isl.y + 0.5) * P;
+  ctx.beginPath();
+  ctx.arc(cx, cy, P * 0.42, 0, 7);
+  ctx.fillStyle = COLORS[isl.k];
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.5)';
+  ctx.stroke();
+  if (isl.id === M.wonderId) {
+    ctx.strokeStyle = '#ffe9b0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, P * 0.75, 0, 7);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+}
+</script>
+</body>
+</html>
