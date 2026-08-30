@@ -3351,5 +3351,58 @@ console.log('refuge claims, bots are mortal (#172)');
   check('#172 BOT_RESPAWN=1: bots respawn as before', on.bot.islands === 1);
 }
 
+// ------------------------------------ flagships pay the expansion tax (#173)
+
+console.log('flagship curve (#173)');
+{
+  // Flat by default: the knob off must leave every price exactly as it was.
+  const { w, a } = freshWorld();
+  const isl = g.playerIsland(w, a.id);
+  const one = g.trainCost(w, isl, 'flagship', 1);
+  const three = g.trainCost(w, isl, 'flagship', 3);
+  check('#173 flat by default', one.wood === g.UNITS.flagship.cost.wood
+    && three.wood === g.UNITS.flagship.cost.wood * 3);
+
+  // The escalation runs in a child: the knob is read at module load.
+  const probe = `
+    import * as g from './game.js';
+    const w = g.createWorld();
+    const p = g.createPlayer(w, 'S', 'pw123456').player;
+    for (let i = 1; i < 5; i++) g.newIsland(w, p.id, 'X' + i);
+    const isl = g.playerIsland(w, p.id);
+    const out = { pos: g.colonyPosition(w, p.id, 'flagship'),
+      one: g.trainCost(w, isl, 'flagship', 1), three: g.trainCost(w, isl, 'flagship', 3) };
+    // batch = stepped sum, and singles cannot dodge: pay one, hold it, price the next
+    let singly = 0;
+    for (let k = 0; k < 3; k++) {
+      singly += g.trainCost(w, isl, 'flagship', 1).wood;
+      isl.units.flagship = (isl.units.flagship || 0) + 1;
+    }
+    out.singly = singly;
+    // a flagship aboard an attack still counts toward position
+    isl.units.flagship = 0;
+    w.movements.push({ id: 99, type: 'attack', ownerId: p.id, fromId: isl.id, toId: isl.id,
+      units: { ...g.zeroUnits(), flagship: 2 }, depart: 0, arrive: Date.now() + 1e6 });
+    out.posWithFleet = g.colonyPosition(w, p.id, 'flagship');
+    // colony ships keep their OWN curve: flat when only FLAGSHIP growth is set
+    out.colonyFlat = g.trainCost(w, isl, 'colonyship', 1).wood === g.UNITS.colonyship.cost.wood;
+    console.log(JSON.stringify(out));
+  `;
+  const at = (v) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, FLAGSHIP_COST_GROWTH: String(v) }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const r = at(1.2);
+  const W = g.UNITS.flagship.cost.wood;
+  const exp1 = Math.round(W * Math.pow(1.2, 4));
+  const exp3 = Math.round(W * (Math.pow(1.2, 4) + Math.pow(1.2, 5) + Math.pow(1.2, 6)));
+  check('#173 fifth flagship steps by growth^4', r.pos === 5 && r.one.wood === exp1);
+  check('#173 batch of three is the stepped sum', r.three.wood === exp3);
+  check('#173 ordering singly cannot dodge the curve', r.singly === exp3);
+  check('#173 a flagship aboard an attack counts toward position', r.posWithFleet === 7);
+  check('#173 colony ships unaffected by the flagship knob', r.colonyFlat === true);
+  check('#173 clamp shared with #61: junk falls back to flat',
+    at('abc').one.wood === W * Math.pow(1, 4));
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);

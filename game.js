@@ -269,6 +269,13 @@ function parseColonyGrowth(raw, fallback = 1) {
 
 const COLONY_COST_GROWTH = parseColonyGrowth(process.env.COLONY_COST_GROWTH);
 
+// #173: the conquest unit rides the same positional curve as the Colony
+// Ship, under its own knob — with settling taxed and flagships flat, width
+// by conquest bypassed the expansion tax ~10x cheaper at position 10.
+// Default 1 (flat, the old behaviour); same [1,3] clamp as #61. Tuned
+// softer than settling because conquest already pays in blood.
+const FLAGSHIP_COST_GROWTH = parseColonyGrowth(process.env.FLAGSHIP_COST_GROWTH);
+
 // #172: default on (the old behaviour). Set BOT_RESPAWN=0 and a bot wiped
 // to zero islands is eliminated instead of receiving a refuge — the
 // season's bot population becomes finite and the endgame consolidates.
@@ -567,17 +574,20 @@ function trainTime(key, buildingLevel) {
  * every colony ship they have paid for and not yet spent. A ship in hand is a
  * committed island, so it should price the next one.
  */
-function colonyPosition(world, ownerId) {
+function colonyPosition(world, ownerId, unitKey = 'colonyship') {
+  // #173: the same position rule serves any stepped unit — islands owned
+  // plus units of that kind already paid for (garrison, training queue, or
+  // aboard any movement: a colonize for settlers, an attack for flagships).
   let n = 0;
   for (const i of world.islands) {
     if (i.ownerId !== ownerId) continue;
     n += 1;
-    n += (i.units && i.units.colonyship) || 0;
-    for (const q of i.trainQueue || []) if (q.unit === 'colonyship') n += q.count || 0;
+    n += (i.units && i.units[unitKey]) || 0;
+    for (const q of i.trainQueue || []) if (q.unit === unitKey) n += q.count || 0;
   }
-  // In flight to settle: no longer in a garrison, not yet an island.
+  // In flight: no longer in a garrison, not yet home (or not yet an island).
   for (const m of world.movements || []) {
-    if (m.ownerId === ownerId && m.units && m.units.colonyship) n += m.units.colonyship;
+    if (m.ownerId === ownerId && m.units && m.units[unitKey]) n += m.units[unitKey];
   }
   return n;
 }
@@ -595,7 +605,12 @@ function colonyPosition(world, ownerId) {
 function trainCost(world, island, key, count) {
   const unit = UNITS[key];
   const cost = {};
-  const settling = key === 'colonyship' && COLONY_COST_GROWTH !== 1 && world;
+  // #173: two units step with the breadth of the empire buying them —
+  // settlers on the colony curve, flagships on their own (the conquest
+  // door pays the expansion tax too, at a soldier's discount).
+  const growth = key === 'colonyship' ? COLONY_COST_GROWTH
+    : key === 'flagship' ? FLAGSHIP_COST_GROWTH : 1;
+  const settling = growth !== 1 && world;
   if (!settling) {
     for (const r of RESOURCES) cost[r] = unit.cost[r] * count;
     return cost;
@@ -610,10 +625,10 @@ function trainCost(world, island, key, count) {
   //
   // Counting ships makes the two identical, and stays consistent when one is
   // spent: islands +1, ships -1, position unchanged.
-  const owned = colonyPosition(world, island.ownerId);
+  const owned = colonyPosition(world, island.ownerId, key);
   let mult = 0;
   for (let i = 0; i < count; i++) {
-    mult += Math.pow(COLONY_COST_GROWTH, Math.max(0, owned - 1 + i));
+    mult += Math.pow(growth, Math.max(0, owned - 1 + i));
   }
   for (const r of RESOURCES) {
     const n = Math.round(unit.cost[r] * mult);
@@ -2796,7 +2811,7 @@ export {
   tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
-  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, BOT_RESPAWN, refugeIsland,
+  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, BOT_RESPAWN, refugeIsland,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
