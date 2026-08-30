@@ -232,6 +232,12 @@ function nightFactor(time) {
 
 // Dominance victory: one player or alliance holding this share of all islands.
 const WIN_SHARE = Number(process.env.WIN_SHARE || 0.6);
+// #177: what WIN_SHARE is a share OF. 'all' (default) divides by every
+// island on the map — under which the season-6 curves price a solo crown
+// at a second beacon. 'populated' divides by inhabited islands only, so
+// the crown tracks the living world: cheap-ish while the world is young,
+// rising as every colony lands — a conqueror must outpace the settlers.
+const WIN_BASIS = /^populated$/i.test(process.env.WIN_BASIS || '') ? 'populated' : 'all';
 
 // Uncharted islands added when the map runs out of them. 0 = off (default).
 // See the note in migrateWorld and #36 before turning this on.
@@ -2513,7 +2519,10 @@ function checkVictory(world, now) {
     }
   }
   if (world.winner) return null;
-  const total = world.islands.length;
+  // #177: the dominance denominator follows WIN_BASIS.
+  const total = WIN_BASIS === 'populated'
+    ? world.islands.filter((i) => i.ownerId != null).length
+    : world.islands.length;
 
   // Wonder victory
   for (const island of world.islands) {
@@ -2861,7 +2870,7 @@ export {
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, BOT_RESPAWN, refugeIsland,
-  loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
+  loadHall, WONDER_WIN_LEVEL, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

@@ -3500,5 +3500,44 @@ console.log('pool travel knobs (#176)');
     && Math.abs(mins(junk.corner) - Math.hypot(19.5, 19.5) * 8) < 0.5);
 }
 
+// ---------------------------------- the crown counts the living (#177)
+
+console.log('WIN_BASIS (#177)');
+{
+  // Read at module load — probe in children. World: 2 players, 1 island
+  // each, plus 8 uncharted. Player A conquers B's isle -> A holds 2.
+  //   all:       2 of 10 = 20%  -> no crown at WIN_SHARE=0.5
+  //   populated: 2 of  2 = 100% -> crown
+  const probe = `
+    import * as g from './game.js';
+    const t0 = Date.now();
+    const w = g.createWorld();
+    const a = g.createPlayer(w, 'A', 'pw123456', false).player;
+    const b = g.createPlayer(w, 'B', 'pw123456', false).player;
+    a.protectionBroken = true; b.protectionBroken = true;
+    for (let i = 0; i < 8; i++) g.newUnchartedIsland(w);
+    const ia = g.playerIsland(w, a.id), ib = g.playerIsland(w, b.id);
+    ia.x = 0; ia.y = 0; ib.x = 0; ib.y = 5;
+    ia.units.raider = 50; ia.units.flagship = 1;
+    g.resolveIsland(ib, t0);
+    ib.loyalty = 0;
+    const r = g.sendAttack(w, a, ia, ib, { raider: 50, flagship: 1 }, t0);
+    g.resolveWorld(w, r.arrive + 1);
+    g.checkVictory(w, r.arrive + 2);   // the server calls this on a timer, not resolveWorld
+    console.log(JSON.stringify({ basis: g.WIN_BASIS, islandsA: g.playerIslands(w, a.id).length,
+      totalIslands: w.islands.length, winner: w.winner ? w.winner.name : null }));
+  `;
+  const at = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, WIN_SHARE: '0.5', ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const all = at({});
+  check('#177 default basis is all', all.basis === 'all');
+  check('#177 all: 2 of 10 crowns nobody', all.islandsA === 2 && all.winner === null);
+  const pop = at({ WIN_BASIS: 'populated' });
+  check('#177 populated basis parses', pop.basis === 'populated');
+  check('#177 populated: holding every inhabited isle crowns', pop.winner === 'A');
+  check('#177 junk falls back to all', at({ WIN_BASIS: 'everything' }).basis === 'all');
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
