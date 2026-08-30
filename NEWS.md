@@ -16,6 +16,28 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-31 · Season 6 law: the crown counts the living
+
+> 👑 Eighth law for season 6: the crown counts the living. Dominance is
+> now half of all INHABITED islands — twelve of the twenty-four today,
+> rising with every colony planted. The empty sea no longer pads the
+> count: rule the world that actually exists, and know that every settler
+> who lands raises the bar beneath your feet. A conqueror must outpace
+> the living world. Fair winds.
+
+#177, and the operator's populated-islands instinct vindicated on the
+second pass. The first pass (sixth law) rejected it for the bot-rush
+trap — but that analysis predated pricing the curves: at 1.2-stepped
+flagships a 12-conquest campaign costs ~225k of ladder plus armies, a
+wonder-comparable timeline, and the trap is priced out. What killed the
+all-islands basis was arithmetic: the flagship ladder to 23 islands
+costs ~762k all-in — within 0.3% of the entire Beacon (~764k) — so a
+27-island crown was solo-impossible and even 23 was a decoy nobody
+would pick over the tower. Half the living world tracks beacon-cost all
+season. WIN_BASIS knob (all|populated, default all), WIN_SHARE stays
+0.5. Delivered 2026-08-31 via `/api/admin/announce`, 376 characters,
+the #101 route.
+
 ### 2026-08-27 · Season 6 law: the Tidepool trims its sails
 
 > ⛵ Seventh law for season 6: the Tidepool's boats sail four times faster.
