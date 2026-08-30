@@ -16,6 +16,23 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-27 · Season 6 law: bots are mortal
+
+> ⚔️ Second law for season 6: the bots are mortal. A bot driven from its
+> last island is gone from the world — no refuge, no return. Twenty sailed
+> at dawn; every one you end stays ended, and the map consolidates toward
+> the living. And a fix beneath the law: any refuge now claims an uncharted
+> island instead of conjuring a new one, so wiping a rival no longer grows
+> the map against your own dominance count. Fair winds — for some of you.
+
+The two halves of #172. The bug-fix half is unconditional: dominance
+divides by all islands, so every minted refuge moved the WIN_SHARE
+threshold — an island printer, fed by farming bots to extinction. The law
+half is `BOT_RESPAWN=0`, a knob defaulting to the old behaviour; humans
+are never gated by it. Tests cover claim-not-mint, the map-full mint
+fallback, elimination at 0, and the human guarantee. Staged for delivery
+with the season-6 batch.
+
 ### 2026-08-27 · Season 6 law: the expansion tax rises
 
 > ⚖️ New law for season 6: Colony Ships cost ×1.6 per step, up from ×1.4.
