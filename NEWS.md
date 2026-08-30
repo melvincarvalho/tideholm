@@ -16,6 +16,25 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-27 · Season 6 law: the conquest door pays too
+
+> ⚓ Third law for season 6: flagships now cost more the wider you already
+> are — ×1.3 per step, counted the same way as Colony Ships (islands plus
+> flagships already bought; batches save nothing). The 10th runs ~60k
+> all-in, the 15th ~224k. Settling is dearest, conquest is taxed, and
+> blood still buys the discount. Choose your door wisely. Fair winds.
+
+The third law closes what the first opened: at 1.6 the settle curve made
+conquest the ~10x-cheaper side door to width, and #172's mortal bots made
+it a prize map. #173 generalises the positional curve — `trainCost` and
+`colonyPosition` now serve any stepped unit, a flagship aboard an attack
+counts toward position, one clamp (#61) covers both knobs. 1.3 over the
+recommended 1.2: the operator chose parity-with-blood over a soldier's
+discount, easy to defend, hard to refund — noted here so season 7 can
+judge it on the counters (`M.respawns`, `M.eliminations`, colonizations).
+Delivered 2026-08-27 via `/api/admin/announce`, 347 characters, the #101
+route.
+
 ### 2026-08-27 · Season 6 law: bots are mortal
 
 > ⚔️ Second law for season 6: the bots are mortal. A bot driven from its
