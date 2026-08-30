@@ -1304,7 +1304,25 @@ function vaultPegOut(player, amount) {
 // Delivery goes out as an ordinary `trade` movement, which means this adds no
 // branch to applyMovement: arrival already credits the island and clamps to
 // the storehouse. The riskiest function in the codebase is untouched.
-const POOL_TRAVEL_MIN = 30; // minutes at game speed 1
+// #176: the Tidepool's sails, tunable per season. Distance stays real (the
+// #76 brake), but the pool's boats need not match merchant convoys —
+// POOL_TRADE_SPEED sets their minutes per field, POOL_TRAVEL_MIN the floor,
+// POOL_TRAVEL_MAX a ceiling (0 = uncapped) so no island waits half a day on
+// a market order. Defaults reproduce the old behaviour exactly; loosening
+// mid-season strands no plans, which is why these are env knobs rather than
+// world stamps (#40 guards tightening, not mercy).
+const POOL_TRADE_SPEED = (() => {
+  const n = Number(process.env.POOL_TRADE_SPEED);
+  return Number.isFinite(n) && n > 0 && n <= 60 ? n : TRADE_SPEED;
+})();
+const POOL_TRAVEL_MIN = (() => {
+  const n = Number(process.env.POOL_TRAVEL_MIN);
+  return Number.isFinite(n) && n >= 0 && n <= 240 ? n : 30;
+})();
+const POOL_TRAVEL_MAX = (() => {
+  const n = Number(process.env.POOL_TRAVEL_MAX);
+  return Number.isFinite(n) && n > 0 && n <= 1440 ? n : 0;
+})();
 
 /** Milliseconds for pool goods to reach `island`. See the note above. */
 function poolTravelMs(world, island) {
@@ -1314,7 +1332,8 @@ function poolTravelMs(world, island) {
     // MAP_SIZE/2 — the off-by-half biased opposite corners by ~11 minutes.
     const c = (MAP_SIZE - 1) / 2;
     const dist = Math.hypot(island.x - c, island.y - c);
-    minutes = Math.max(POOL_TRAVEL_MIN, dist * TRADE_SPEED);
+    minutes = Math.max(POOL_TRAVEL_MIN, dist * POOL_TRADE_SPEED);
+    if (POOL_TRAVEL_MAX > 0) minutes = Math.min(minutes, POOL_TRAVEL_MAX);
   }
   return Math.max(5000, Math.round((minutes * 60000) / SPEED));
 }

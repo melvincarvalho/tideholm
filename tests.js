@@ -3461,5 +3461,44 @@ console.log('transit population (#174)');
   check('#174 above one falls back to free', at(2).abroadOut === 0);
 }
 
+// ------------------------------------------- the Tidepool's sails (#176)
+
+console.log('pool travel knobs (#176)');
+{
+  // Defaults reproduce the old behaviour bit-for-bit.
+  const probe = `
+    import * as g from './game.js';
+    const w = { poolDistance: true };
+    const at = (x, y) => g.poolTravelMs(w, { x, y });
+    console.log(JSON.stringify({
+      centre: at(20, 20), mid: at(10, 32), corner: at(0, 0),
+      flat: g.poolTravelMs({ poolDistance: false }, { x: 0, y: 0 }),
+      min: g.POOL_TRAVEL_MIN,
+    }));
+  `;
+  const run = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const mins = (ms) => ms / 60000 * (Number(process.env.GAME_SPEED) || 5);
+
+  const dflt = run({});
+  const mid = Math.hypot(10 - 19.5, 32 - 19.5) * 8;
+  check('#176 default mid-map time is dist x TRADE_SPEED', Math.abs(mins(dflt.mid) - mid) < 0.5);
+  check('#176 default floor is 30', Math.abs(mins(dflt.centre) - 30) < 0.5 && dflt.min === 30);
+  check('#176 flat worlds keep the flat floor', Math.abs(mins(dflt.flat) - 30) < 0.5);
+
+  const fast = run({ POOL_TRADE_SPEED: '2', POOL_TRAVEL_MIN: '10', POOL_TRAVEL_MAX: '100' });
+  const midFast = Math.hypot(10 - 19.5, 32 - 19.5) * 2;
+  check('#176 pool speed knob: mid-map at 2 min/field', Math.abs(mins(fast.mid) - midFast) < 0.5);
+  check('#176 floor knob honoured at the centre', Math.abs(mins(fast.centre) - 10) < 0.5);
+
+  const capped = run({ POOL_TRADE_SPEED: '8', POOL_TRAVEL_MIN: '10', POOL_TRAVEL_MAX: '100' });
+  check('#176 the cap binds the far corner', Math.abs(mins(capped.corner) - 100) < 0.5);
+  const junk = run({ POOL_TRADE_SPEED: 'abc', POOL_TRAVEL_MIN: '-5', POOL_TRAVEL_MAX: 'Infinity' });
+  check('#176 junk falls back to the old constants',
+    Math.abs(mins(junk.mid) - mid) < 0.5 && Math.abs(mins(junk.centre) - 30) < 0.5
+    && Math.abs(mins(junk.corner) - Math.hypot(19.5, 19.5) * 8) < 0.5);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
