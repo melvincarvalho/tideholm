@@ -16,6 +16,24 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-27 · Season 6 law: the Tidepool trims its sails
+
+> ⛵ Seventh law for season 6: the Tidepool's boats sail four times faster.
+> Market deliveries now run 2 minutes a field — a mid-map island gets its
+> goods in about half an hour instead of two, the floor drops to 10
+> minutes, and no delivery anywhere takes more than 100. Distance still
+> matters; waiting half a day does not. Trade freely. Fair winds.
+
+#176, with the cap the operator asked for aboard. The #76 design holds —
+the pool sits mid-map and goods sail real distance, so the market never
+dodges the harbour-slot brake (#30) — but the market's boats no longer
+have to match merchant convoys: POOL_TRADE_SPEED=2, POOL_TRAVEL_MIN=10,
+POOL_TRAVEL_MAX=100, all env knobs whose defaults reproduce the old
+times bit-for-bit (tested). Loosening mid-season strands nothing, which
+is why these are knobs rather than world stamps — #40 guards tightening,
+not mercy. Melvin's own isle at 10:32: 126 minutes before, 31 after.
+Staged for delivery.
+
 ### 2026-08-27 · Season 6 law: half the world crowns you
 
 > 👑 Sixth law for season 6: dominance now takes HALF the world, down from
