@@ -16,6 +16,26 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-27 · Season 6 law: the Beacon's final fire
+
+> 🔥 Fourth law for season 6: the Great Beacon wins at level 8 — and 8 is
+> the mountain's true summit. The final leg costs ~107k of each timber and
+> stone, which only a Storehouse 14 can hold, and 14 is the highest a
+> storehouse goes. The last fire a beacon can burn is now the one that
+> takes the world. One more announcement, one more contested dawn. Fair
+> winds.
+
+Season 5 ran the Beacon at 7 (up from 6); 8 is not one-more-of-the-same
+but the natural ceiling: level 8's biggest leg (107,472) needs exactly
+Storehouse 14, the MAX_BUILDING_LEVEL fallback — level 9 would need a
+storehouse that cannot exist. The operator's phrase was the spec: "raise
+it 1 higher — I think that becomes max," and the arithmetic agrees.
+Deploy note for the record: this restart re-supplied ALL eight game vars
+explicitly rather than trusting pm2's env merge — the audit first
+confirmed season 5's WONDER_WIN_LEVEL=7, MORALE_FLOOR=0.3,
+BOT_GARRISON_RATIO=12 and BOT_MORALE_FLOOR=1 had survived the week's
+three restarts. Staged for the season-6 batch.
+
 ### 2026-08-27 · Season 6 law: the conquest door pays too
 
 > ⚓ Third law for season 6: flagships now cost more the wider you already
