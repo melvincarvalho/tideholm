@@ -16,6 +16,25 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-27 · Season 6 law: half rations at sea
+
+> 🍞 Fifth law for season 6: an army eats even at sea — but a marching army
+> eats light. Troops aboard any voyage now cost HALF their keep against
+> the home farm, both ways. Surge past your cap for a campaign; just know
+> the farm remembers, and training waits until your fleets come home and
+> your books balance. The endless raid that fed a second army above the
+> cap is over. Fair winds.
+
+The player's own bug report, turned law with leeway on purpose (#174):
+troops in transit counted nowhere, so perpetual raiding trained a second
+army into the freed headroom — the farm cap was advisory for anyone who
+never came home. Strict counting would have turtled a season that just
+taxed conquest, and a raider exemption was no fix (the raider IS the
+attack force). `TRANSIT_POP_FACTOR=0.5` bounds the pipeline at ~2x cap
+while keeping the campaign surge that attacking honestly needs. Default
+0 leaves every other world untouched. Delivered 2026-08-27 via
+`/api/admin/announce`, 381 characters, the #101 route.
+
 ### 2026-08-27 · Season 6 law: the Beacon's final fire
 
 > 🔥 Fourth law for season 6: the Great Beacon wins at level 8 — and 8 is
