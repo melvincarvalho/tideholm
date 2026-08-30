@@ -29,8 +29,10 @@ Applied live on the season server (pm2 restart with the new env, then
 environment, which is exactly how it would have silently reverted).
 README's own caution applies and is the point: "steeper bites much harder
 than it looks" — 1.6 is a practical cap on width around 12–14 islands.
-Position rules (#61/#62) and the [1,3] clamp unchanged. Staged for the
-season-6 opener batch; details in `deploy/next-season.env`.
+Position rules (#61/#62) and the [1,3] clamp unchanged. Delivered
+2026-08-27 via `/api/admin/announce`, 348 characters, sent as a JSON file
+over scp rather than through shell quoting — lesson #101 holds. Details
+in `deploy/next-season.env`.
 
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
