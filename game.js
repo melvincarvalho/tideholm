@@ -269,6 +269,18 @@ function parseColonyGrowth(raw, fallback = 1) {
 
 const COLONY_COST_GROWTH = parseColonyGrowth(process.env.COLONY_COST_GROWTH);
 
+// #174: what fraction of its population an army costs while at sea.
+// Default 0 (the old behaviour: transit is free, and a restart can never
+// tighten a live season by itself); 1 is strict; season 6 runs 0.5 —
+// half rations at sea. Clamped to [0,1]; junk falls back to free.
+function parseTransitPop(raw) {
+  if (raw == null || raw === '') return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 1) return 0;
+  return n;
+}
+const TRANSIT_POP_FACTOR = parseTransitPop(process.env.TRANSIT_POP_FACTOR);
+
 // #173: the conquest unit rides the same positional curve as the Colony
 // Ship, under its own knob — with settling taxed and flagships flat, width
 // by conquest bypassed the expansion tax ~10x cheaper at position 10.
@@ -371,18 +383,36 @@ function supportCostsPop(world) {
  */
 function popAbroad(world, island) {
   if (!world || !island || island.ownerId == null) return 0;
-  if (!supportCostsPop(world)) return 0;
   let used = 0;
-  const own = (u) => {
-    for (const [k, n] of Object.entries(u || {})) used += (UNITS[k] ? UNITS[k].pop : 0) * (n || 0);
+  const own = (u, f = 1) => {
+    for (const [k, n] of Object.entries(u || {})) used += (UNITS[k] ? UNITS[k].pop : 0) * (n || 0) * f;
   };
-  for (const other of world.islands || []) {
-    for (const c of other.support || []) {
-      if (c.fromId === island.id && c.ownerId === island.ownerId) own(c.units);
+  if (supportCostsPop(world)) {
+    for (const other of world.islands || []) {
+      for (const c of other.support || []) {
+        if (c.fromId === island.id && c.ownerId === island.ownerId) own(c.units);
+      }
+    }
+    for (const m of world.movements || []) {
+      if (m.type === 'support' && m.fromId === island.id && m.ownerId === island.ownerId) own(m.units);
     }
   }
-  for (const m of world.movements || []) {
-    if (m.type === 'support' && m.fromId === island.id && m.ownerId === island.ownerId) own(m.units);
+  // #174: an army eats even at sea. Troops aboard attack, scout and
+  // colonize voyages (outbound: fromId is home; the return leg: toId is
+  // home) cost TRANSIT_POP_FACTOR of their keep against the home farm.
+  // Support is #40's domain above, at full cost under its own world flag.
+  // Ceil once at the end so half a spearman still eats a whole ration.
+  if (TRANSIT_POP_FACTOR > 0) {
+    let transit = 0;
+    const add = (u) => {
+      for (const [k, n] of Object.entries(u || {})) transit += (UNITS[k] ? UNITS[k].pop : 0) * (n || 0);
+    };
+    for (const m of world.movements || []) {
+      if (m.ownerId !== island.ownerId || m.type === 'support' || !m.units) continue;
+      const homeEnd = m.type === 'return' ? m.toId : m.fromId;
+      if (homeEnd === island.id) add(m.units);
+    }
+    used += Math.ceil(transit * TRANSIT_POP_FACTOR);
   }
   return used;
 }
@@ -2803,7 +2833,7 @@ export {
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
   zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, colonyPosition, tryTrain,
-  popCap, popUsed, popAbroad, supportCostsPop, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
+  popCap, popUsed, popAbroad, supportCostsPop, TRANSIT_POP_FACTOR, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,

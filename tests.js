@@ -3404,5 +3404,62 @@ console.log('flagship curve (#173)');
     at('abc').one.wood === W * Math.pow(1, 4));
 }
 
+// -------------------------------------- an army eats even at sea (#174)
+
+console.log('transit population (#174)');
+{
+  // Default 0: transit stays free, exactly the old behaviour.
+  const { w, a, ia, ib } = freshWorld();
+  ia.units.raider = 20;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+  check('#174 default: an army at sea costs nothing', g.popAbroad(w, ia) === 0 && !r.error);
+
+  // The knob is read at module load: the charged world runs in a child.
+  const probe = `
+    import * as g from './game.js';
+    const t0 = Date.now();
+    const w = g.createWorld();
+    const a = g.createPlayer(w, 'A', 'pw123456', false).player;
+    const b = g.createPlayer(w, 'B', 'pw123456', false).player;
+    a.protectionBroken = true; b.protectionBroken = true;
+    const ia = g.playerIsland(w, a.id), ib = g.playerIsland(w, b.id);
+    ia.x = 0; ia.y = 0; ib.x = 0; ib.y = 5;
+    ia.units.raider = 20;                      // pop 2 each
+    const out = {};
+    const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);   // 20 pop at sea
+    out.sent = !r.error;
+    out.abroadOut = g.popAbroad(w, ia);        // outbound leg
+    out.abroadAtHomeOfTarget = g.popAbroad(w, ib);  // the TARGET's farm owes nothing
+    // survivors sail home: resolve the strike, then look at the return leg
+    g.resolveWorld(w, r.arrive + 1);
+    const back = w.movements.find((m) => m.type === 'return' && m.toId === ia.id);
+    out.hasReturn = !!back;
+    out.abroadReturn = g.popAbroad(w, ia);
+    // rounding: a single scout (pop 1) at factor 0.5 still eats a whole ration
+    const w2 = g.createWorld();
+    const c = g.createPlayer(w2, 'C', 'pw123456', false).player;
+    const d = g.createPlayer(w2, 'D', 'pw123456', false).player;
+    c.protectionBroken = true; d.protectionBroken = true;
+    const ic = g.playerIsland(w2, c.id), id2 = g.playerIsland(w2, d.id);
+    ic.x = 0; ic.y = 0; id2.x = 0; id2.y = 5;
+    ic.units.scout = 1;
+    g.sendScout(w2, c, ic, id2, 1, t0);
+    out.scoutRation = g.popAbroad(w2, ic);
+    console.log(JSON.stringify(out));
+  `;
+  const at = (v) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, TRANSIT_POP_FACTOR: String(v) }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const h = at(0.5);
+  check('#174 half rations: 10 raiders (20 pop) at sea cost 10', h.sent && h.abroadOut === 10);
+  check('#174 the defender owes nothing for an inbound fleet', h.abroadAtHomeOfTarget === 0);
+  check('#174 the return leg still eats', h.hasReturn && h.abroadReturn > 0);
+  check('#174 half a ration rounds up to one', h.scoutRation === 1);
+  const strict = at(1);
+  check('#174 strict: the full 20 pop', strict.abroadOut === 20);
+  check('#174 junk falls back to free', at('abc').abroadOut === 0);
+  check('#174 above one falls back to free', at(2).abroadOut === 0);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
