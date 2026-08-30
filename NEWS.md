@@ -14,6 +14,24 @@ who never heard about the keyboard shortcuts will never find them.
 
 ---
 
+## Season 6
+
+### 2026-08-27 · Season 6 law: the expansion tax rises
+
+> ⚖️ New law for season 6: Colony Ships cost ×1.6 per step, up from ×1.4.
+> The 10th ship now runs ~185k all-in, the 15th ~1.9M — a wide empire must
+> be truly earned, and going tall (mines, halls, the Beacon) just got
+> relatively cheaper. As always the price steps by islands owned PLUS every
+> ship already paid for, so batching saves nothing. Fair winds.
+
+Applied live on the season server (pm2 restart with the new env, then
+`pm2 save` so a reboot keeps the law — the knob lives only in the process
+environment, which is exactly how it would have silently reverted).
+README's own caution applies and is the point: "steeper bites much harder
+than it looks" — 1.6 is a practical cap on width around 12–14 islands.
+Position rules (#61/#62) and the [1,3] clamp unchanged. Staged for the
+season-6 opener batch; details in `deploy/next-season.env`.
+
 ## Season 5 — opens 2026-08-06 15:00 UTC
 
 ### 2026-08-12 · The harbour gets its signs painted
