@@ -16,6 +16,25 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-27 · Season 6 law: half the world crowns you
+
+> 👑 Sixth law for season 6: dominance now takes HALF the world, down from
+> 60%. Twenty-seven islands of the 54 crowns you — still more than every
+> inhabited isle put together today, so no early rush wins: the world must
+> grow before anyone can rule it. Every colony you raise builds the very
+> map a conqueror needs. Settle carefully. Fair winds.
+
+WIN_SHARE 0.6 → 0.5, chosen over the operator's first instinct (50% of
+POPULATED islands) after the arithmetic showed that denominator inverts
+the difficulty arc: 24 inhabited today would put the crown at 12 islands
+— an opening-weeks bot-rush win — and the target would then RISE all
+season as colonies land. Half of ALL islands keeps the right shape: at
+54 total and 24 owned, 27 is unreachable until at least three more
+colonizations exist anywhere, then tightens as the map fills. The
+mortal-bot law (#172) is what makes the denominator honest — it no
+longer inflates on every wipe-out. Delivered 2026-08-27 via
+`/api/admin/announce`, 340 characters, the #101 route.
+
 ### 2026-08-27 · Season 6 law: half rations at sea
 
 > 🍞 Fifth law for season 6: an army eats even at sea — but a marching army
