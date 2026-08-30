@@ -30,8 +30,9 @@ divides by all islands, so every minted refuge moved the WIN_SHARE
 threshold — an island printer, fed by farming bots to extinction. The law
 half is `BOT_RESPAWN=0`, a knob defaulting to the old behaviour; humans
 are never gated by it. Tests cover claim-not-mint, the map-full mint
-fallback, elimination at 0, and the human guarantee. Staged for delivery
-with the season-6 batch.
+fallback, elimination at 0, and the human guarantee. Delivered
+2026-08-27 via `/api/admin/announce`, 434 characters, JSON file over scp
+— the #101 route.
 
 ### 2026-08-27 · Season 6 law: the expansion tax rises
 
