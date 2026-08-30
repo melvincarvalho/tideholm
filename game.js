@@ -269,6 +269,12 @@ function parseColonyGrowth(raw, fallback = 1) {
 
 const COLONY_COST_GROWTH = parseColonyGrowth(process.env.COLONY_COST_GROWTH);
 
+// #172: default on (the old behaviour). Set BOT_RESPAWN=0 and a bot wiped
+// to zero islands is eliminated instead of receiving a refuge — the
+// season's bot population becomes finite and the endgame consolidates.
+// Humans are never gated by this knob.
+const BOT_RESPAWN = process.env.BOT_RESPAWN !== '0';
+
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
 const PROD_GROWTH = 1.12;
@@ -1907,19 +1913,27 @@ function applyMovement(world, m) {
             t(defLang, 'report.fallen.l2', { defLost: fmtUnits(defendersLost, defLang) }),
           ]);
         if (playerIslands(world, oldOwner.id).length === 0) {
-          if (M) M.respawns++;
-          const refuge = newIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
-          // A respawn is a fresh start, so it gets the fresh-start shield
-          // (#82): protection until PROTECTED_POINTS, exactly as a new player
-          // would. Without this the cheapest island in the game is whichever
-          // one a bot just fled to — season 4 farmed four refuges in two
-          // days. isProtected does the rest, and attacking a human from the
-          // refuge forfeits it again through the existing rule (see above).
-          if (world.respawnProtection) oldOwner.protectionBroken = false;
-          addReport(world, oldOwner.id, m.arrive,
-            t(defLang, 'report.refuge.title'), [
-              t(defLang, 'report.refuge.l1', { coords: `(${refuge.x}:${refuge.y})` }),
-            ]);
+          if (oldOwner.isBot && !BOT_RESPAWN) {
+            // #172: with the knob off, a wiped bot mints no refuge — its
+            // story ends here and the season's bot population is finite.
+            // Humans always respawn regardless: you can lock a bot out of
+            // the world, not a person.
+            if (M) M.eliminations = (M.eliminations || 0) + 1;
+          } else {
+            if (M) M.respawns++;
+            const refuge = refugeIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
+            // A respawn is a fresh start, so it gets the fresh-start shield
+            // (#82): protection until PROTECTED_POINTS, exactly as a new player
+            // would. Without this the cheapest island in the game is whichever
+            // one a bot just fled to — season 4 farmed four refuges in two
+            // days. isProtected does the rest, and attacking a human from the
+            // refuge forfeits it again through the existing rule (see above).
+            if (world.respawnProtection) oldOwner.protectionBroken = false;
+            addReport(world, oldOwner.id, m.arrive,
+              t(defLang, 'report.refuge.title'), [
+                t(defLang, 'report.refuge.l1', { coords: `(${refuge.x}:${refuge.y})` }),
+              ]);
+          }
         }
       }
       return;
@@ -2497,6 +2511,33 @@ function randomFreeSpot(world) {
   throw new Error('Map is full.');
 }
 
+// #172: the refuge claims an uncharted island when one exists. Minting (the
+// old behaviour, kept only as the map-full fallback) grew world.islands on
+// every wipe-out — and since dominance divides by ALL islands (WIN_SHARE),
+// farming a bot to extinction pushed victory further away: an island
+// printer. Claiming applies the same fresh kit newIsland stamps, so a
+// refuge is indistinguishable from a minted one except that the map total
+// holds still.
+function refugeIsland(world, ownerId, name) {
+  const free = world.islands.filter((i) => i.ownerId == null);
+  if (free.length === 0) return newIsland(world, ownerId, name);
+  const isle = free[crypto.randomInt(0, free.length)];
+  isle.ownerId = ownerId;
+  isle.name = name;
+  isle.resources = { wood: 250, stone: 250, gold: 120 };
+  isle.buildings = {
+    lumberyard: 1, quarry: 1, goldmine: 1, storehouse: 1, hall: 1,
+    barracks: 0, harbor: 0, wall: 0, farm: 1, wonder: 0,
+  };
+  isle.units = zeroUnits();
+  isle.support = [];
+  isle.loyalty = LOYALTY_MAX;
+  isle.queue = [];
+  isle.trainQueue = [];
+  isle.lastUpdate = Date.now();
+  return isle;
+}
+
 function newIsland(world, ownerId, name) {
   const { x, y } = randomFreeSpot(world);
   const island = {
@@ -2755,7 +2796,7 @@ export {
   tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
-  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX,
+  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, BOT_RESPAWN, refugeIsland,
   loadHall, WONDER_WIN_LEVEL, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

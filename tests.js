@@ -3279,5 +3279,77 @@ console.log('combat characterisation');
     w >= 0 && w <= 4 && BOATS.some((_, i) => i !== w));
 }
 
+// ------------------------------------------ the island printer is off (#172)
+
+console.log('refuge claims, bots are mortal (#172)');
+{
+  // The refuge must claim an uncharted island, not mint one: dominance
+  // divides by ALL islands, so a minted refuge moved the win threshold on
+  // every wipe-out. Same conquest as the respawn test above, but with an
+  // uncharted island on the map — the total must hold still and the
+  // defender must own the formerly-uncharted isle.
+  const { w, a, b, ia, ib } = freshWorld();
+  const uncharted = g.newUnchartedIsland(w);
+  const before = w.islands.length;
+  ia.units.raider = 50; ia.units.flagship = 1;
+  ib.units.sentinel = 2;
+  g.resolveIsland(ib, t0);
+  ib.loyalty = 0;
+  const r = g.sendAttack(w, a, ia, ib, { raider: 50, flagship: 1 }, t0);
+  g.resolveWorld(w, r.arrive + 1);
+  check('#172 refuge claims uncharted: island total holds still', w.islands.length === before);
+  check('#172 the refuge IS the formerly-uncharted isle',
+    uncharted.ownerId === b.id && g.playerIslands(w, b.id).length === 1);
+  check('#172 the claimed refuge got the fresh kit',
+    uncharted.buildings.hall === 1 && uncharted.loyalty === g.LOYALTY_MAX && uncharted.resources.wood === 250);
+
+  // With no uncharted island left, minting remains the map-full fallback.
+  const f2 = freshWorld();
+  const before2 = f2.w.islands.length;
+  f2.ia.units.raider = 50; f2.ia.units.flagship = 1;
+  f2.ib.units.sentinel = 2;
+  g.resolveIsland(f2.ib, t0);
+  f2.ib.loyalty = 0;
+  const r2 = g.sendAttack(f2.w, f2.a, f2.ia, f2.ib, { raider: 50, flagship: 1 }, t0);
+  g.resolveWorld(f2.w, r2.arrive + 1);
+  check('#172 map-full fallback still mints',
+    f2.w.islands.length === before2 + 1 && g.playerIslands(f2.w, f2.b.id).length === 1);
+}
+
+{
+  // BOT_RESPAWN is read at module load, so the elimination runs in a child.
+  // A bot wiped at BOT_RESPAWN=0 gets no refuge; a HUMAN wiped under the
+  // same knob always respawns — the knob must never gate a person.
+  const probe = `
+    import * as g from './game.js';
+    const t0 = Date.now();
+    const run = (defenderIsBot) => {
+      const w = g.createWorld();
+      const a = g.createPlayer(w, 'A', 'pw123456', false).player;
+      const b = g.createPlayer(w, 'B', 'pw123456', false).player;
+      b.isBot = defenderIsBot;
+      a.protectionBroken = true; b.protectionBroken = true;
+      const ia = g.playerIsland(w, a.id), ib = g.playerIsland(w, b.id);
+      ia.x = 0; ia.y = 0; ib.x = 0; ib.y = 5;
+      ia.units.raider = 50; ia.units.flagship = 1;
+      ib.units.sentinel = 2;
+      g.resolveIsland(ib, t0);
+      ib.loyalty = 0;
+      const r = g.sendAttack(w, a, ia, ib, { raider: 50, flagship: 1 }, t0);
+      g.resolveWorld(w, r.arrive + 1);
+      return { islands: g.playerIslands(w, b.id).length, total: w.islands.length };
+    };
+    console.log(JSON.stringify({ knob: g.BOT_RESPAWN, bot: run(true), human: run(false) }));
+  `;
+  const at = (v) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, BOT_RESPAWN: String(v) }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const off = at(0), on = at(1);
+  check('#172 knob parses: 0 is off, 1 is on', off.knob === false && on.knob === true);
+  check('#172 BOT_RESPAWN=0: a wiped bot is gone', off.bot.islands === 0);
+  check('#172 BOT_RESPAWN=0: a wiped HUMAN still respawns', off.human.islands === 1);
+  check('#172 BOT_RESPAWN=1: bots respawn as before', on.bot.islands === 1);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
