@@ -19,22 +19,25 @@ who never heard about the keyboard shortcuts will never find them.
 ### 2026-08-27 · Season 6 law: the Beacon's final fire
 
 > 🔥 Fourth law for season 6: the Great Beacon wins at level 8 — and 8 is
-> the mountain's true summit. The final leg costs ~107k of each timber and
-> stone, which only a Storehouse 14 can hold, and 14 is the highest a
-> storehouse goes. The last fire a beacon can burn is now the one that
-> takes the world. One more announcement, one more contested dawn. Fair
-> winds.
+> the true summit: the final leg needs a Storehouse 14, the highest there
+> is. The last fire a beacon can burn now takes the world. And a
+> correction: flagship steps count your islands as well as your fleet, so
+> ×1.3 punished a lost flagship far too hard — the flagship curve is ×1.2
+> from now on (10th ~29k, 15th ~73k). The Beacon burns higher, the sword
+> sits easier. Fair winds.
 
 Season 5 ran the Beacon at 7 (up from 6); 8 is not one-more-of-the-same
 but the natural ceiling: level 8's biggest leg (107,472) needs exactly
 Storehouse 14, the MAX_BUILDING_LEVEL fallback — level 9 would need a
 storehouse that cannot exist. The operator's phrase was the spec: "raise
 it 1 higher — I think that becomes max," and the arithmetic agrees.
-Deploy note for the record: this restart re-supplied ALL eight game vars
-explicitly rather than trusting pm2's env merge — the audit first
-confirmed season 5's WONDER_WIN_LEVEL=7, MORALE_FLOOR=0.3,
+Batched with the ×1.3→×1.2 flagship correction (see the third-law note
+below). Deploy note for the record: these restarts re-supply ALL eight
+game vars explicitly rather than trusting pm2's env merge — the audit
+first confirmed season 5's WONDER_WIN_LEVEL=7, MORALE_FLOOR=0.3,
 BOT_GARRISON_RATIO=12 and BOT_MORALE_FLOOR=1 had survived the week's
-three restarts. Staged for the season-6 batch.
+restarts. Delivered 2026-08-27 via `/api/admin/announce`, 446
+characters, the #101 route.
 
 ### 2026-08-27 · Season 6 law: the conquest door pays too
 
@@ -50,8 +53,13 @@ it a prize map. #173 generalises the positional curve — `trainCost` and
 `colonyPosition` now serve any stepped unit, a flagship aboard an attack
 counts toward position, one clamp (#61) covers both knobs. 1.3 over the
 recommended 1.2: the operator chose parity-with-blood over a soldier's
-discount, easy to defend, hard to refund — noted here so season 7 can
-judge it on the counters (`M.respawns`, `M.eliminations`, colonizations).
+discount — then reversed within hours on a sharper reading than either
+argument had: position counts ISLANDS as well as fleet, so at ten islands
+the FIRST flagship already costs the 10th-step price, and every flagship
+lost to a failed assault re-buys at the top of the curve. ×1.3 made
+losing a flagship catastrophic rather than expensive. Corrected to ×1.2
+the same day, announced batched with the fourth law — the delivered ×1.3
+text above stands, per the charter, as what players received.
 Delivered 2026-08-27 via `/api/admin/announce`, 347 characters, the #101
 route.
 
