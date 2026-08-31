@@ -16,6 +16,24 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-08-31 · Season 6 law: it takes two towers
+
+> 🗼 Ninth law for season 6: the wonder crowns only the captain who holds
+> TWO winning-level Beacons at once. Build both and pay the pacifist's
+> premium — or build one and TAKE the other, for conquest carries
+> buildings intact. A rival's rising tower is now a prize as much as a
+> threat, and a lone finished beacon is not a world won: it is an
+> invitation. Fair winds.
+
+#178. One beacon behind one wall was a turtle's win; two towers cannot
+hide behind one garrison, and the capture path turns rival wonders
+complementary — you WANT the enemy's tower finished. Stealing a lone
+finished beacon no longer ends the world by itself, which softens the
+sudden-death and sets up the mutual one-beacon standoff: a race to take
+the other's. Wonder stays personal; the alliance path is the crown
+(#177). WONDER_WIN_COUNT knob, default 1, season 6 runs 2. Chapter Ten
+of the Almanac rewritten to match. Staged for delivery.
+
 ### 2026-08-31 · Season 6 law: the crown counts the living
 
 > 👑 Eighth law for season 6: the crown counts the living. Dominance is
