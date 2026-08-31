@@ -2015,9 +2015,14 @@ function renderTavernLine() {
   if (!did) return;
   el.textContent = '';
   const a = document.createElement('a');
-  a.href = 'https://tide-games.github.io/?did=' + encodeURIComponent(did)
+  const fleetHref = () => 'https://tide-games.github.io/?did=' + encodeURIComponent(did)
     + '&seal=' + Math.floor((state.player && state.player.pegged) || 0)
     + '&return=' + encodeURIComponent(location.origin + location.pathname);
+  a.href = fleetHref();
+  // The seal is read at CLICK time, not render time: a player who pegs in
+  // and sails fast otherwise carries a stale seal=0 into the fleet and finds
+  // every purse empty (learned live, twice, on den night).
+  a.addEventListener('click', () => { a.href = fleetHref(); });
   a.target = '_blank';
   a.rel = 'noopener noreferrer';
   a.textContent = T('ui.tidegate.tavern');
