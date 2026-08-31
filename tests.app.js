@@ -1128,6 +1128,57 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('#146 the new tail cannot be applied twice either',
       doubled.error === 'err.sealSync' && vp.pegged === 90, JSON.stringify(doubled));
 
+    // ------------------------------------------ the den venue (#180)
+    // Player-attested poker: no chain seed, so the endpoint checks ONLY
+    // arithmetic (win = exactly 2x stake, capped by DEN_MAX_STAKE) and the
+    // ledger checks pairing (the stake left the seal, one credit per match).
+    // A FRESH app: the shared one's act rate budget is long spent (429s).
+    const denApp = createApp({ botCount: 2, freeIsles: 2, log: silent });
+    const da = await serve(denApp);
+    let dreg = await req(da.port, 'POST', '/api/register', { body: { name: 'Den Tester', password: 'sekrit', lang: 'en' } });
+    const dcookie = (dreg.headers.get('set-cookie') || '').split(';')[0];
+    const dp = denApp.world.players.find((p) => p.name === 'Den Tester');
+    const disl = denApp.world.islands.find((i) => i.ownerId === dp.id);
+    dp.nostrDid = vp.nostrDid;   // same key as the #146 battery — mkTx signs for it
+    dp.pegged = 90;
+    const mkDenTx = (prev, delta, bet) => {
+      const t2 = mkTx(prev, delta);
+      // the bet rides OUTSIDE the signature by design — no re-signing needed
+      if (bet) t2.bet = bet;
+      return t2;
+    };
+    const denBet = (stake, mark) => ({ venue: 'den', stake, mark });
+    // stake 40 out, win 80 back — pegged 90 -> 50 -> 130
+    let dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(90, -40, denBet(40, 'm-one'))] }, cookie: dcookie });
+    check('#180 a den stake leaves the seal on a signature alone',
+      dr.status === 200 && dp.pegged === 50, `${dr.status} pegged=${dp.pegged}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(50, 80, denBet(40, 'm-one'))] }, cookie: dcookie });
+    check('#180 a paired den win credits exactly 2x the stake',
+      dr.status === 200 && dp.pegged === 130, `${dr.status} pegged=${dp.pegged}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(130, 80, denBet(40, 'm-one'))] }, cookie: dcookie });
+    check('#180 the same match cannot credit twice',
+      dr.status === 400 && dp.pegged === 130, `${dr.status} pegged=${dp.pegged}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(130, 80, denBet(40, 'm-ghost'))] }, cookie: dcookie });
+    check('#180 a den win with no staked match is refused',
+      dr.status === 400 && dp.pegged === 130, `${dr.status} pegged=${dp.pegged}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [
+        mkDenTx(130, -30, denBet(30, 'm-two')), mkDenTx(100, 90, denBet(30, 'm-two')),
+      ] }, cookie: dcookie });
+    check('#180 a den win that is not exactly 2x stake is refused (all-or-nothing)',
+      dr.status === 400 && dp.pegged === 130, `${dr.status} pegged=${dp.pegged}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [
+        mkDenTx(130, -130, denBet(130, 'm-big')), mkDenTx(0, 260, denBet(130, 'm-big')),
+      ] }, cookie: dcookie });
+    check('#180 a stake above the till (DEN_MAX_STAKE=100) is refused',
+      dr.status === 400 && dp.pegged === 130, `${dr.status} pegged=${dp.pegged}`);
+    da.srv.close();
+
     // The public blocktrails.json export: NO session, CORS-open, the shape
     // blocktrails.org/verify consumes. Stamp an anchor (with amount) onto the
     // current tip first so there is a mark to export.

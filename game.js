@@ -2297,7 +2297,13 @@ function tidegateRecord(player, t) {
       // well-formed or omitted — the trail is public, and a malformed tuple
       // could never match a validated payout anyway. Venue-shaped (§3.2):
       // tavern bets carry target (1-99), regatta bets carry boat (0-4).
-      if (Number.isSafeInteger(bh) && bh > 0 && Number.isSafeInteger(bs) && bs > 0 && mark) {
+      // #180: den bets carry no height — no chain seed exists for a
+      // player-attested venue; {venue, mark, stake} is the whole tuple.
+      if (t.bet.venue === 'den') {
+        if (Number.isSafeInteger(bs) && bs > 0 && mark) {
+          entry.bet = { venue: 'den', mark, stake: bs };
+        }
+      } else if (Number.isSafeInteger(bh) && bh > 0 && Number.isSafeInteger(bs) && bs > 0 && mark) {
         if (t.bet.venue === 'regatta') {
           const boat = Math.trunc(Number(t.bet.boat));
           if (boat >= 0 && boat <= 4) {
@@ -2365,20 +2371,27 @@ function tidegateSync(player, txs) {
         const bh = Math.trunc(Number(b.height));
         const bs = Math.trunc(Number(b.stake)); const mark = String(b.mark || '');
         const isRegatta = b.venue === 'regatta';
+        // #180: the den — player-attested poker, no chain seed. Its bet
+        // carries only {venue, mark, stake}: mark is the match id, and the
+        // ARITHMETIC (win = exactly 2x stake, capped) is the endpoint's job.
+        const isDen = b.venue === 'den';
         // per-venue shape (§3.2): tavern carries target 1-99, regatta boat 0-4
         const bt2 = Math.trunc(Number(b.target));
         const boat = Math.trunc(Number(b.boat));
-        if (!Number.isSafeInteger(bh) || bh <= 0 || bs <= 0
-          || !mark || mark.length > 64
-          || (isRegatta ? (boat < 0 || boat > 4) : (bt2 < 1 || bt2 > 99))) {
+        if (bs <= 0 || !mark || mark.length > 64
+          || (!isDen && (!Number.isSafeInteger(bh) || bh <= 0))
+          || (isRegatta ? (boat < 0 || boat > 4) : isDen ? false : (bt2 < 1 || bt2 > 99))) {
           return { error: 'err.sealSync' };
         }
         const same = (e) => e.bet
-          && Math.trunc(Number(e.bet.height)) === bh && String(e.bet.mark) === mark
+          && String(e.bet.mark) === mark
           && Math.trunc(Number(e.bet.stake)) === bs
-          && (isRegatta
-            ? (e.bet.venue === 'regatta' && Math.trunc(Number(e.bet.boat)) === boat)
-            : (e.bet.venue === undefined && Math.trunc(Number(e.bet.target)) === bt2));
+          && (isDen
+            ? (e.bet.venue === 'den')
+            : (Math.trunc(Number(e.bet.height)) === bh
+              && (isRegatta
+                ? (e.bet.venue === 'regatta' && Math.trunc(Number(e.bet.boat)) === boat)
+                : (e.bet.venue === undefined && Math.trunc(Number(e.bet.target)) === bt2))));
         if (!working.some((e) => Math.trunc(Number(e.delta)) === -bs && same(e))) {
           return { error: 'err.sealSync' }; // no such stake ever left the seal
         }

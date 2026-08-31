@@ -99,9 +99,17 @@ or `"tavern"` = Tide Dice (`{height, mark, target, stake}`, deciding block
 itself, win = `winnerIndex(roll) === boat`, payout from the regatta's own
 `quote`). Both share the roll convention — `sha256(blockHash|mark)`, BigInt
 mod space — and both maths are vendored pure modules (`tavern.js`,
-`regatta.js`) in the house. An unknown venue is refused outright: no venue,
-no credit. Each new seal-ready game adds one dispatch arm and its vendored
-maths — this list is the protocol registry.
+`regatta.js`) in the house. `"den"` = heads-up gold poker against the
+house brain (`{venue, mark, stake}`, mark = the match id): winner-take-all,
+so the win is exactly `2 x stake` and there is no maths to vendor — but
+also **no chain seed to re-derive**: den hands are client-dealt, the claim
+is player-attested (the §8/T7-class caveat applies in full), and the
+house's entire defence is arithmetic plus the till cap (`DEN_MAX_STAKE`,
+default 100). Provably-dealt hands are the den's own future work. An
+unknown venue is refused outright: no venue, no credit. Each new
+seal-ready game adds one dispatch arm and its vendored maths (or, for
+attested venues, its declared arithmetic and cap) — this list is the
+protocol registry.
 
 ## 4. The trail document [NORMATIVE]
 

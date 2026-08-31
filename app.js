@@ -83,6 +83,9 @@ export function createApp(opts = {}) {
   const freeIsles = opts.freeIsles ?? Number(process.env.FREE_ISLES || 30);
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
   const adminToken = opts.adminToken ?? (process.env.ADMIN_TOKEN || '');
+  // #180: the den's till — the largest player-attested poker stake a win
+  // claim may carry. 0 closes the den entirely.
+  const denMaxStake = opts.denMaxStake ?? Math.max(0, Math.floor(Number(process.env.DEN_MAX_STAKE || 100)));
   const identify = opts.identify || null;
   // #96: async (botName) => { webId, nostrDid } | null. A host that can mint
   // pod identities (the jss-plugin) hands one in; password worlds run
@@ -1381,16 +1384,29 @@ export function createApp(opts = {}) {
         // tavern (the original venue); 'regatta' = the boat race. Anything
         // else is a venue this house doesn't know — refuse, never trust.
         const venue = b.venue === undefined || b.venue === 'tavern' ? 'tavern'
-          : b.venue === 'regatta' ? 'regatta' : null;
+          : b.venue === 'regatta' ? 'regatta'
+          : b.venue === 'den' ? 'den' : null;
         const height = Math.trunc(Number(b.height));
         const stake = Math.trunc(Number(b.stake));
         const mark = String(b.mark || '');
         // cheap checks first — an obviously-bad slip must cost zero fetches
         const delta = Math.trunc(Number(t.delta));
-        if (!venue || !Number.isSafeInteger(height) || height <= 0 || !mark || mark.length > 64) {
+        if (!venue || !mark || mark.length > 64
+          || (venue !== 'den' && (!Number.isSafeInteger(height) || height <= 0))) {
           return sendErr(res, 400, lang, 'err.sealSync');
         }
-        if (venue === 'tavern') {
+        if (venue === 'den') {
+          // ⚠ PLAYER-ATTESTED (#180). The den's hands are client-dealt — no
+          // chain seed exists to re-derive, so unlike the tavern and the
+          // regatta this venue checks ARITHMETIC only: winner-take-all pays
+          // exactly 2x the stake, and the stake is capped by the till
+          // (DEN_MAX_STAKE). Same trust class as the ⚠ above — testnet gold
+          // among friends. Provably-dealt hands are the den's future work;
+          // until then the till is the whole security budget, by design.
+          if (!(stake >= 1) || stake > denMaxStake || delta !== 2 * stake) {
+            return sendErr(res, 400, lang, 'err.sealSync');
+          }
+        } else if (venue === 'tavern') {
           const target = Math.trunc(Number(b.target));
           const q = quote(target, stake);
           if (q.error || Math.floor(q.payout) !== delta) {
