@@ -3578,5 +3578,28 @@ console.log('WONDER_WIN_COUNT (#178)');
   check('#178 junk falls back to 1', at({ WONDER_WIN_COUNT: 'abc' }).count === 1);
 }
 
+// ---------------------------------- new captains claim a berth (#179)
+
+console.log('joins claim (#179)');
+{
+  // With uncharted isles on the map, a new captain claims one: total holds.
+  const w = g.createWorld();
+  const u1 = g.newUnchartedIsland(w);
+  const u2 = g.newUnchartedIsland(w);
+  const before = w.islands.length;
+  const { player } = g.createPlayer(w, 'Newcomer', 'pw123456', false);
+  check('#179 a join claims: island total holds still', w.islands.length === before);
+  const mine = g.playerIsland(w, player.id);
+  check('#179 the berth was one of the uncharted isles', mine === u1 || mine === u2);
+  check('#179 fresh kit applied', mine.buildings.hall === 1 && mine.resources.wood === 250);
+
+  // With no uncharted left, the mint fallback keeps the door open.
+  const w2 = g.createWorld();
+  const b2 = w2.islands.length;
+  const { player: p2 } = g.createPlayer(w2, 'Pioneer', 'pw123456', false);
+  check('#179 map-full fallback still mints a berth',
+    w2.islands.length === b2 + 1 && !!g.playerIsland(w2, p2.id));
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);

@@ -2000,7 +2000,7 @@ function applyMovement(world, m) {
             if (M) M.eliminations = (M.eliminations || 0) + 1;
           } else {
             if (M) M.respawns++;
-            const refuge = refugeIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
+            const refuge = claimIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
             // A respawn is a fresh start, so it gets the fresh-start shield
             // (#82): protection until PROTECTED_POINTS, exactly as a new player
             // would. Without this the cheapest island in the game is whichever
@@ -2600,14 +2600,14 @@ function randomFreeSpot(world) {
   throw new Error('Map is full.');
 }
 
-// #172: the refuge claims an uncharted island when one exists. Minting (the
-// old behaviour, kept only as the map-full fallback) grew world.islands on
-// every wipe-out — and since dominance divides by ALL islands (WIN_SHARE),
-// farming a bot to extinction pushed victory further away: an island
-// printer. Claiming applies the same fresh kit newIsland stamps, so a
-// refuge is indistinguishable from a minted one except that the map total
-// holds still.
-function refugeIsland(world, ownerId, name) {
+// #172/#179: a claimed berth — refuges AND new captains take an uncharted
+// island when one exists; minting (the old behaviour, kept only as the
+// map-full fallback) grew world.islands on every wipe-out and every join.
+// Since dominance divides by islands, an ever-growing map pushed victory
+// permanently out of reach: an island printer. Claiming applies the same
+// fresh kit newIsland stamps, so a claimed isle is indistinguishable from
+// a minted one except that the map total holds still.
+function claimIsland(world, ownerId, name) {
   const free = world.islands.filter((i) => i.ownerId == null);
   if (free.length === 0) return newIsland(world, ownerId, name);
   const isle = free[crypto.randomInt(0, free.length)];
@@ -2697,7 +2697,7 @@ function createPlayer(world, name, password, isBot, lang) {
     player.hash = hashPassword(password, player.salt);
   }
   world.players.push(player);
-  const island = newIsland(world, player.id, t(lang, 'name.isle', { name }));
+  const island = claimIsland(world, player.id, t(lang, 'name.isle', { name }));  // #179: claim, mint only when the map is full
   island.lastUpdate = start; // no production accrues before launch
   return { player };
 }
@@ -2885,7 +2885,7 @@ export {
   tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
-  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, BOT_RESPAWN, refugeIsland,
+  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, BOT_RESPAWN, claimIsland,
   loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

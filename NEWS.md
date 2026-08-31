@@ -698,6 +698,13 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **New captains claim a berth** (#179, 2026-08-31): a joining player now
+  takes a random uncharted isle instead of conjuring a new one — joins,
+  refuges (#172) and colonization all claim; minting is everywhere the
+  map-full fallback. The map holds at its founding size, so the crown of
+  dominance (#177) cannot drift out of reach as the harbour fills. A
+  newcomer sees nothing different: an island is an island.
+
 Player-visible, but not worth a report at the time. Listed newest first.
 
 ### Keyboard shortcuts
