@@ -136,6 +136,15 @@ const BUILDINGS = {
 // each level costs 1.55x more and takes 1.5x longer, and every completed
 // level is announced world-wide — a longer window to march on the builder.
 const WONDER_WIN_LEVEL = Math.max(1, Number(process.env.WONDER_WIN_LEVEL || 5));
+// #178: how many winning-level beacons ONE captain must hold at once.
+// Default 1 (the old rule). At 2, build both — the pacifist premium — or
+// build one and capture a rival's: conquest carries buildings intact, so
+// an enemy's rising tower becomes a prize as much as a threat, and a lone
+// finished beacon no longer ends the world by theft alone.
+const WONDER_WIN_COUNT = (() => {
+  const n = Math.floor(Number(process.env.WONDER_WIN_COUNT));
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : 1;
+})();
 
 // speed = minutes per map field at game speed 1 (lower is faster).
 // pop = population each unit consumes against the Farm's cap.
@@ -2524,19 +2533,26 @@ function checkVictory(world, now) {
     ? world.islands.filter((i) => i.ownerId != null).length
     : world.islands.length;
 
-  // Wonder victory
+  // Wonder victory — #178: one captain must hold WONDER_WIN_COUNT
+  // winning-level beacons at once. Built or captured, the tower counts
+  // the same: conquest carries buildings intact.
+  const beacons = new Map();
   for (const island of world.islands) {
     if ((island.buildings.wonder || 0) >= WONDER_WIN_LEVEL && island.ownerId != null) {
-      const owner = world.players.find((p) => p.id === island.ownerId);
-      const islands = world.islands.filter((i) => i.ownerId === island.ownerId).length;
-      return crownWinner(world, {
-        name: owner ? owner.name : '?',
-        islands,
-        total,
-        share: Math.round((100 * islands) / total),
-        via: 'wonder',
-      }, now);
+      beacons.set(island.ownerId, (beacons.get(island.ownerId) || 0) + 1);
     }
+  }
+  for (const [ownerId, count] of beacons) {
+    if (count < WONDER_WIN_COUNT) continue;
+    const owner = world.players.find((p) => p.id === ownerId);
+    const islands = world.islands.filter((i) => i.ownerId === ownerId).length;
+    return crownWinner(world, {
+      name: owner ? owner.name : '?',
+      islands,
+      total,
+      share: Math.round((100 * islands) / total),
+      via: 'wonder',
+    }, now);
   }
   const byPlayer = new Map();
   for (const island of world.islands) {
@@ -2870,7 +2886,7 @@ export {
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, BOT_RESPAWN, refugeIsland,
-  loadHall, WONDER_WIN_LEVEL, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
+  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

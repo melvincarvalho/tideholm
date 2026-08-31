@@ -3539,5 +3539,44 @@ console.log('WIN_BASIS (#177)');
   check('#177 junk falls back to all', at({ WIN_BASIS: 'everything' }).basis === 'all');
 }
 
+// ---------------------------------------- two beacons crown one (#178)
+
+console.log('WONDER_WIN_COUNT (#178)');
+{
+  const probe = `
+    import * as g from './game.js';
+    const w = g.createWorld();
+    const a = g.createPlayer(w, 'A', 'pw123456', false).player;
+    const b = g.createPlayer(w, 'B', 'pw123456', false).player;
+    const ia = g.playerIsland(w, a.id);
+    const out = {};
+    const win = () => { g.checkVictory(w, Date.now()); const v = w.winner ? w.winner.name : null; w.winner = null; return v; };
+    ia.buildings.wonder = g.WONDER_WIN_LEVEL;                    // one finished beacon
+    out.one = win();
+    const second = g.newIsland(w, a.id, 'A2');
+    second.buildings.wonder = g.WONDER_WIN_LEVEL;                // two, same captain
+    out.two = win();
+    // two beacons SPLIT between captains crown nobody at count 2
+    second.ownerId = b.id;
+    out.split = win();
+    // ...until conquest hands one over: captured tower counts the same
+    second.ownerId = a.id;
+    out.captured = win();
+    out.count = g.WONDER_WIN_COUNT;
+    console.log(JSON.stringify(out));
+  `;
+  const at = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, WIN_SHARE: '0.99', ...env }, encoding: 'utf8', cwd: HERE,   // isolate the wonder path from dominance
+  }).trim().split('\n').pop());
+  const one = at({});
+  check('#178 default: a single beacon still wins', one.count === 1 && one.one === 'A');
+  const two = at({ WONDER_WIN_COUNT: '2' });
+  check('#178 at 2: one finished beacon crowns nobody', two.one === null);
+  check('#178 at 2: two beacons, one captain — crowned', two.two === 'A');
+  check('#178 at 2: two beacons split between captains crown nobody', two.split === null);
+  check('#178 at 2: a captured second tower counts the same as a built one', two.captured === 'A');
+  check('#178 junk falls back to 1', at({ WONDER_WIN_COUNT: 'abc' }).count === 1);
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
