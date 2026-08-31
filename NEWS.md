@@ -32,7 +32,8 @@ finished beacon no longer ends the world by itself, which softens the
 sudden-death and sets up the mutual one-beacon standoff: a race to take
 the other's. Wonder stays personal; the alliance path is the crown
 (#177). WONDER_WIN_COUNT knob, default 1, season 6 runs 2. Chapter Ten
-of the Almanac rewritten to match. Staged for delivery.
+of the Almanac rewritten to match. Delivered 2026-08-31 via
+`/api/admin/announce`, 361 characters, the #101 route.
 
 ### 2026-08-31 · Season 6 law: the crown counts the living
 
