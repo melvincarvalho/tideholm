@@ -2630,7 +2630,9 @@ $('mail-compose').addEventListener('submit', async (e) => {
 function enterGame() {
   $('auth').classList.add('hidden');
   $('game').classList.remove('hidden');
-  showTab('island');
+  // Home with a slip in hand: land on the Market, where the seal, the slip
+  // line and Redeem live — the market tab's own handler loads all of it.
+  if (_slip) $('tab-market').click(); else showTab('island');
   refresh();
   clearInterval(pollTimer);
   pollTimer = setInterval(refresh, 5000);
