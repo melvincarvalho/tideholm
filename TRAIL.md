@@ -201,6 +201,12 @@ Tideholm ──?did=&seal=&return=──▶ fleet lobby ──(query passed thro
 
 1. **Bounds**: 1–50 transitions per slip ("a slip is a session, not a
    firehose"). Verify *exactly what will be applied — never a subset*.
+   The *practical* cap is lower: the slip rides home in a GET URL (a
+   cross-site POST would drop the SameSite session cookie), and a front
+   proxy refuses requests past ~16 KB of headers, cookies included — so a
+   venue should keep a slip under ~24 moves (~390 bytes each) and trim
+   applied moves on arrival (the den does; learned live from a 30-move
+   night that was "Bad Request" before the game ever saw it).
 2. **Signatures**: every transition Schnorr-verified against the canonical
    bytes (§3.1). Verifier library unavailable → refuse the slip (500),
    *never* trust.
