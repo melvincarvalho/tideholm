@@ -1177,6 +1177,21 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       ] }, cookie: dcookie });
     check('#180 a stake above the till (DEN_MAX_STAKE=100) is refused',
       dr.status === 400 && dp.pegged === 130, `${dr.status} pegged=${dp.pegged}`);
+    // A long night: 14 matches in one slip — 28 signed transitions, well over
+    // the 10 KB flat body cap that once destroyed the request mid-read. The
+    // sync body is bounded by the transition cap, not a byte count that
+    // contradicts it. pegged 130 -> +100 per (stake 100, win 200) pair -> 1530.
+    const night = []; let run = 130;
+    for (let m = 0; m < 14; m++) {
+      night.push(mkDenTx(run, -100, denBet(100, `night-${m}`))); run -= 100;
+      night.push(mkDenTx(run, 200, denBet(100, `night-${m}`))); run += 200;
+    }
+    const nightBody = { islandId: disl.id, transitions: night };
+    check('a 28-transition slip is bigger than the old 10 KB cap', JSON.stringify(nightBody).length > 10000,
+      JSON.stringify(nightBody).length);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync', { body: nightBody, cookie: dcookie });
+    check('a 14-match den night redeems in one slip (body cap follows the transition cap)',
+      dr.status === 200 && dp.pegged === 1530, `${dr.status} pegged=${dp.pegged}`);
     da.srv.close();
 
     // The public blocktrails.json export: NO session, CORS-open, the shape

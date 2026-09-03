@@ -256,10 +256,15 @@ export function createApp(opts = {}) {
     return sendErr(res, 400, lang, result.error, result.errorParams);
   }
 
-  function readBody(req) {
+  // A courier slip is the one body that legitimately grows: TIDEGATE_SYNC_MAX
+  // (50) signed transitions at ~400 bytes each. Every other POST stays at 10 KB.
+  // (Learned live: a 28-match den night made an 11 KB slip that the old flat
+  // cap destroyed mid-read, so the endpoint saw no body and said Bad Request.)
+  const SYNC_BODY_MAX = 64 * 1024;
+  function readBody(req, limit = 10000) {
     return new Promise((resolve) => {
       let data = '';
-      req.on('data', (c) => { data += c; if (data.length > 10000) req.destroy(); });
+      req.on('data', (c) => { data += c; if (data.length > limit) req.destroy(); });
       req.on('end', () => {
         try { resolve(JSON.parse(data || '{}')); } catch { resolve(null); }
       });
@@ -1338,7 +1343,7 @@ export function createApp(opts = {}) {
     // is verified server-side first — fail closed: no crypto, no sync. The
     // chain/shape validation and the all-or-nothing apply live in game.js.
     if (req.method === 'POST' && pathname === '/api/tidegate/sync') {
-      const body = await readBody(req);
+      const body = await readBody(req, SYNC_BODY_MAX);
       // Bound first, then verify EXACTLY what will be applied — never a subset.
       if (!body || !Array.isArray(body.transitions)
         || body.transitions.length < 1 || body.transitions.length > 50) {
