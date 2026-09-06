@@ -9,7 +9,7 @@
 // can both use it — the same pattern as window.I18N.
 window.TMap = (function () {
   const COLORS = {
-    you: '#3faf46', ally: '#2ab5a5', war: '#ff5544',
+    you: '#3faf46', ally: '#6d4ae6', war: '#ff5544', // ally is indigo: green and teal were twins on a phone
     player: '#3b7dd8', bot: '#e08030', barb: '#8d7b64', unowned: '#a9b0b8',
   };
   // The island you're currently on — gold, the one colour no team uses, so it
