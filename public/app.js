@@ -965,7 +965,10 @@ async function loadMap() {
         cell.classList.add('island',
           isl.isYou ? 'you' : isl.unowned ? 'unowned'
             : isl.barbarian ? 'barb' : isl.isBot ? 'bot' : 'player');
-        if (isl.relation === 'ally' || isl.relation === 'same') cell.classList.add('rel-ally');
+        // 'same' means your own alliance — which includes you. Your isles stay
+        // green; the ally colour is for the OTHER members (learned live: indigo
+        // painted the captain's own harbour).
+        if (!isl.isYou && (isl.relation === 'ally' || isl.relation === 'same')) cell.classList.add('rel-ally');
         if (isl.relation === 'war') cell.classList.add('rel-war');
         const ownerLabel = isl.unowned ? T('ui.map.uninhabited')
           : (isl.alliance ? `[${isl.alliance}] ` : '') + isl.owner
