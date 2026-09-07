@@ -182,7 +182,7 @@ $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
 $('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); renderTavernLine(); renderSlip(); });
-$('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); mountAllianceChat(); });
+$('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); mountAllianceChat(); if (roomVisible()) markRoomRead(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
 function showTab(which) {
@@ -2303,24 +2303,56 @@ async function mountAllianceChat() {
 async function mountPrivateChat(secret) {
   const el = $('alliance-chat-private');
   if (!el) return;
-  if (!secret) { if (_privateChat) { _privateChat.destroy(); _privateChat = null; } _privateSecret = null; return; }
+  if (!secret) { if (_privateChat) { _privateChat.destroy(); _privateChat = null; } _privateSecret = null; renderRoomBadge(0); return; }
   if (_privateChat && _privateSecret === secret) return;
   if (_privateChat) _privateChat.destroy();
   _privateSecret = secret;
+  _roomUnread = 0; _roomNewest = 0; renderRoomBadge(0);
   try {
     const { mountChat } = await import('https://tide-games.github.io/chat/widget.js');
-    _privateChat = mountChat(el, { height: 340, secret, readOnlyHint: T('ui.alliance.roomReadOnly') });
+    _privateChat = mountChat(el, { height: 340, secret, readOnlyHint: T('ui.alliance.roomReadOnly'), onMessage: onRoomLine });
   } catch (_) { return; }
   const signer = await roomSigner();
   if (signer) _privateChat.setSigner(signer);
 }
+// Unread lines in the alliance room → a badge on the Alliance tab, like Mail.
+// "Read" is per browser: the newest line's time is kept in localStorage under
+// the room's key, and advanced whenever the room is actually on screen.
+let _roomUnread = 0, _roomNewest = 0, _roomTab = 'common';
+const roomReadKey = () => 'tide-room-read-' + (_privateSecret || '').slice(0, 16);
+function roomLastRead() { try { return Number(localStorage.getItem(roomReadKey())) || 0; } catch { return 0; } }
+function roomVisible() {
+  return _roomTab === 'alliance' && !$('view-alliance').classList.contains('hidden') && document.visibilityState === 'visible';
+}
+function markRoomRead() {
+  if (!_privateSecret) return;
+  try { localStorage.setItem(roomReadKey(), String(Math.max(_roomNewest, roomLastRead()))); } catch (_) { /* private mode */ }
+  _roomUnread = 0; renderRoomBadge(0);
+}
+function onRoomLine(line) {
+  _roomNewest = Math.max(_roomNewest, line.created_at);
+  if (line.mine || roomVisible()) { markRoomRead(); return; }
+  if (line.created_at > roomLastRead()) { _roomUnread += 1; renderRoomBadge(_roomUnread); }
+}
+function renderRoomBadge(n) {
+  const b = $('room-badge'); if (!b) return;
+  b.classList.toggle('hidden', !n); b.textContent = n || '';
+}
+document.addEventListener('visibilitychange', () => { if (roomVisible()) markRoomRead(); });
 function showRoom(which) {
   const priv = which === 'alliance';
+  _roomTab = which;
   $('roomtab-common').classList.toggle('active', !priv);
   $('roomtab-alliance').classList.toggle('active', priv);
   $('alliance-chat').classList.toggle('hidden', priv);
   $('alliance-chat-private').classList.toggle('hidden', !priv || !_privateSecret);
   $('alliance-chat-note').classList.toggle('hidden', !priv || !!_privateSecret);
+  if (priv && _privateChat) { _privateChat.scrollToEnd(); markRoomRead(); }
+}
+// Listen from boot, not from the first visit — the badge has to count while
+// you are elsewhere. One alliance call; the widget stays hidden until shown.
+async function bootAllianceRoom() {
+  try { const data = await api('/api/alliance'); mountPrivateChat(data.alliance ? data.alliance.chatSecret : null); } catch (_) { /* later, on the tab */ }
 }
 $('roomtab-common').addEventListener('click', () => showRoom('common'));
 $('roomtab-alliance').addEventListener('click', () => showRoom('alliance'));
@@ -2690,6 +2722,7 @@ function enterGame() {
   // line and Redeem live — the market tab's own handler loads all of it.
   if (_slip) $('tab-market').click(); else showTab('island');
   refresh();
+  bootAllianceRoom();
   clearInterval(pollTimer);
   pollTimer = setInterval(refresh, 5000);
 }
