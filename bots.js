@@ -444,7 +444,7 @@ function legacyTick(world, player, now, moved = new Set(), hooks = {}) {
   }
   if (moved.has('scout')) hooks.scout(); else maybeScout(world, player, now);
   if (moved.has('raid')) hooks.raid(); else maybeRaid(world, player, now);
-  maybeConquer(world, player, now);
+  if (moved.has('conquer')) hooks.conquer(); else maybeConquer(world, player, now);
   if (!moved.has('colonize')) maybeColonize(world, player, now);
 }
 const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize };

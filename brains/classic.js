@@ -13,7 +13,7 @@
 // moved, `escape` goes, and this file is a brain like any other.
 import { instincts, MAX_BOT_ISLANDS, TUNING as T } from '../bots.js';
 import { applyActions } from '../brain.js';
-import { unitPower } from '../game.js';
+import { unitPower, PROTECTED_POINTS } from '../game.js';
 
 export const name = 'classic';
 
@@ -22,7 +22,7 @@ export const name = 'classic';
 // a moved instinct through a hook at its old slot, so every die is rolled in
 // the old order and every action lands where it used to; colonize, always
 // last, is simply appended after.
-const MOVED = new Set(['colonize', 'scout', 'raid']);
+const MOVED = new Set(['colonize', 'scout', 'raid', 'conquer']);
 
 // ------------------------------------------------------------ targets
 // Morale the bot expects against an owner: bullying the small blunts you.
@@ -94,6 +94,42 @@ export function raid(view, rng, now) {
   return [{ verb: 'attack', from: from.id, to: target.id, units: army, grudgeOn: target.ownerId }];
 }
 
+// A conquest campaign: a flagship, a real escort, and a target it can bully —
+// but never a small human's home. The loyalty engine does the rest; repeated
+// campaigns wear a target down to capture. Warlords hunt above their weight;
+// settlers only fight downhill. Fresh intel is required: nobody sails a
+// flagship blind. One die: CONQUER_CHANCE, twice that for warlords.
+export function conquer(view, rng, now) {
+  const persona = view.me.persona || {};
+  if (persona.kind === 'barbarian') return [];
+  const wolf = persona.kind === 'warlord';
+  if (rng() > T.CONQUER_CHANCE * (wolf ? 2 : 1)) return [];
+  if (view.isles.length >= T.MAX_BOT_ISLANDS) return [];
+  const from = view.isles.find((i) => (i.units.flagship || 0) >= 1);
+  if (!from) return [];
+  const army = { ...raidArmy(from), flagship: 1 };
+  const power = unitPower(army, 'atk');
+  if (power < T.MIN_CONQUER_POWER) return [];
+  const myPoints = view.me.points;
+  const edge = wolf ? T.WARLORD_EDGE : T.RAID_EDGE;
+  let best = null, bestDist = Infinity;
+  for (const island of view.map) {
+    if (island.ownerId == null) continue;
+    const dist = Math.hypot(island.x - from.x, island.y - from.y);
+    if (dist > T.RAID_RANGE) continue;
+    if (island.protected) continue;                                   // beginners + fresh humans
+    const ownerPoints = island.ownerPoints;
+    if (ownerPoints < PROTECTED_POINTS * 2) continue;                 // no stomping the small
+    if (!island.ownerIsBot && ownerPoints < T.HUMAN_CONQUER_FLOOR) continue;
+    if (!wolf && ownerPoints > myPoints) continue;                    // settlers fight downhill
+    const known = view.intel[island.id];
+    if (!known || now - known.time >= T.INTEL_MAX_AGE) continue;
+    if (known.def * edge >= power * moraleEst(view, ownerPoints)) continue;
+    if (dist < bestDist) { bestDist = dist; best = island; }
+  }
+  return best ? [{ verb: 'attack', from: from.id, to: best.id, units: army }] : [];
+}
+
 // Reconnaissance: a few scouts at a raid-worthy isle the book is blank on.
 // One die: SCOUT_CHANCE. Barbarians keep no scouts and send none.
 export function scout(view, rng, now) {
@@ -130,6 +166,7 @@ export function decide({ view, memory, now, rng }, escape) {
     // — not yet moved: the old path, verbatim, in the old order, minus what has moved —
     const hooks = {
       scout: () => applyActions(escape.world, escape.bot, scout(view, rng, now), now),
+      conquer: () => applyActions(escape.world, escape.bot, conquer(view, rng, now), now),
       raid: () => {
         const acts = raid(view, rng, now);
         const res = applyActions(escape.world, escape.bot, acts, now);

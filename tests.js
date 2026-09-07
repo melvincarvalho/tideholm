@@ -739,6 +739,37 @@ console.log('beginner protection');
   check('raid: a warlord rolls twice the chance', raid({ ...base(), me: { points: 100, persona: { kind: 'warlord' } } }, () => 0.2, now).length === 1 && raid(base(), () => 0.2, now).length === 0);
 }
 {
+  // ---------------------------------------------- conquer, on the view (brain seam, step 7c)
+  // The golden log holds a single flagship strike, so this instinct leans on
+  // these: every clause of the old maybeConquer, pinned.
+  const { conquer } = await import('./brains/classic.js');
+  const now = t0;
+  const base = () => ({
+    me: { points: 300, persona: { kind: 'settler' } },
+    isles: [{ id: 1, x: 0, y: 0, units: { raider: 30, spearman: 10, flagship: 1 } }],   // 720 + 50 = 770 atk with the flag
+    map: [
+      { id: 20, x: 5, y: 0, ownerId: 2, ownerPoints: 200, protected: false, ownerIsBot: true },
+      { id: 21, x: 3, y: 0, ownerId: 3, ownerPoints: 200, protected: false, ownerIsBot: true },
+    ],
+    intel: { 20: { def: 300, time: now - 1000 }, 21: { def: 300, time: now - 1000 } },
+    grudges: {},
+  });
+  const always = () => 0, never = () => 1;
+  const r = conquer(base(), always, now);
+  check('conquer: the nearest beatable known isle, flagship aboard', r.length === 1 && r[0].to === 21 && r[0].units.flagship === 1 && r[0].units.raider === 30 && r[0].units.spearman === 5);
+  check('conquer: the die can say no', conquer(base(), never, now).length === 0);
+  check('conquer: no flagship, no campaign', conquer({ ...base(), isles: [{ id: 1, x: 0, y: 0, units: { raider: 30, spearman: 10, flagship: 0 } }] }, always, now).length === 0);
+  check('conquer: a token escort stays home (MIN_CONQUER_POWER)', conquer({ ...base(), isles: [{ id: 1, x: 0, y: 0, units: { raider: 5, spearman: 0, flagship: 1 } }] }, always, now).length === 0);
+  check('conquer: capped at three isles', conquer({ ...base(), isles: [1, 2, 3].map((id) => ({ id, x: 0, y: 0, units: { raider: 30, spearman: 10, flagship: 1 } })) }, always, now).length === 0);
+  check('conquer: nobody sails a flagship blind (fresh intel required)', conquer({ ...base(), intel: { 21: { def: 300, time: now - 13 * 3600000 } }, map: [base().map[1]] }, always, now).length === 0);
+  check('conquer: a known-hard isle is left alone', conquer({ ...base(), intel: { 21: { def: 700, time: now - 1000 } }, map: [base().map[1]] }, always, now).length === 0);
+  check('conquer: never a small human\'s home (HUMAN_CONQUER_FLOOR)', conquer({ ...base(), map: [{ id: 21, x: 3, y: 0, ownerId: 3, ownerPoints: 120, protected: false, ownerIsBot: false }] }, always, now).length === 0);
+  check('conquer: a small bot below twice the protected line is left alone', conquer({ ...base(), map: [{ id: 21, x: 3, y: 0, ownerId: 3, ownerPoints: 60, protected: false, ownerIsBot: true }], intel: { 21: { def: 10, time: now - 1000 } } }, always, now).length === 0);
+  check('conquer: settlers fight downhill only', conquer({ ...base(), map: [{ id: 21, x: 3, y: 0, ownerId: 3, ownerPoints: 400, protected: false, ownerIsBot: true }] }, always, now).length === 0);
+  check('conquer: warlords hunt above their weight', conquer({ ...base(), me: { points: 300, persona: { kind: 'warlord' } }, map: [{ id: 21, x: 3, y: 0, ownerId: 3, ownerPoints: 400, protected: false, ownerIsBot: true }] }, always, now).length === 1);
+  check('conquer: barbarians never', conquer({ ...base(), me: { points: 300, persona: { kind: 'barbarian' } } }, always, now).length === 0);
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');
