@@ -20,7 +20,7 @@
 // tested, before any instinct moves behind it. See the golden log in tests.js.
 
 import {
-  playerIslands, playerPoints, islandPoints, isProtected,
+  playerIslands, playerPoints, islandPoints, isProtected, colonyPosition, popAbroad,
   tryBuild, tryTrain, sendAttack, sendScout, sendColonize, sendSupport, withdrawSupport,
 } from './game.js';
 
@@ -41,12 +41,13 @@ function mapIsland(world, isl, now, pointsOf) {
 }
 
 // One of the bot's own isles, in full — a captain sees everything at home.
-function ownIsland(isl) {
+function ownIsland(world, isl) {
   return {
     id: isl.id, x: isl.x, y: isl.y, name: isl.name,
     buildings: clone(isl.buildings), units: clone(isl.units), resources: clone(isl.resources),
     queue: clone(isl.queue || []), trainQueue: clone(isl.trainQueue || []),
     loyalty: isl.loyalty, points: islandPoints(isl),
+    popAbroad: popAbroad(world, isl), // this isle's own troops away (they still eat)
     support: (isl.support || []).map((c) => ({ ownerId: c.ownerId, units: clone(c.units) })),
   };
 }
@@ -59,8 +60,12 @@ export function botView(world, bot, now = Date.now()) {
   return {
     now,
     hourUTC: new Date(now).getUTCHours(),
-    me: { id: bot.id, name: bot.name, points: pointsOf(bot.id), persona: clone(bot.persona || {}), islands: mine.length },
-    isles: mine.map(ownIsland),
+    me: {
+      id: bot.id, name: bot.name, points: pointsOf(bot.id), persona: clone(bot.persona || {}), islands: mine.length,
+      // the buyer's rung on each ship ladder (#173): isles held plus ships paid for
+      position: { colonyship: colonyPosition(world, bot.id, 'colonyship'), flagship: colonyPosition(world, bot.id, 'flagship') },
+    },
+    isles: mine.map((i) => ownIsland(world, i)),
     map: world.islands.filter((i) => !mineIds.has(i.id)).map((i) => mapIsland(world, i, now, pointsOf)),
     rankings: world.players
       .filter((p) => world.islands.some((i) => i.ownerId === p.id))

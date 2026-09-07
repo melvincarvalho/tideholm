@@ -770,6 +770,47 @@ console.log('beginner protection');
   check('conquer: barbarians never', conquer({ ...base(), me: { points: 300, persona: { kind: 'barbarian' } } }, always, now).length === 0);
 }
 {
+  // ---------------------------------------------- the home front, on the view (brain seam, step 7d)
+  const { chooseUpgrade, trainOrder, trainable, homeFront } = await import('./brains/classic.js');
+  const { TUNING } = await import('./bots.js');
+  const N = TUNING.NEUTRAL;
+  const isle = (over) => ({
+    id: 1, x: 0, y: 0, queue: [], trainQueue: [], popAbroad: 0,
+    buildings: { lumberyard: 5, quarry: 5, goldmine: 5, storehouse: 3, hall: 3, barracks: 1, harbor: 1, wall: 1, farm: 3, wonder: 0 },
+    units: { ...g.zeroUnits() }, resources: { wood: 800, stone: 800, gold: 800 },
+    ...over,
+  });
+  const view = (over) => ({ me: { persona: { ...N }, position: { colonyship: 1, flagship: 1 } }, isles: [isle()], ...over });
+  // chooseUpgrade priorities
+  check('home: storage first when nearly full', chooseUpgrade(isle({ resources: { wood: 1340, stone: 0, gold: 0 } }), N) === 'storehouse');
+  check('home: farm before the population pinches', chooseUpgrade(isle({ units: { ...g.zeroUnits(), sentinel: 70 } }), N) === 'farm');
+  check('home: hall kept within reach of the economy', chooseUpgrade(isle({ buildings: { ...isle().buildings, hall: 1 } }), N) === 'hall');
+  check('home: a barbarian never wants a harbour', chooseUpgrade(isle({ buildings: { ...isle().buildings, barracks: 2, harbor: 0, lumberyard: 6, quarry: 6, goldmine: 6, hall: 6, wall: 4 } }), { ...N, kind: 'barbarian', wallTarget: 1 }) !== 'harbor');
+  check('home: otherwise the weakest producer by temperament', chooseUpgrade(isle({ buildings: { ...isle().buildings, quarry: 3, hall: 5, wall: 4 } }), { ...N, wallTarget: 1 }) === 'quarry');
+  // trainOrder branches, dice pinned
+  check('train: a seafarer with a harbour and room saves for a ship', JSON.stringify(trainOrder(view(), isle(), N, () => 0.1)) === JSON.stringify({ key: 'colonyship', count: 1 }));
+  check('train: a barbarian never orders a ship', trainOrder(view(), isle(), { ...N, kind: 'barbarian' }, () => 0.1).key !== 'colonyship');
+  check('train: capped at three isles, no ship', trainOrder(view({ isles: [isle(), isle(), isle()] }), isle(), N, () => 0.1).key !== 'colonyship');
+  check('train: a busy yard orders nothing', trainOrder(view(), isle({ trainQueue: [{ unit: 'spearman', count: 1 }] }), N, () => 0.1) === null);
+  check('train: the half-die can say no', trainOrder(view(), isle(), N, (() => { let k = 0; return () => [0.9, 0.9, 0.9][k++]; })()) === null);
+  // dice order: ship (harbour, no ship, room) → half-die → scouts → the mix
+  check('train: a thin scout pool is topped up by three', JSON.stringify(trainOrder(view(), isle(), N, (() => { let k = 0; return () => [0.9, 0.4, 0.1][k++]; })())) === JSON.stringify({ key: 'scout', count: 3 }));
+  // trainable predicts tryTrain
+  check('trainable: no barracks, no spearmen', trainable(view(), isle({ buildings: { ...isle().buildings, barracks: 0 } }), 'spearman', 3) === null);
+  check('trainable: population is honoured, troops abroad included', trainable(view(), isle({ popAbroad: 70 }), 'spearman', 5) === null);
+  const shipIsle = isle({ resources: { wood: 1300, stone: 1000, gold: 700 } });
+  const atRung = (n) => trainable(view({ me: { persona: { ...N }, position: { colonyship: n, flagship: 1 } } }), shipIsle, 'colonyship', 1);
+  check('trainable: the ship is priced by position (flat at the first rung, dearer up the ladder)', atRung(1) && atRung(1).wood === 1200 && (process.env.COLONY_COST_GROWTH ? atRung(6) === null : atRung(6) && atRung(6).wood === 1200));
+  const cheap = trainable(view(), isle({ resources: { wood: 200, stone: 200, gold: 200 } }), 'spearman', 3);
+  check('trainable: returns the bill when the yard will take it', cheap && cheap.wood === 150 && cheap.stone === 90 && cheap.gold === 60);
+  // homeFront: the build sees the training bill
+  // dice: ship no (0.9) → half-die yes (0.4) → scouts no (0.9) → the mix (0.5)
+  const hf = homeFront(view({ isles: [isle({ resources: { wood: 200, stone: 170, gold: 100 } })] }), (() => { let k = 0; return () => [0.9, 0.4, 0.9, 0.5][k++]; })());
+  check('home front: a training order, and a build only if the bill leaves enough', hf.length >= 1 && hf[0].verb === 'train' && (hf.length === 1 || hf[1].verb === 'build'));
+  const rich = homeFront(view({ isles: [isle({ resources: { wood: 5000, stone: 5000, gold: 5000 } })] }), (() => { let k = 0; return () => [0.9, 0.4, 0.9, 0.5][k++]; })());
+  check('home front: with plenty, train then build on the same isle', rich.length === 2 && rich[0].verb === 'train' && rich[1].verb === 'build');
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');

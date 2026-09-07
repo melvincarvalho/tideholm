@@ -433,7 +433,8 @@ function botTick(world, now, rng) {
 // escape until each instinct has moved onto the view (see brains/classic.js).
 function legacyTick(world, player, now, moved = new Set(), hooks = {}) {
   const persona = personaOf(player);
-  for (const island of playerIslands(world, player.id)) {
+  if (moved.has('isles')) hooks.isles();
+  else for (const island of playerIslands(world, player.id)) {
     resolveIsland(island, now);
     maybeTrain(world, player, island, now);
     if (island.queue.length >= QUEUE_MAX) continue;
@@ -451,7 +452,8 @@ const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid
 // The numbers the instincts are tuned with. Read by the classic brain while
 // the instincts migrate; they move with the last of them.
 const TUNING = Object.freeze({ RAID_CHANCE, RAID_RANGE, MIN_RAID_POWER, BULLY_RATIO, SCOUT_CHANCE, SCOUTS_KEEP, SCOUT_PARTY,
-  CONQUER_CHANCE, MIN_CONQUER_POWER, HUMAN_CONQUER_FLOOR, INTEL_MAX_AGE, RAID_EDGE, WARLORD_EDGE, GRUDGE_EDGE, MAX_BOT_ISLANDS });
+  CONQUER_CHANCE, MIN_CONQUER_POWER, HUMAN_CONQUER_FLOOR, INTEL_MAX_AGE, RAID_EDGE, WARLORD_EDGE, GRUDGE_EDGE, MAX_BOT_ISLANDS,
+  BOT_GARRISON_RATIO, NEUTRAL });
 
 // One decision pass for every bot: awake → tempo roll → view → decide → apply.
 // The brain sees the view; what it returns goes through the same verbs a

@@ -13,7 +13,10 @@
 // moved, `escape` goes, and this file is a brain like any other.
 import { instincts, MAX_BOT_ISLANDS, TUNING as T } from '../bots.js';
 import { applyActions } from '../brain.js';
-import { unitPower, PROTECTED_POINTS } from '../game.js';
+import {
+  unitPower, PROTECTED_POINTS, RESOURCES, UNITS, QUEUE_MAX, TRAIN_QUEUE_MAX,
+  pendingLevel, upgradeCost, canAfford, storageCapacity, popUsed, popCap, islandPoints, trainCostAt,
+} from '../game.js';
 
 export const name = 'classic';
 
@@ -22,7 +25,97 @@ export const name = 'classic';
 // a moved instinct through a hook at its old slot, so every die is rolled in
 // the old order and every action lands where it used to; colonize, always
 // last, is simply appended after.
-const MOVED = new Set(['colonize', 'scout', 'raid', 'conquer']);
+const MOVED = new Set(['colonize', 'scout', 'raid', 'conquer', 'isles']);
+
+// A bot without a rolled persona (old saves, tests) thinks like the neutral one.
+const personaOf = (view) => (view.me.persona && Object.keys(view.me.persona).length ? view.me.persona : T.NEUTRAL);
+
+// ------------------------------------------------------------ the home front
+// What to raise next on an isle: storage before it overflows, farm before the
+// population pinches, hall within reach of the economy, then barracks, wall,
+// harbour, and otherwise the weakest producer weighted by temperament.
+export function chooseUpgrade(isle, persona = T.NEUTRAL) {
+  const lvl = (k) => pendingLevel(isle, k);
+  const cap = storageCapacity(lvl('storehouse'));
+  if (RESOURCES.some((r) => isle.resources[r] >= cap * persona.storeThresh)) return 'storehouse';
+  if (popUsed(isle) >= popCap(lvl('farm')) * 0.85) return 'farm';
+  const minProd = Math.min(lvl('lumberyard'), lvl('quarry'), lvl('goldmine'));
+  if (lvl('hall') < minProd - persona.hallLag) return 'hall';
+  const barbarian = persona.kind === 'barbarian';
+  if (lvl('barracks') === 0 && minProd >= 4) return 'barracks';
+  if (!barbarian && lvl('barracks') >= 1 && lvl('barracks') < 3 && minProd >= lvl('barracks') + 5) return 'barracks';
+  if (lvl('barracks') >= 1 && lvl('wall') < persona.wallTarget && minProd >= lvl('wall') + 4) return 'wall';
+  if (!barbarian && lvl('harbor') === 0 && lvl('barracks') >= 2 && minProd >= 6) return 'harbor';
+  if (!barbarian && lvl('harbor') === 1 && lvl('barracks') >= 3 && minProd >= 8) return 'harbor';
+  const producers = ['lumberyard', 'quarry', 'goldmine'];
+  producers.sort((a, b) => lvl(a) / persona.prodBias[a] - lvl(b) / persona.prodBias[b]);
+  return producers[0];
+}
+
+function pickFromMix(mix, rng) {
+  const entries = Object.entries(mix).filter(([, w]) => w > 0);
+  const total = entries.reduce((s, [, w]) => s + w, 0);
+  if (!total) return 'sentinel';
+  let roll = rng() * total;
+  for (const [unit, w] of entries) { roll -= w; if (roll <= 0) return unit; }
+  return entries[entries.length - 1][0];
+}
+
+// What an isle would train this tick, by temperament: a ship when there is
+// room to grow, a flagship once the yard allows, scouts to keep the pool,
+// else the garrison mix up to the garrison cap. Dice in the old order.
+export function trainOrder(view, isle, persona, rng) {
+  if (isle.trainQueue.length) return null;
+  const seafarer = persona.kind !== 'barbarian';
+  const room = view.isles.length < T.MAX_BOT_ISLANDS;
+  if (seafarer && isle.buildings.harbor >= 1 && isle.units.colonyship === 0 && room && rng() < 0.25) return { key: 'colonyship', count: 1 };
+  if (isle.buildings.barracks < 1) return null;
+  if (seafarer && isle.buildings.harbor >= 2 && isle.buildings.barracks >= 3 && isle.units.flagship === 0 && room
+      && rng() < (persona.kind === 'warlord' ? 0.15 : 0.1)) return { key: 'flagship', count: 1 };
+  if (rng() > 0.5) return null;
+  if (seafarer && isle.units.scout < T.SCOUTS_KEEP && rng() < 0.35) return { key: 'scout', count: 3 };
+  const unit = pickFromMix(persona.trainMix, rng);
+  if (unit !== 'raider' && unitPower(isle.units, 'def') > islandPoints(isle) * T.BOT_GARRISON_RATIO * (persona.defenseRatio || 1)) return null;
+  return { key: unit, count: persona.batch };
+}
+
+// Would the yard take this order? The same checks tryTrain makes, on the
+// view, so the brain can price its own turn: a training order that lands
+// changes what the isle can afford to build a moment later. Returns the cost
+// on yes, null on no.
+export function trainable(view, isle, key, count) {
+  const unit = UNITS[key];
+  if (!unit || !(count >= 1 && count <= 500)) return null;
+  if ((isle.buildings[unit.building || 'barracks'] || 0) < 1) return null;
+  if (isle.trainQueue.length >= TRAIN_QUEUE_MAX) return null;
+  if (popUsed(isle) + (isle.popAbroad || 0) + unit.pop * count > popCap(isle.buildings.farm)) return null;
+  const pos = (view.me.position || {})[key];
+  const cost = trainCostAt(pos == null ? null : pos, isle, key, count);
+  return canAfford(isle, cost) ? cost : null;
+}
+
+// One pass over the bot's isles, in order: train, then build with what is
+// left. Works on a copy of each isle so the build sees the training order's
+// bill, exactly as the old instincts saw the world after tryTrain.
+export function homeFront(view, rng) {
+  const persona = personaOf(view);
+  const actions = [];
+  for (const orig of view.isles) {
+    const isle = JSON.parse(JSON.stringify(orig));
+    const order = trainOrder(view, isle, persona, rng);
+    if (order) {
+      actions.push({ verb: 'train', from: isle.id, key: order.key, count: order.count });
+      const cost = trainable(view, isle, order.key, order.count);
+      if (cost) { for (const r of RESOURCES) isle.resources[r] -= cost[r]; isle.trainQueue.push({ unit: order.key, count: order.count }); }
+    }
+    if (isle.queue.length >= QUEUE_MAX) continue;
+    const key = chooseUpgrade(isle, persona);
+    const cost = upgradeCost(key, pendingLevel(isle, key) + 1);
+    if (!canAfford(isle, cost)) continue; // save up
+    actions.push({ verb: 'build', from: isle.id, key });
+  }
+  return actions;
+}
 
 // ------------------------------------------------------------ targets
 // Morale the bot expects against an owner: bullying the small blunts you.
@@ -165,6 +258,7 @@ export function decide({ view, memory, now, rng }, escape) {
   if (escape && escape.world && escape.bot) {
     // — not yet moved: the old path, verbatim, in the old order, minus what has moved —
     const hooks = {
+      isles: () => applyActions(escape.world, escape.bot, homeFront(view, rng), now),
       scout: () => applyActions(escape.world, escape.bot, scout(view, rng, now), now),
       conquer: () => applyActions(escape.world, escape.bot, conquer(view, rng, now), now),
       raid: () => {

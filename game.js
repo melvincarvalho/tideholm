@@ -662,6 +662,16 @@ function colonyPosition(world, ownerId, unitKey = 'colonyship') {
 // Counted on islands OWNED, so conquest raises the price too: the brake is on
 // breadth, not on method.
 function trainCost(world, island, key, count) {
+  const growth = key === 'colonyship' ? COLONY_COST_GROWTH
+    : key === 'flagship' ? FLAGSHIP_COST_GROWTH : 1;
+  // Position is the one thing the price needs from the world; with it in
+  // hand the price is a pure rule (trainCostAt) a brain may compute itself.
+  const owned = growth !== 1 && world ? colonyPosition(world, island.ownerId, key) : null;
+  return trainCostAt(owned, island, key, count);
+}
+// The price of a batch given the buyer's position on the ladder (islands
+// owned plus ships already paid for); `owned` null means "flat — no world".
+function trainCostAt(owned, island, key, count) {
   const unit = UNITS[key];
   const cost = {};
   // #173: two units step with the breadth of the empire buying them —
@@ -669,7 +679,7 @@ function trainCost(world, island, key, count) {
   // door pays the expansion tax too, at a soldier's discount).
   const growth = key === 'colonyship' ? COLONY_COST_GROWTH
     : key === 'flagship' ? FLAGSHIP_COST_GROWTH : 1;
-  const settling = growth !== 1 && world;
+  const settling = growth !== 1 && owned != null;
   if (!settling) {
     for (const r of RESOURCES) cost[r] = unit.cost[r] * count;
     return cost;
@@ -684,7 +694,6 @@ function trainCost(world, island, key, count) {
   //
   // Counting ships makes the two identical, and stays consistent when one is
   // spent: islands +1, ships -1, position unchanged.
-  const owned = colonyPosition(world, island.ownerId, key);
   let mult = 0;
   for (let i = 0; i < count; i++) {
     mult += Math.pow(growth, Math.max(0, owned - 1 + i));
@@ -2926,7 +2935,7 @@ export {
   maxBuildingLevel, setMaxBuildingLevel,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
-  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, colonyPosition, tryTrain,
+  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, trainCostAt, colonyPosition, tryTrain,
   popCap, popUsed, popAbroad, supportCostsPop, TRANSIT_POP_FACTOR, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
