@@ -617,6 +617,7 @@ console.log('beginner protection');
   const bi = g.playerIsland(w, bot.id);
   bi.x = 3; bi.y = 3; bi.units.raider = 20; bi.units.scout = 6; bi.units.colonyship = 1;
   bi.buildings.barracks = 1; // training needs one — the game refuses otherwise, as it should
+  bi.buildings.farm = 4;     // and room: 20 raiders + 6 scouts + a ship already fill a farm-1 isle
   Object.assign(bi.resources, { wood: 5000, stone: 5000, gold: 5000 });
   const free = g.newIsland(w, null, 'Uncharted Isle'); free.x = 6; free.y = 3;
   const r = applyActions(w, bot, [
