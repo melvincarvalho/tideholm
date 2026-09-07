@@ -152,6 +152,8 @@ main { padding: 14px; }
 .roomtabs { display: flex; gap: 6px; margin: 0 0 8px; }
 .roomtab { font: inherit; font-size: 13px; padding: 4px 12px; border: 1px solid var(--accent); border-radius: 6px 6px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: .7; }
 .roomtab.active { opacity: 1; font-weight: 700; background: rgba(255,255,255,.35); }
+/* Islands table: a faint band behind a resource shows how full the storehouse is. */
+td.fill { background: linear-gradient(90deg, rgba(120, 90, 30, .16) var(--fill, 0%), transparent var(--fill, 0%)); }
 section {
   background: var(--paper);
   border: 1px solid var(--accent);

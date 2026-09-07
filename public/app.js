@@ -216,9 +216,12 @@ function renderIslands() {
       return td;
     };
     tr.appendChild(cell(`${i.name} (${i.x}:${i.y})`));
-    tr.appendChild(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''));
-    tr.appendChild(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''));
-    tr.appendChild(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''));
+    // How full the storehouse is, as a faint band behind the number (the
+    // red "full" warning stays as it was).
+    const fill = (td, n) => { td.classList.add('fill'); td.style.setProperty('--fill', `${Math.min(100, Math.round(100 * n / (i.capacity || 1)))}%`); return td; };
+    tr.appendChild(fill(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''), i.resources.wood));
+    tr.appendChild(fill(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''), i.resources.stone));
+    tr.appendChild(fill(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''), i.resources.gold));
     tr.appendChild(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''));
     tr.appendChild(cell(fmtNum(i.defence), i.defence === 0 ? 'warn' : ''));
     tr.appendChild(cell(String(i.wall)));
