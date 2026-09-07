@@ -2351,8 +2351,15 @@ function showRoom(which) {
 }
 // Listen from boot, not from the first visit — the badge has to count while
 // you are elsewhere. One alliance call; the widget stays hidden until shown.
+// The key rotates when anyone leaves (#183); an open tab would keep writing
+// under the old one, so the room re-checks its key once a minute and remounts
+// when it changed. The Alliance tab's own load does the same on every visit.
 async function bootAllianceRoom() {
-  try { const data = await api('/api/alliance'); mountPrivateChat(data.alliance ? data.alliance.chatSecret : null); } catch (_) { /* later, on the tab */ }
+  const check = async () => {
+    try { const data = await api('/api/alliance'); mountPrivateChat(data.alliance ? data.alliance.chatSecret : null); } catch (_) { /* later, on the tab */ }
+  };
+  await check();
+  setInterval(check, 60000);
 }
 $('roomtab-common').addEventListener('click', () => showRoom('common'));
 $('roomtab-alliance').addEventListener('click', () => showRoom('alliance'));
