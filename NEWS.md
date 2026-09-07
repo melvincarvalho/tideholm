@@ -33,7 +33,8 @@ level that were unbuyable for a reason that was not money. The clamp
 prices those rungs at one storehouse of the overflowed resource; the bare
 curve returns once all three overflow. Knob `FLAGSHIP_STORAGE_CLAMP`, on by
 default. Cuts the storehouse tax to isle 24 by two levels (~220k wood) and
-the flagship bill by ~8%; the calendar is untouched. Staged for delivery.
+the flagship bill by ~8%; the calendar is untouched. Delivered 2026-09-07 via
+`/api/admin/announce`, 479 characters, the #101 route.
 
 ### 2026-08-31 · Season 6 law: it takes two towers
 
