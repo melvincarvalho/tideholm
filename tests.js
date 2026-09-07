@@ -514,6 +514,70 @@ console.log('beginner protection');
   check('seeded dice: the bots actually acted in 300 ticks', a !== JSON.stringify({ m: base.movements, u: base.islands.map((i) => [i.id, i.units, i.queue.length, i.trainQueue.length, i.buildings]) }));
 }
 {
+  // ---------------------------------------------- the golden log (brain seam, step 2)
+  // A seeded world of 20 insomniac bots and 12 uncharted isles: 8,000 ticks
+  // at two-minute steps (the world grows: harbours, colonies, raids) then
+  // 4,000 at the live 15-second cadence. EVERY movement launched and every
+  // change of a build or training order goes into the log; the fixture keeps
+  // a hash per 500-tick block plus a tally, so it stays small and still says
+  // which block drifted. Moving an instinct behind the brain seam must leave
+  // it identical. Re-record on purpose (say why in the commit) with:
+  //   node tests.js --record-golden
+  // Not covered: flagship conquest — no bot reaches harbour 2 + barracks 3
+  // before capping at three isles in this pack; that instinct gets its own
+  // unit tests when it moves.
+  const mulberry = (seed) => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const { botTick: tick, spawnBots } = await import('./bots.js');
+  const fs = await import('node:fs');
+  const { createHash } = await import('node:crypto');
+  const GOLDEN = new URL('./fixtures/golden-bots.json', import.meta.url);
+  const w = g.createWorld();
+  spawnBots(w, 20, mulberry(101));
+  for (let k = 0; k < 12; k++) g.newIsland(w, null, 'Uncharted Isle'); // room to colonise
+  for (const p of w.players) if (p.isBot) p.persona.sleepLen = 0;
+  // Island placement uses crypto.randomInt, so lay the map out by hand: a
+  // fixed 6x6 grid, 7 fields apart — neighbours inside raid range, the far
+  // corners outside it. Same map every run, whatever the OS dice say.
+  w.islands.forEach((isl, k) => { isl.x = 2 + (k % 6) * 7; isl.y = 2 + Math.floor(k / 6) * 7; });
+  g.setRng(mulberry(102));
+  const dice = mulberry(103);
+  const WARM = 8000, WARM_STEP = 120000, LIVE = 4000, LIVE_STEP = 15000, BLOCK = 500;
+  let t = Date.UTC(2026, 0, 1);
+  const seenMoves = new Set();
+  const orders = () => w.islands.map((i) => [i.id, i.queue.map((q) => q.building + ':' + q.level).join(','), i.trainQueue.map((q) => q.key + 'x' + q.count).join(',')]);
+  let prevOrders = JSON.stringify(orders());
+  const tally = {}; const blocks = []; let h = createHash('sha256'); let firstInBlock = null;
+  for (let i = 0; i < WARM + LIVE; i++) {
+    t += i < WARM ? WARM_STEP : LIVE_STEP;
+    tick(w, t, dice);
+    for (const m of w.movements) if (!seenMoves.has(m.id)) {
+      seenMoves.add(m.id);
+      const line = [i, 'move', m.type, m.ownerId, m.fromId, m.toId, Object.entries(m.units).filter(([, n]) => n > 0).map(([k, n]) => k + n).join('+')].join('|');
+      h.update(line + '\n'); if (firstInBlock === null) firstInBlock = line;
+      const k = m.type + (m.units.flagship > 0 ? '+flagship' : ''); tally[k] = (tally[k] || 0) + 1;
+    }
+    const o = JSON.stringify(orders());
+    if (o !== prevOrders) { h.update(i + '|orders|' + o + '\n'); prevOrders = o; tally.orders = (tally.orders || 0) + 1; if (firstInBlock === null) firstInBlock = i + '|orders'; }
+    if ((i + 1) % BLOCK === 0) { blocks.push({ hash: h.digest('hex').slice(0, 16), first: firstInBlock }); h = createHash('sha256'); firstInBlock = null; }
+  }
+  g.setRng(null);
+  const record = { ticks: WARM + LIVE, blocks, tally };
+  if (process.argv.includes('--record-golden')) {
+    fs.mkdirSync(new URL('./fixtures/', import.meta.url), { recursive: true });
+    fs.writeFileSync(GOLDEN, JSON.stringify(record, null, 1));
+    console.log(`  golden log recorded: ${blocks.length} blocks, tally ${JSON.stringify(tally)}`);
+  }
+  let golden = null;
+  try { golden = JSON.parse(fs.readFileSync(GOLDEN, 'utf8')); } catch { /* not recorded yet */ }
+  check('golden log: the fixture exists (node tests.js --record-golden)', golden !== null);
+  if (golden) {
+    const drift = golden.blocks.findIndex((b, k) => !blocks[k] || blocks[k].hash !== b.hash);
+    if (drift >= 0) console.log(`  golden log drifts in block ${drift} (ticks ${drift * BLOCK}-${(drift + 1) * BLOCK - 1}); expected first line ${golden.blocks[drift].first} got ${blocks[drift] && blocks[drift].first}`);
+    check(`golden log: ${golden.blocks.length} blocks of ${BLOCK} ticks match the fixture (${Object.entries(golden.tally).map(([k, v]) => k + ' ' + v).join(', ')})`, drift < 0 && blocks.length === golden.blocks.length);
+    check('golden log: colonising is in the fixture', (golden.tally.colonize || 0) > 0);
+  }
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');
