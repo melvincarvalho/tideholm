@@ -182,7 +182,7 @@ $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
 $('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); renderTavernLine(); renderSlip(); });
-$('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); });
+$('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); mountAllianceChat(); });
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
 function showTab(which) {
@@ -2272,6 +2272,24 @@ $('offer-post').addEventListener('click', async () => {
 });
 
 // ---------------------------------------------------------------- alliance
+
+// The fleet's common room, as a widget (tide-games/chat). The host owns
+// identity: the key that seals gold speaks here, with no prompt — a captain
+// who has never pegged reads. Mounted once, on first visit to the tab.
+let _allianceChat = null;
+async function mountAllianceChat() {
+  const el = $('alliance-chat');
+  if (!el || _allianceChat) return;
+  try {
+    const { mountChat } = await import('https://tide-games.github.io/chat/widget.js');
+    _allianceChat = mountChat(el, { height: 340, readOnlyHint: T('ui.alliance.roomReadOnly') });
+  } catch (_) { return; } // the room is a guest here; the tab works without it
+  try {
+    const keys = await import('https://melvincarvalho.github.io/tidegate/keys.js');
+    const signer = await keys.keySigner({ ask: async () => '' }); // never prompts
+    _allianceChat.setSigner(signer);
+  } catch (_) { /* no stored key: reading only */ }
+}
 
 async function loadAlliance() {
   $('alliance-error').textContent = '';
