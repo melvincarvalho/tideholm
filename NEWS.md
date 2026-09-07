@@ -16,6 +16,43 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-07 · Quality of life: the rooms, indigo allies, the slip lands on the Market
+
+> ⚓ Quality of life, no new laws. The Alliance tab now holds two rooms: the
+> fleet's Common Room — public chat on nostr, where you speak as your own key —
+> and an Alliance Room encrypted with a key only members hold, with an unread
+> badge on the tab. Allies show indigo on the map. Coming home with a poker slip
+> lands you on the Market. The Islands table shades each store by how full it
+> is. And a long night at the den no longer trips the courier. Fair winds.
+
+A week of small things, sent as one report:
+
+- **The Common Room** ([tide-games/chat](https://github.com/tide-games/chat)):
+  a NIP-28 nostr channel shared by the whole fleet, mounted in the Alliance
+  tab as a widget. The key that seals gold speaks; a captain without one
+  reads. Names link to the nostr.social directory; muting is a hover control
+  with a stub to undo it; a Profile button publishes your kind-0 so every
+  nostr client names you.
+- **The Alliance Room** (#183): the game mints a secret per alliance, hands it
+  to members over the API and rotates it when anyone leaves; the widget
+  derives the room's channel from it and NIP-44-encrypts every line, so the
+  public relays carry ciphertext under an id outsiders cannot guess. An
+  unread badge on the Alliance tab counts lines you have not seen; the room
+  re-checks its key once a minute. Not hidden: that the alliance is talking.
+- **Allies are indigo** on the map. Teal read as your own green on a phone —
+  and your own isles were being painted as allies, since "same alliance"
+  includes you. Both fixed.
+- **Home with a slip lands on the Market**, where the seal, the slip line and
+  Redeem live.
+- **The Islands table** shades wood, stone and gold by how full each
+  storehouse is — a faint band behind the number; the red "full" stays.
+- **The courier carries a long night** (#181): a 28-match den slip was
+  destroyed mid-read by a flat 10 KB body cap; the cap now follows the
+  50-transition rule. The den trims applied moves on arrival and keeps a slip
+  under ~24 moves, because the front proxy refuses ~16 KB of headers.
+
+Delivered 2026-09-07 via `/api/admin/announce`, 455 characters, the #101 route.
+
 ### 2026-09-07 · Season 6 law: the storehouse sets the price
 
 > ⚓ Tenth law for season 6: a Flagship never costs more of any one resource
