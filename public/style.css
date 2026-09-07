@@ -154,6 +154,13 @@ main { padding: 14px; }
 .roomtab.active { opacity: 1; font-weight: 700; background: rgba(255,255,255,.35); }
 /* Islands table: a faint band behind a resource shows how full the storehouse is. */
 td.fill { background: linear-gradient(90deg, rgba(120, 90, 30, .16) var(--fill, 0%), transparent var(--fill, 0%)); }
+/* Past seasons under the rankings: a muted, collapsed footnote (#17). */
+details.hof { margin-top: 18px; font-size: 13px; color: var(--ink-mut, #6b5f4a); }
+details.hof summary { cursor: pointer; opacity: .75; }
+details.hof summary:hover { opacity: 1; }
+details.hof table { margin-top: 8px; font-size: 13px; }
+details.hof td { padding: 3px 12px 3px 0; }
+details.hof a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 section {
   background: var(--paper);
   border: 1px solid var(--accent);

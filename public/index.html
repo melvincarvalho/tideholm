@@ -359,10 +359,6 @@
             <h3 data-i18n="ui.wonder.title"></h3>
             <div id="wonders-list"></div>
           </div>
-          <div id="hof-box" class="hidden">
-            <h3 data-i18n="ui.hof.title"></h3>
-            <div id="hof-list"></div>
-          </div>
           <table id="ranking-table">
             <thead>
               <tr>
@@ -372,6 +368,11 @@
             </thead>
             <tbody></tbody>
           </table>
+          <!-- Past seasons: a footnote, collapsed — this tab is for THIS season. -->
+          <details id="hof-box" class="hof hidden">
+            <summary id="hof-summary"></summary>
+            <table id="hof-table"><tbody></tbody></table>
+          </details>
         </section>
 
         <section id="view-market" class="hidden">

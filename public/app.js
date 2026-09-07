@@ -1525,24 +1525,30 @@ async function loadRankings() {
     wbox.appendChild(div);
   }
 
-  // Hall of fame — past seasons
-  $('hof-box').classList.toggle('hidden', !data.hallOfFame.length);
-  const hbox = $('hof-list');
-  hbox.innerHTML = '';
-  for (const entry of [...data.hallOfFame].reverse()) {
-    const div = document.createElement('div');
-    div.className = 'movement';
-    // Each hall line links to that season's chronicle page (static,
-    // generated at the boundary by tools/chronicle.js).
-    const a = document.createElement('a');
-    a.href = `seasons/season-${entry.season}.html`;
-    a.target = '_blank';
-    a.textContent = '🏆 ' + T('ui.hof.line', {
-      n: entry.season, name: entry.name, islands: entry.islands,
-      total: entry.total, share: entry.share,
-    }) + (entry.via === 'wonder' ? ' 🗼' : '');
-    div.appendChild(a);
-    hbox.appendChild(div);
+  // Hall of fame — past seasons, a collapsed footnote under the live table.
+  const hall = data.hallOfFame || [];
+  $('hof-box').classList.toggle('hidden', !hall.length);
+  if (hall.length) {
+    const tally = {};
+    for (const e of hall) tally[e.name] = (tally[e.name] || 0) + 1;
+    const winners = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([n, c]) => c > 1 ? `${n} ×${c}` : n).join(', ');
+    $('hof-summary').textContent = T('ui.hof.summary', { n: hall.length, winners });
+    const tb = $('hof-table').querySelector('tbody');
+    tb.innerHTML = '';
+    for (const entry of [...hall].reverse()) {
+      const tr = document.createElement('tr');
+      // The season number links to that season's chronicle page (static,
+      // generated at the boundary by tools/chronicle.js).
+      const td = (text) => { const c = document.createElement('td'); c.textContent = text; return c; };
+      const s = document.createElement('td');
+      const a = document.createElement('a'); a.href = `seasons/season-${entry.season}.html`; a.target = '_blank';
+      a.textContent = T('ui.hof.season', { n: entry.season }); s.appendChild(a);
+      tr.appendChild(s);
+      tr.appendChild(td(entry.name));
+      tr.appendChild(td(`${entry.islands} / ${entry.total} (${entry.share}%)`));
+      tr.appendChild(td(T(entry.via === 'wonder' ? 'ui.hof.viaWonder' : 'ui.hof.viaDominance')));
+      tb.appendChild(tr);
+    }
   }
 
   const tbody = $('ranking-table').querySelector('tbody');
