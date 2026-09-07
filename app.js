@@ -1051,6 +1051,7 @@ export function createApp(opts = {}) {
           tag: alliance.tag,
           name: alliance.name,
           isLeader: alliance.members[0] === player.id,
+          chatSecret: game.allianceChatSecret(world, alliance), // members only — the room key (#183)
           members: alliance.members.map((id) => {
             const p = world.players.find((x) => x.id === id);
             return {

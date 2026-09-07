@@ -1976,6 +1976,21 @@ console.log('diplomacy & board');
   const c = g.createPlayer(w, 'C', 'pw', false).player;
   g.createAlliance(w, a, 'Wolves', 'WOLF');
   g.createAlliance(w, b, 'Bears', 'BEAR');
+  // ---------------------------------------------- the alliance room key (#183)
+  {
+    const wolves = g.allianceOf(w, a.id);
+    const k1 = g.allianceChatSecret(w, wolves);
+    check('#183 an alliance has a 64-hex room key', /^[0-9a-f]{64}$/.test(k1));
+    check('#183 the key is stable while nobody leaves', g.allianceChatSecret(w, wolves) === k1);
+    delete wolves.chatSecret;
+    check('#183 an alliance founded before the room is minted a key lazily', /^[0-9a-f]{64}$/.test(g.allianceChatSecret(w, wolves)));
+    const before = g.allianceChatSecret(w, wolves);
+    const c = g.createPlayer(w, 'Cub', 'pw123456').player;
+    g.inviteToAlliance(w, a, 'Cub', Date.now()); g.acceptInvite(w, c, wolves.id);
+    check('#183 joining does not rotate the key (the newcomer reads from now on)', g.allianceChatSecret(w, wolves) === before);
+    g.leaveAlliance(w, c);
+    check('#183 leaving rotates the key (the departed read nothing after)', g.allianceChatSecret(w, wolves) !== before);
+  }
 
   check('non-leader cannot set stances', (() => {
     // c joins WOLF as a regular member

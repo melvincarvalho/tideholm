@@ -1128,6 +1128,26 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('#146 the new tail cannot be applied twice either',
       doubled.error === 'err.sealSync' && vp.pegged === 90, JSON.stringify(doubled));
 
+    // ------------------------------------------ the alliance room key (#183)
+    // Members get the secret over the authenticated API; nobody else does.
+    {
+      const ra = createApp({ botCount: 1, freeIsles: 2, log: silent });
+      const rs = await serve(ra);
+      const reg1 = await req(rs.port, 'POST', '/api/register', { body: { name: 'Room One', password: 'sekrit', lang: 'en' } });
+      const c1 = (reg1.headers.get('set-cookie') || '').split(';')[0];
+      const reg2 = await req(rs.port, 'POST', '/api/register', { body: { name: 'Room Two', password: 'sekrit', lang: 'en' } });
+      const c2 = (reg2.headers.get('set-cookie') || '').split(';')[0];
+      let rr = await req(rs.port, 'GET', '/api/alliance', { cookie: c1 });
+      check('#183 no alliance, no room key', rr.status === 200 && rr.data.alliance === null);
+      rr = await req(rs.port, 'POST', '/api/alliance/create', { body: { name: 'Room Testers', tag: 'ROOM' }, cookie: c1 });
+      rr = await req(rs.port, 'GET', '/api/alliance', { cookie: c1 });
+      const key = rr.data.alliance && rr.data.alliance.chatSecret;
+      check('#183 a member is handed a 64-hex room key', /^[0-9a-f]{64}$/.test(key || ''), JSON.stringify(rr.data).slice(0, 120));
+      rr = await req(rs.port, 'GET', '/api/alliance', { cookie: c2 });
+      check('#183 a non-member sees no key', rr.status === 200 && rr.data.alliance === null);
+      rs.srv.close(); ra.stop();
+    }
+
     // ------------------------------------------ the den venue (#180)
     // Player-attested poker: no chain seed, so the endpoint checks ONLY
     // arithmetic (win = exactly 2x stake, capped by DEN_MAX_STAKE) and the

@@ -501,7 +501,13 @@
                with the same key that seals gold. Outside the alliance box — it is for
                everyone, not one alliance. The link opens the full page. -->
           <h3 data-i18n="ui.alliance.room"></h3>
+          <div class="roomtabs">
+            <button type="button" id="roomtab-common" class="roomtab active" data-i18n="ui.alliance.roomCommon"></button>
+            <button type="button" id="roomtab-alliance" class="roomtab" data-i18n="ui.alliance.roomAlliance"></button>
+          </div>
           <div id="alliance-chat"></div>
+          <div id="alliance-chat-private" class="hidden"></div>
+          <p id="alliance-chat-note" class="hint hidden" data-i18n="ui.alliance.roomNoAlliance"></p>
         </section>
 
         <section id="view-messages" class="hidden">

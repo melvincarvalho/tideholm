@@ -1560,6 +1560,21 @@ function allianceOf(world, playerId) {
   return world.alliances.find((a) => a.id === p.allianceId) || null;
 }
 
+// The alliance's room key (#183): a secret every member is handed over the
+// authenticated API and nobody else. Chat lines on the public relays are
+// encrypted with it and filed under a channel id derived from it. Minted
+// lazily (alliances founded before the room exist), ROTATED when anyone
+// leaves — the departed read nothing after that; the newly joined read from
+// when they joined. The game holds the secret the way it holds the board.
+function allianceChatSecret(world, alliance) {
+  if (!alliance) return null;
+  if (!/^[0-9a-f]{64}$/.test(alliance.chatSecret || '')) alliance.chatSecret = crypto.randomBytes(32).toString('hex');
+  return alliance.chatSecret;
+}
+function rotateAllianceChatSecret(alliance) {
+  alliance.chatSecret = crypto.randomBytes(32).toString('hex');
+}
+
 function createAlliance(world, player, name, tag) {
   name = String(name || '').trim();
   tag = String(tag || '').trim().toUpperCase();
@@ -1570,7 +1585,7 @@ function createAlliance(world, player, name, tag) {
     a.name.toLowerCase() === name.toLowerCase() || a.tag === tag)) {
     return { error: 'err.allianceTaken' };
   }
-  const alliance = { id: world.nextId++, name, tag, members: [player.id], invites: [] };
+  const alliance = { id: world.nextId++, name, tag, members: [player.id], invites: [], chatSecret: crypto.randomBytes(32).toString('hex') };
   world.alliances.push(alliance);
   player.allianceId = alliance.id;
   return { alliance };
@@ -1613,6 +1628,7 @@ function leaveAlliance(world, player) {
   if (!alliance) return { error: 'err.noAlliance' };
   alliance.members = alliance.members.filter((id) => id !== player.id);
   player.allianceId = null;
+  rotateAllianceChatSecret(alliance); // the room key changes the moment someone walks out
   if (alliance.members.length === 0) {
     world.alliances = world.alliances.filter((a) => a.id !== alliance.id);
   }
@@ -2916,6 +2932,7 @@ export {
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,
+  allianceChatSecret,
   loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

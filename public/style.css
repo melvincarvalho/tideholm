@@ -148,6 +148,10 @@ th .res-ico { width: 17px; height: 17px; vertical-align: -4px; }
 
 main { padding: 14px; }
 
+/* The common room / alliance room switch above the chat widget (#183). */
+.roomtabs { display: flex; gap: 6px; margin: 0 0 8px; }
+.roomtab { font: inherit; font-size: 13px; padding: 4px 12px; border: 1px solid var(--accent); border-radius: 6px 6px 0 0; background: transparent; color: inherit; cursor: pointer; opacity: .7; }
+.roomtab.active { opacity: 1; font-weight: 700; background: rgba(255,255,255,.35); }
 section {
   background: var(--paper);
   border: 1px solid var(--accent);

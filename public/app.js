@@ -2276,7 +2276,18 @@ $('offer-post').addEventListener('click', async () => {
 // The fleet's common room, as a widget (tide-games/chat). The host owns
 // identity: the key that seals gold speaks here, with no prompt — a captain
 // who has never pegged reads. Mounted once, on first visit to the tab.
-let _allianceChat = null;
+let _allianceChat = null;        // the common room
+let _privateChat = null;         // the alliance room, keyed by the alliance's secret (#183)
+let _privateSecret = null;
+let _roomSigner;                 // undefined until tried; null when there is no stored key
+async function roomSigner() {
+  if (_roomSigner !== undefined) return _roomSigner;
+  try {
+    const keys = await import('https://melvincarvalho.github.io/tidegate/keys.js');
+    _roomSigner = await keys.keySigner({ ask: async () => '' }); // never prompts
+  } catch (_) { _roomSigner = null; } // no stored key: reading only
+  return _roomSigner;
+}
 async function mountAllianceChat() {
   const el = $('alliance-chat');
   if (!el || _allianceChat) return;
@@ -2284,12 +2295,35 @@ async function mountAllianceChat() {
     const { mountChat } = await import('https://tide-games.github.io/chat/widget.js');
     _allianceChat = mountChat(el, { height: 340, readOnlyHint: T('ui.alliance.roomReadOnly') });
   } catch (_) { return; } // the room is a guest here; the tab works without it
-  try {
-    const keys = await import('https://melvincarvalho.github.io/tidegate/keys.js');
-    const signer = await keys.keySigner({ ask: async () => '' }); // never prompts
-    _allianceChat.setSigner(signer);
-  } catch (_) { /* no stored key: reading only */ }
+  const signer = await roomSigner();
+  if (signer) _allianceChat.setSigner(signer);
 }
+// The alliance room: same widget, the alliance's secret in. Re-mounted when
+// the secret changes (someone left; the key rotated) or the alliance changes.
+async function mountPrivateChat(secret) {
+  const el = $('alliance-chat-private');
+  if (!el) return;
+  if (!secret) { if (_privateChat) { _privateChat.destroy(); _privateChat = null; } _privateSecret = null; return; }
+  if (_privateChat && _privateSecret === secret) return;
+  if (_privateChat) _privateChat.destroy();
+  _privateSecret = secret;
+  try {
+    const { mountChat } = await import('https://tide-games.github.io/chat/widget.js');
+    _privateChat = mountChat(el, { height: 340, secret, readOnlyHint: T('ui.alliance.roomReadOnly') });
+  } catch (_) { return; }
+  const signer = await roomSigner();
+  if (signer) _privateChat.setSigner(signer);
+}
+function showRoom(which) {
+  const priv = which === 'alliance';
+  $('roomtab-common').classList.toggle('active', !priv);
+  $('roomtab-alliance').classList.toggle('active', priv);
+  $('alliance-chat').classList.toggle('hidden', priv);
+  $('alliance-chat-private').classList.toggle('hidden', !priv || !_privateSecret);
+  $('alliance-chat-note').classList.toggle('hidden', !priv || !!_privateSecret);
+}
+$('roomtab-common').addEventListener('click', () => showRoom('common'));
+$('roomtab-alliance').addEventListener('click', () => showRoom('alliance'));
 
 async function loadAlliance() {
   $('alliance-error').textContent = '';
@@ -2297,6 +2331,7 @@ async function loadAlliance() {
   $('alliance-none').classList.toggle('hidden', !!data.alliance);
   $('alliance-mine').classList.toggle('hidden', !data.alliance);
 
+  mountPrivateChat(data.alliance ? data.alliance.chatSecret : null);
   if (data.alliance) {
     const a = data.alliance;
     $('alliance-title').textContent = `[${a.tag}] ${a.name}`;
