@@ -665,6 +665,22 @@ console.log('beginner protection');
   check('registry: a faulty brain does not stop the others', g.playerIsland(w, p3.id).queue.length + Object.values(g.playerIsland(w, p3.id).buildings).reduce((a, b) => a + b, 0) > Object.values(g.playerIsland(w, p1.id).buildings).reduce((a, b) => a + b, 0));
 }
 {
+  // ---------------------------------------------- colonize, on the view (brain seam, step 6)
+  const { colonize } = await import('./brains/classic.js');
+  const view = (over) => ({
+    me: { persona: { kind: 'settler' } },
+    isles: [{ id: 1, x: 0, y: 0, units: { colonyship: 1 } }],
+    map: [{ id: 10, x: 9, y: 0, ownerId: null }, { id: 11, x: 3, y: 0, ownerId: null }, { id: 12, x: 1, y: 0, ownerId: 5 }],
+    ...over,
+  });
+  check('colonize: the nearest FREE isle, not the nearest isle', JSON.stringify(colonize(view())) === JSON.stringify([{ verb: 'colonize', from: 1, to: 11 }]));
+  check('colonize: no ship, no sail', colonize(view({ isles: [{ id: 1, x: 0, y: 0, units: { colonyship: 0 } }] })).length === 0);
+  check('colonize: barbarians never settle', colonize(view({ me: { persona: { kind: 'barbarian' } } })).length === 0);
+  check('colonize: capped at three isles', colonize(view({ isles: [1, 2, 3].map((id) => ({ id, x: 0, y: 0, units: { colonyship: 1 } })) })).length === 0);
+  check('colonize: nowhere free, nothing sails', colonize(view({ map: [{ id: 12, x: 1, y: 0, ownerId: 5 }] })).length === 0);
+  check('colonize: one ship sails per tick, from the first isle that has one', colonize(view({ isles: [{ id: 1, x: 0, y: 0, units: { colonyship: 0 } }, { id: 2, x: 8, y: 0, units: { colonyship: 2 } }] }))[0].from === 2);
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');

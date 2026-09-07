@@ -431,7 +431,7 @@ function botTick(world, now, rng) {
 // The old path, verbatim: every instinct acting on the world directly, in
 // the order it always has. Called by the classic brain through its migration
 // escape until each instinct has moved onto the view (see brains/classic.js).
-function legacyTick(world, player, now) {
+function legacyTick(world, player, now, moved = new Set()) {
   const persona = personaOf(player);
   for (const island of playerIslands(world, player.id)) {
     resolveIsland(island, now);
@@ -445,7 +445,7 @@ function legacyTick(world, player, now) {
   maybeScout(world, player, now);
   maybeRaid(world, player, now);
   maybeConquer(world, player, now);
-  maybeColonize(world, player, now);
+  if (!moved.has('colonize')) maybeColonize(world, player, now);
 }
 const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize };
 
@@ -460,6 +460,10 @@ function botTickNow(world, now) {
     if (isAsleep(persona, now)) continue;
     if (RNG() > 0.4 * BOT_TEMPO * persona.tempo) continue;
     const brain = brainFor(persona);
+    // Settle the bot's own isles first — production accrued, orders that have
+    // finished delivered — so the view is as fresh as the old instincts' own
+    // resolveIsland made it (a ship completing this very tick sails this tick).
+    for (const island of playerIslands(world, player.id)) resolveIsland(island, now);
     const view = botView(world, player, now);
     let out;
     try {
@@ -472,4 +476,4 @@ function botTickNow(world, now) {
   }
 }
 
-export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, instincts };
+export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, instincts, MAX_BOT_ISLANDS };
