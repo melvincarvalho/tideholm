@@ -489,6 +489,31 @@ console.log('beginner protection');
   check('bots never get join grace', g.isProtected(w, bot, t0) === false);
 }
 {
+  // ---------------------------------------------- seeded dice (brain seam, step 1)
+  // The same world, the same seed, 300 ticks twice: one exact outcome. Live
+  // play is untouched (no seed → Math.random). This is the tripwire every
+  // later move of the instincts runs against.
+  const mulberry = (seed) => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const { botTick: tick } = await import('./bots.js');
+  const { spawnBots } = await import('./bots.js');
+  const base = g.createWorld();
+  spawnBots(base, 6, mulberry(7));
+  for (const p of base.players) if (p.isBot) p.persona.sleepLen = 0; // insomniacs: every tick counts
+  const run = (seed) => {
+    const w = JSON.parse(JSON.stringify(base));
+    g.setRng(mulberry(seed));
+    const dice = mulberry(seed + 1);
+    for (let i = 0; i < 300; i++) tick(w, t0 + i * 15000, dice);
+    g.setRng(null);
+    return JSON.stringify({ m: w.movements, u: w.islands.map((i) => [i.id, i.units, i.queue.length, i.trainQueue.length, i.buildings]) });
+  };
+  // (Two different seeds are NOT asserted to differ: in 75 minutes a fresh
+  // settler builds the same first upgrades whatever the dice say.)
+  const a = run(11), b = run(11);
+  check('seeded dice: one seed, one outcome, twice', a === b);
+  check('seeded dice: the bots actually acted in 300 ticks', a !== JSON.stringify({ m: base.movements, u: base.islands.map((i) => [i.id, i.units, i.queue.length, i.trainQueue.length, i.buildings]) }));
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');

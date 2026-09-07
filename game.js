@@ -212,6 +212,10 @@ function isProtected(world, p, now) {
 
 // Loyalty: a victorious Flagship lowers it by 25-40; at 0 the island falls.
 // It regenerates over time (scaled by game speed, like production).
+// The game's own dice (one roll: the loyalty strike). Injectable so a seeded
+// simulation is exact end to end; live play uses Math.random.
+let RNG = Math.random;
+function setRng(fn) { RNG = typeof fn === 'function' ? fn : Math.random; }
 const LOYALTY_MAX = 100;
 const LOYALTY_REGEN_PER_HOUR = 2; // × SPEED
 const LOYALTY_AFTER_CAPTURE = 25;
@@ -1985,7 +1989,7 @@ function applyMovement(world, m) {
     let loyaltyLine = null;
     if (survivors.flagship >= 1) {
       const before = Math.round(dest.loyalty);
-      const drop = 25 + Math.floor(Math.random() * 16);
+      const drop = 25 + Math.floor(RNG() * 16);
       dest.loyalty = before - drop;
       loyaltyLine = { from: before, to: Math.max(0, Math.round(dest.loyalty)) };
     }
@@ -2932,7 +2936,7 @@ export {
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,
-  allianceChatSecret,
+  allianceChatSecret, setRng,
   loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

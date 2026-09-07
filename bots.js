@@ -58,7 +58,16 @@ const BOT_NAMES = [
 
 // ---------------------------------------------------------------- personas
 
-const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+// The dice. Live play rolls Math.random; a test (or a replay) hands the tick a
+// seeded generator so 300 ticks give one exact action log — the tripwire for
+// moving the instincts behind the brain seam without changing how bots play.
+let RNG = Math.random;
+function withRng(rng, fn) {
+  const prev = RNG;
+  if (typeof rng === 'function') RNG = rng;
+  try { return fn(); } finally { RNG = prev; }
+}
+const rand = (lo, hi) => lo + RNG() * (hi - lo);
 const randInt = (lo, hi) => Math.floor(rand(lo, hi + 1));
 
 // Legacy/neutral persona: exactly the pre-#22 behavior. Bots created outside
@@ -134,7 +143,7 @@ function personaDeck(count) {
   if (!deck.length) deck.push('settler');
   while (deck.length < count) deck.push('settler');
   for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(RNG() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck.slice(0, count);
@@ -152,7 +161,7 @@ function pickFromMix(mix) {
   const entries = Object.entries(mix).filter(([, w]) => w > 0);
   const total = entries.reduce((s, [, w]) => s + w, 0);
   if (!total) return 'sentinel';
-  let roll = Math.random() * total;
+  let roll = RNG() * total;
   for (const [unit, w] of entries) {
     roll -= w;
     if (roll <= 0) return unit;
@@ -160,7 +169,10 @@ function pickFromMix(mix) {
   return entries[entries.length - 1][0];
 }
 
-function spawnBots(world, count) {
+function spawnBots(world, count, rng) {
+  return withRng(rng, () => spawnBotsNow(world, count));
+}
+function spawnBotsNow(world, count) {
   const deck = personaDeck(count);
   let spawned = 0;
   for (const name of BOT_NAMES) {
@@ -223,7 +235,7 @@ function maybeTrain(world, bot, island, now) {
   if (seafarer && island.buildings.harbor >= 1 &&
       island.units.colonyship === 0 &&
       playerIslands(world, bot.id).length < MAX_BOT_ISLANDS &&
-      Math.random() < 0.25) {
+      RNG() < 0.25) {
     tryTrain(world, island, 'colonyship', 1, now);
     return; // whether or not it could afford one, it's saving up
   }
@@ -232,14 +244,14 @@ function maybeTrain(world, bot, island, now) {
   if (seafarer && island.buildings.harbor >= 2 && island.buildings.barracks >= 3 &&
       island.units.flagship === 0 &&
       playerIslands(world, bot.id).length < MAX_BOT_ISLANDS &&
-      Math.random() < (persona.kind === 'warlord' ? 0.15 : 0.1)) {
+      RNG() < (persona.kind === 'warlord' ? 0.15 : 0.1)) {
     tryTrain(world, island, 'flagship', 1, now);
     return;
   }
-  if (Math.random() > 0.5) return;
+  if (RNG() > 0.5) return;
   // A standing scout pool for counter-espionage and reconnaissance.
   // Barbarians keep none: they are meant to be scouted and farmed.
-  if (seafarer && island.units.scout < SCOUTS_KEEP && Math.random() < 0.35) {
+  if (seafarer && island.units.scout < SCOUTS_KEEP && RNG() < 0.35) {
     tryTrain(world, island, 'scout', 3, now);
     return;
   }
@@ -323,7 +335,7 @@ function maybeRaid(world, bot, now) {
   const persona = personaOf(bot);
   if (persona.kind === 'barbarian') return; // never attacks, never retaliates
   const chance = RAID_CHANCE * (persona.kind === 'warlord' ? 2 : 1);
-  if (Math.random() > chance) return;
+  if (RNG() > chance) return;
   const islands = playerIslands(world, bot.id);
   if (!islands.length) return;
   // Stage from the island with the strongest raiding party.
@@ -344,7 +356,7 @@ function maybeRaid(world, bot, now) {
 // Reconnaissance: send a few scouts at raid-worthy targets to build intel.
 function maybeScout(world, bot, now) {
   if (personaOf(bot).kind === 'barbarian') return;
-  if (Math.random() > SCOUT_CHANCE) return;
+  if (RNG() > SCOUT_CHANCE) return;
   const islands = playerIslands(world, bot.id);
   const from = islands.find((i) => i.units.scout >= 3);
   if (!from) return;
@@ -360,7 +372,7 @@ function maybeConquer(world, bot, now) {
   const persona = personaOf(bot);
   if (persona.kind === 'barbarian') return;
   const wolf = persona.kind === 'warlord';
-  if (Math.random() > CONQUER_CHANCE * (wolf ? 2 : 1)) return;
+  if (RNG() > CONQUER_CHANCE * (wolf ? 2 : 1)) return;
   if (playerIslands(world, bot.id).length >= MAX_BOT_ISLANDS) return;
   const from = playerIslands(world, bot.id).find((i) => i.units.flagship >= 1);
   if (!from) return;
@@ -411,13 +423,16 @@ function maybeColonize(world, bot, now) {
 
 // One decision pass for every bot. Tempo and sleep phase are per-persona,
 // so the pack no longer moves in lockstep.
-function botTick(world, now) {
+function botTick(world, now, rng) {
+  return withRng(rng, () => botTickNow(world, now));
+}
+function botTickNow(world, now) {
   resolveWorld(world, now);
   for (const player of world.players) {
     if (!player.isBot) continue;
     const persona = personaOf(player);
     if (isAsleep(persona, now)) continue;
-    if (Math.random() > 0.4 * BOT_TEMPO * persona.tempo) continue;
+    if (RNG() > 0.4 * BOT_TEMPO * persona.tempo) continue;
     for (const island of playerIslands(world, player.id)) {
       resolveIsland(island, now);
       maybeTrain(world, player, island, now);
