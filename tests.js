@@ -681,6 +681,35 @@ console.log('beginner protection');
   check('colonize: one ship sails per tick, from the first isle that has one', colonize(view({ isles: [{ id: 1, x: 0, y: 0, units: { colonyship: 0 } }, { id: 2, x: 8, y: 0, units: { colonyship: 2 } }] }))[0].from === 2);
 }
 {
+  // ---------------------------------------------- scout, on the view (brain seam, step 7a)
+  const { scout, pickTarget } = await import('./brains/classic.js');
+  const now = t0;
+  const base = () => ({
+    me: { points: 100, persona: { kind: 'settler' } },
+    isles: [{ id: 1, x: 0, y: 0, units: { scout: 9 } }],
+    map: [
+      { id: 20, x: 4, y: 0, ownerId: 2, ownerPoints: 90, protected: false },   // near, fair size
+      { id: 21, x: 2, y: 0, ownerId: 3, ownerPoints: 95, protected: true },    // nearer but shielded
+      { id: 22, x: 3, y: 0, ownerId: 4, ownerPoints: 900, protected: false },  // a giant
+      { id: 23, x: 30, y: 0, ownerId: 5, ownerPoints: 100, protected: false }, // out of range
+    ],
+    intel: {}, grudges: {},
+  });
+  const always = () => 0, never = () => 1;
+  check('scout: a party of six sails at the best unknown isle in range', JSON.stringify(scout(base(), always, now)) === JSON.stringify([{ verb: 'scout', from: 1, to: 20, count: 6 }]));
+  check('scout: the die can say no', scout(base(), never, now).length === 0);
+  check('scout: barbarians send none', scout({ ...base(), me: { points: 100, persona: { kind: 'barbarian' } } }, always, now).length === 0);
+  check('scout: fewer than three scouts, no party', scout({ ...base(), isles: [{ id: 1, x: 0, y: 0, units: { scout: 2 } }] }, always, now).length === 0);
+  check('scout: a small pool sends what it has', scout({ ...base(), isles: [{ id: 1, x: 0, y: 0, units: { scout: 4 } }] }, always, now)[0].count === 4);
+  check('scout: a fresh book is not re-read', scout({ ...base(), intel: { 20: { def: 1, time: now - 1000 } } }, always, now).length === 0);
+  check('scout: a stale book is read again', scout({ ...base(), intel: { 20: { def: 1, time: now - 13 * 3600000 } } }, always, now)[0].to === 20);
+  check('scout: a grudge lets a settler look up at a giant', pickTarget({ ...base(), grudges: { 4: 1 } }, { x: 0, y: 0 }, 0, now, 'scout').id === 22);
+  const giantOnly = { ...base(), map: [{ id: 22, x: 3, y: 0, ownerId: 4, ownerPoints: 900, protected: false }] };
+  check('scout: a settler will not look up at a giant', pickTarget(giantOnly, { x: 0, y: 0 }, 0, now, 'scout') === null);
+  check('scout: a warlord needs no grudge to look up', pickTarget({ ...giantOnly, me: { points: 100, persona: { kind: 'warlord' } } }, { x: 0, y: 0 }, 0, now, 'scout').id === 22);
+  check('scout: the small are left alone', pickTarget({ ...base(), me: { points: 1000, persona: { kind: 'settler' } }, map: [{ id: 30, x: 4, y: 0, ownerId: 9, ownerPoints: 50, protected: false }] }, { x: 0, y: 0 }, 0, now, 'scout') === null);
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');

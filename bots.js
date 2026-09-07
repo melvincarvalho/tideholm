@@ -431,7 +431,7 @@ function botTick(world, now, rng) {
 // The old path, verbatim: every instinct acting on the world directly, in
 // the order it always has. Called by the classic brain through its migration
 // escape until each instinct has moved onto the view (see brains/classic.js).
-function legacyTick(world, player, now, moved = new Set()) {
+function legacyTick(world, player, now, moved = new Set(), hooks = {}) {
   const persona = personaOf(player);
   for (const island of playerIslands(world, player.id)) {
     resolveIsland(island, now);
@@ -442,12 +442,16 @@ function legacyTick(world, player, now, moved = new Set()) {
     if (!canAfford(island, cost)) continue; // save up
     tryBuild(world, island, key, now);
   }
-  maybeScout(world, player, now);
+  if (moved.has('scout')) hooks.scout(); else maybeScout(world, player, now);
   maybeRaid(world, player, now);
   maybeConquer(world, player, now);
   if (!moved.has('colonize')) maybeColonize(world, player, now);
 }
 const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize };
+// The numbers the instincts are tuned with. Read by the classic brain while
+// the instincts migrate; they move with the last of them.
+const TUNING = Object.freeze({ RAID_CHANCE, RAID_RANGE, MIN_RAID_POWER, BULLY_RATIO, SCOUT_CHANCE, SCOUTS_KEEP, SCOUT_PARTY,
+  CONQUER_CHANCE, MIN_CONQUER_POWER, HUMAN_CONQUER_FLOOR, INTEL_MAX_AGE, RAID_EDGE, WARLORD_EDGE, GRUDGE_EDGE, MAX_BOT_ISLANDS });
 
 // One decision pass for every bot: awake → tempo roll → view → decide → apply.
 // The brain sees the view; what it returns goes through the same verbs a
@@ -476,4 +480,4 @@ function botTickNow(world, now) {
   }
 }
 
-export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, instincts, MAX_BOT_ISLANDS };
+export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, instincts, MAX_BOT_ISLANDS, TUNING };
