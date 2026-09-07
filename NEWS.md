@@ -16,6 +16,25 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-07 · Season 6 law: the storehouse sets the price
+
+> ⚓ Tenth law for season 6: a Flagship never costs more of any one resource
+> than the launching island's storehouse can hold — so long as at least one of
+> its three prices still fits. Wood tops the store first, gold last; between the
+> two, the ship costs a FULL storehouse of whatever overflowed. Once all three
+> overflow, the ladder stands until the storehouse grows: every storehouse level
+> now buys four more rungs of conquest. The yard is the island the ship sails
+> from. Fair winds.
+
+#182. Under #173 every resource on the flagship ladder climbs by the same
+step, so from the thirteenth rung a ship's wood outgrew the biggest
+storehouse on the map while its gold still fit — four rungs per storehouse
+level that were unbuyable for a reason that was not money. The clamp
+prices those rungs at one storehouse of the overflowed resource; the bare
+curve returns once all three overflow. Knob `FLAGSHIP_STORAGE_CLAMP`, on by
+default. Cuts the storehouse tax to isle 24 by two levels (~220k wood) and
+the flagship bill by ~8%; the calendar is untouched. Staged for delivery.
+
 ### 2026-08-31 · Season 6 law: it takes two towers
 
 > 🗼 Ninth law for season 6: the wonder crowns only the captain who holds

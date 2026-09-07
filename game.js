@@ -308,6 +308,16 @@ const FLAGSHIP_COST_GROWTH = parseColonyGrowth(process.env.FLAGSHIP_COST_GROWTH)
 // season's bot population becomes finite and the endgame consolidates.
 // Humans are never gated by this knob.
 const BOT_RESPAWN = process.env.BOT_RESPAWN !== '0';
+// #182: a flagship's price is clamped to the launching island's storehouse,
+// resource by resource, for as long as at least ONE of the three still fits.
+// The positional curve (#173) grows every resource by the same step, so wood
+// crosses the cap first and gold last — four ladder rungs later. Between those
+// two crossings the ship used to be unbuyable for a reason that was not money
+// ("no storehouse can hold it"); now it costs a full storehouse of whatever
+// overflowed, and the next storehouse level is what buys the next four rungs.
+// Once all three overflow the curve returns untouched: unaffordable, as before,
+// until the storehouse grows. Set to 0 to restore the bare curve.
+const FLAGSHIP_STORAGE_CLAMP = process.env.FLAGSHIP_STORAGE_CLAMP !== '0';
 
 const COST_GROWTH = 1.55;
 const TIME_GROWTH = 1.5;
@@ -691,6 +701,13 @@ function trainCost(world, island, key, count) {
     // is unaffordable regardless — no storehouse comes close — so the clamp
     // costs nothing real and keeps the price non-decreasing in count.
     cost[r] = Number.isFinite(n) ? Math.min(n, Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+  }
+  if (key === 'flagship' && FLAGSHIP_STORAGE_CLAMP && island) {
+    // #182: clamp to the launching island's storehouse while any resource fits.
+    const cap = storageCapacity(island.buildings.storehouse || 0);
+    if (RESOURCES.some((r) => cost[r] <= cap)) {
+      for (const r of RESOURCES) cost[r] = Math.min(cost[r], cap);
+    }
   }
   return cost;
 }
@@ -2898,7 +2915,7 @@ export {
   tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
-  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, BOT_RESPAWN, claimIsland,
+  COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,
   loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,

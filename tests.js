@@ -3398,6 +3398,38 @@ console.log('flagship curve (#173)');
   check('#173 fifth flagship steps by growth^4', r.pos === 5 && r.one.wood === exp1);
   check('#173 batch of three is the stepped sum', r.three.wood === exp3);
   check('#173 ordering singly cannot dodge the curve', r.singly === exp3);
+
+  // ------------------------------------ the storehouse sets the price (#182)
+  // At growth 1.2 every resource climbs the same ladder; wood tops a storehouse
+  // first, gold four rungs later. Between: the ship costs a storehouse of the
+  // overflowed resource. After: the bare curve, unaffordable until the store grows.
+  const probe182 = `
+    import * as g from './game.js';
+    const w = g.createWorld();
+    const p = g.createPlayer(w, 'S', 'pw123456').player;
+    const isl = g.playerIsland(w, p.id);
+    isl.buildings.storehouse = 10;                 // cap 23,066
+    const cap = g.storageCapacity(10);
+    const out = { cap };
+    const at = (n) => { while (g.colonyPosition(w, p.id, 'flagship') < n) g.newIsland(w, p.id, 'X' + Math.random()); return g.trainCost(w, isl, 'flagship', 1); };
+    // position p prices the NEXT ship at growth^(p-1)
+    out.rung12 = at(13);                           // wood 22,290 < cap: untouched
+    out.rung13 = at(14);                           // wood 26,748 > cap, gold 12,839 < cap: clamped
+    out.rung16 = at(17);                           // gold 22,186 < cap: still buyable, wood+stone at cap
+    out.rung17 = at(18);                           // gold 26,623 > cap: all three overflow, bare curve
+    console.log(JSON.stringify(out));
+  `;
+  const run182 = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe182], {
+    env: { ...process.env, FLAGSHIP_COST_GROWTH: '1.2', ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const c = run182({});
+  const G182 = g.UNITS.flagship.cost.gold;
+  check('#182 under the cap the curve is untouched', c.rung12.wood === Math.round(W * Math.pow(1.2, 12)) && c.rung12.wood < c.cap);
+  check('#182 wood over the cap costs exactly one storehouse', c.rung13.wood === c.cap && c.rung13.gold === Math.round(G182 * Math.pow(1.2, 13)));
+  check('#182 four rungs stay buyable on one storehouse', c.rung16.wood === c.cap && c.rung16.stone === c.cap && c.rung16.gold < c.cap);
+  check('#182 once all three overflow the bare curve returns', c.rung17.wood === Math.round(W * Math.pow(1.2, 17)) && c.rung17.gold > c.cap);
+  const off = run182({ FLAGSHIP_STORAGE_CLAMP: '0' });
+  check('#182 the knob off leaves rung 14 at the bare curve', off.rung13.wood === Math.round(W * Math.pow(1.2, 13)));
   check('#173 a flagship aboard an attack counts toward position', r.posWithFleet === 7);
   check('#173 colony ships unaffected by the flagship knob', r.colonyFlat === true);
   check('#173 clamp shared with #61: junk falls back to flat',
