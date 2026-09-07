@@ -578,6 +578,36 @@ console.log('beginner protection');
   }
 }
 {
+  // ---------------------------------------------- the view (brain seam, step 3)
+  // What a bot may know. The test is the boundary: nothing in the view that a
+  // scout would not have brought home. Nothing calls botView yet.
+  const { botView } = await import('./brain.js');
+  const { w, a, b, ia, ib } = freshWorld();
+  const bot = g.createPlayer(w, 'Viewer', null, true).player;
+  const bi = g.playerIsland(w, bot.id);
+  bi.x = 3; bi.y = 3;
+  Object.assign(ib.units, { sentinel: 40, raider: 7 });
+  Object.assign(ib.resources, { wood: 4321, stone: 1234, gold: 999 });
+  ib.buildings.wall = 6;
+  ia.support = [{ ownerId: b.id, units: { ...g.zeroUnits(), sentinel: 9 } }];
+  bot.intel = { [ib.id]: { def: 1500, time: t0 } };
+  bot.grudges = { [a.id]: 2 };
+  bot.memory = { note: 'kept' };
+  const view = botView(w, bot, t0);
+  const text = JSON.stringify(view);
+  check('view: my own isle is in full', view.isles.length === 1 && view.isles[0].id === bi.id && view.isles[0].resources && view.isles[0].buildings);
+  check('view: other isles carry only what the map shows', view.map.every((i) => !('resources' in i) && !('units' in i) && !('buildings' in i) && 'ownerId' in i && 'x' in i && 'protected' in i));
+  check('view: another player\'s stores never leak', !text.includes('4321') && !text.includes('1234'));
+  check('view: another player\'s garrison never leaks', !/"raider":7|"sentinel":40|"sentinel":9/.test(text));
+  check('view: another player\'s wall never leaks', !view.map.some((i) => 'wall' in i));
+  check('view: the intel book is exactly what my scouts brought', view.intel[ib.id] && view.intel[ib.id].def === 1500 && Object.keys(view.intel).length === 1);
+  check('view: grudges, memory and persona ride along', view.grudges[a.id] === 2 && view.memory.note === 'kept' && view.me.persona && view.me.id === bot.id);
+  check('view: the public rankings are public', view.rankings.some((r) => r.name === 'B' && typeof r.points === 'number' && !('resources' in r)));
+  check('view: it is plain JSON (a round trip loses nothing)', JSON.stringify(JSON.parse(text)) === text);
+  view.isles[0].resources.wood = 1e9; view.intel[ib.id].def = 0;
+  check('view: a copy, not a window — editing it touches nothing', bi.resources.wood !== 1e9 && bot.intel[ib.id].def === 1500);
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');
