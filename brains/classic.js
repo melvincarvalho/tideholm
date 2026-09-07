@@ -13,6 +13,7 @@
 // moved, `escape` goes, and this file is a brain like any other.
 import { instincts, MAX_BOT_ISLANDS, TUNING as T } from '../bots.js';
 import { applyActions } from '../brain.js';
+import { unitPower } from '../game.js';
 
 export const name = 'classic';
 
@@ -21,7 +22,7 @@ export const name = 'classic';
 // a moved instinct through a hook at its old slot, so every die is rolled in
 // the old order and every action lands where it used to; colonize, always
 // last, is simply appended after.
-const MOVED = new Set(['colonize', 'scout']);
+const MOVED = new Set(['colonize', 'scout', 'raid']);
 
 // ------------------------------------------------------------ targets
 // Morale the bot expects against an owner: bullying the small blunts you.
@@ -67,6 +68,32 @@ export function pickTarget(view, from, myPower, now, mode) {
   return best;
 }
 
+// The raiding party an isle can field: raiders and half the spearmen.
+// Sentinels always stay home.
+export function raidArmy(isle) {
+  return { raider: isle.units.raider || 0, spearman: Math.floor((isle.units.spearman || 0) / 2) };
+}
+
+// A raid: from the isle with the strongest party, at the softest beatable
+// known target (or a grudge, intel or no intel). One die: RAID_CHANCE, twice
+// that for warlords. Barbarians never attack. The action carries `grudgeOn`:
+// a raid that lands settles one score with that owner — the caller applies
+// that on success, since a brain does not see results until the next tick.
+export function raid(view, rng, now) {
+  const persona = view.me.persona || {};
+  if (persona.kind === 'barbarian') return [];
+  const chance = T.RAID_CHANCE * (persona.kind === 'warlord' ? 2 : 1);
+  if (rng() > chance) return [];
+  if (!view.isles.length) return [];
+  const from = view.isles.reduce((a, b) => unitPower(raidArmy(a), 'atk') >= unitPower(raidArmy(b), 'atk') ? a : b);
+  const army = raidArmy(from);
+  const power = unitPower(army, 'atk');
+  if (power < T.MIN_RAID_POWER) return []; // still mustering
+  const target = pickTarget(view, from, power, now, 'raid');
+  if (!target) return [];
+  return [{ verb: 'attack', from: from.id, to: target.id, units: army, grudgeOn: target.ownerId }];
+}
+
 // Reconnaissance: a few scouts at a raid-worthy isle the book is blank on.
 // One die: SCOUT_CHANCE. Barbarians keep no scouts and send none.
 export function scout(view, rng, now) {
@@ -103,6 +130,13 @@ export function decide({ view, memory, now, rng }, escape) {
     // — not yet moved: the old path, verbatim, in the old order, minus what has moved —
     const hooks = {
       scout: () => applyActions(escape.world, escape.bot, scout(view, rng, now), now),
+      raid: () => {
+        const acts = raid(view, rng, now);
+        const res = applyActions(escape.world, escape.bot, acts, now);
+        // one raid that lands settles one score (the old code read the result too)
+        const a = acts[0], r = res[0], g = escape.bot.grudges;
+        if (a && r && !r.error && g && g[a.grudgeOn]) { g[a.grudgeOn] -= 1; if (g[a.grudgeOn] <= 0) delete g[a.grudgeOn]; }
+      },
     };
     instincts.legacyTick(escape.world, escape.bot, now, MOVED, hooks);
   }

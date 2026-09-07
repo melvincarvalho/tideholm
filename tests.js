@@ -710,6 +710,35 @@ console.log('beginner protection');
   check('scout: the small are left alone', pickTarget({ ...base(), me: { points: 1000, persona: { kind: 'settler' } }, map: [{ id: 30, x: 4, y: 0, ownerId: 9, ownerPoints: 50, protected: false }] }, { x: 0, y: 0 }, 0, now, 'scout') === null);
 }
 {
+  // ---------------------------------------------- raid, on the view (brain seam, step 7b)
+  const { raid, raidArmy } = await import('./brains/classic.js');
+  const now = t0;
+  const base = () => ({
+    me: { points: 100, persona: { kind: 'settler' } },
+    isles: [
+      { id: 1, x: 0, y: 0, units: { raider: 10, spearman: 10, sentinel: 50 } },   // 240 + 50 = 290 atk
+      { id: 2, x: 1, y: 0, units: { raider: 2, spearman: 0, sentinel: 90 } },     // 48 atk
+    ],
+    map: [
+      { id: 20, x: 4, y: 0, ownerId: 2, ownerPoints: 90, protected: false },
+      { id: 21, x: 6, y: 0, ownerId: 3, ownerPoints: 90, protected: false },
+    ],
+    intel: { 20: { def: 100, time: now - 1000 }, 21: { def: 400, time: now - 1000 } }, // 20 soft, 21 too hard (400*1.3 > 290)
+    grudges: {},
+  });
+  const always = () => 0, never = () => 1;
+  check('raid: sentinels stay home, half the spearmen march', JSON.stringify(raidArmy(base().isles[0])) === JSON.stringify({ raider: 10, spearman: 5 }));
+  const r = raid(base(), always, now);
+  check('raid: from the strongest isle, at the soft known target, with the party', r.length === 1 && r[0].from === 1 && r[0].to === 20 && r[0].units.raider === 10 && r[0].units.spearman === 5 && r[0].grudgeOn === 2);
+  check('raid: the die can say no', raid(base(), never, now).length === 0);
+  check('raid: barbarians never attack', raid({ ...base(), me: { points: 100, persona: { kind: 'barbarian' } } }, always, now).length === 0);
+  check('raid: still mustering below MIN_RAID_POWER', raid({ ...base(), isles: [{ id: 1, x: 0, y: 0, units: { raider: 3, spearman: 0 } }] }, always, now).length === 0);
+  check('raid: a known-hard target is left alone', raid({ ...base(), intel: { 21: { def: 400, time: now - 1000 } }, map: [base().map[1]] }, always, now).length === 0);
+  check('raid: no intel and no grudge means no raid', raid({ ...base(), intel: {} }, always, now).length === 0);
+  check('raid: a grudge needs no intel', raid({ ...base(), intel: {}, grudges: { 3: 1 } }, always, now)[0].to === 21);
+  check('raid: a warlord rolls twice the chance', raid({ ...base(), me: { points: 100, persona: { kind: 'warlord' } } }, () => 0.2, now).length === 1 && raid(base(), () => 0.2, now).length === 0);
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');

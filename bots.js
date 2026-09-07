@@ -443,7 +443,7 @@ function legacyTick(world, player, now, moved = new Set(), hooks = {}) {
     tryBuild(world, island, key, now);
   }
   if (moved.has('scout')) hooks.scout(); else maybeScout(world, player, now);
-  maybeRaid(world, player, now);
+  if (moved.has('raid')) hooks.raid(); else maybeRaid(world, player, now);
   maybeConquer(world, player, now);
   if (!moved.has('colonize')) maybeColonize(world, player, now);
 }
