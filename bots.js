@@ -13,6 +13,8 @@ import { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tr
         popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
         createPlayer, playerIsland, playerIslands, playerPoints, islandPoints,
         isProtected, PROTECTED_POINTS } from './game.js';
+import { botView, applyActions } from './brain.js';
+import { brainFor } from './brains/index.js';
 
 // Tuning knobs for bot aggression.
 const RAID_CHANCE = 0.12;        // per bot per tick, once armed (warlords: 2x)
@@ -426,6 +428,30 @@ function maybeColonize(world, bot, now) {
 function botTick(world, now, rng) {
   return withRng(rng, () => botTickNow(world, now));
 }
+// The old path, verbatim: every instinct acting on the world directly, in
+// the order it always has. Called by the classic brain through its migration
+// escape until each instinct has moved onto the view (see brains/classic.js).
+function legacyTick(world, player, now) {
+  const persona = personaOf(player);
+  for (const island of playerIslands(world, player.id)) {
+    resolveIsland(island, now);
+    maybeTrain(world, player, island, now);
+    if (island.queue.length >= QUEUE_MAX) continue;
+    const key = chooseUpgrade(island, persona);
+    const cost = upgradeCost(key, pendingLevel(island, key) + 1);
+    if (!canAfford(island, cost)) continue; // save up
+    tryBuild(world, island, key, now);
+  }
+  maybeScout(world, player, now);
+  maybeRaid(world, player, now);
+  maybeConquer(world, player, now);
+  maybeColonize(world, player, now);
+}
+const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize };
+
+// One decision pass for every bot: awake → tempo roll → view → decide → apply.
+// The brain sees the view; what it returns goes through the same verbs a
+// human has. Persona (who the bot is) stays here; thinking lives in brains/.
 function botTickNow(world, now) {
   resolveWorld(world, now);
   for (const player of world.players) {
@@ -433,20 +459,17 @@ function botTickNow(world, now) {
     const persona = personaOf(player);
     if (isAsleep(persona, now)) continue;
     if (RNG() > 0.4 * BOT_TEMPO * persona.tempo) continue;
-    for (const island of playerIslands(world, player.id)) {
-      resolveIsland(island, now);
-      maybeTrain(world, player, island, now);
-      if (island.queue.length >= QUEUE_MAX) continue;
-      const key = chooseUpgrade(island, persona);
-      const cost = upgradeCost(key, pendingLevel(island, key) + 1);
-      if (!canAfford(island, cost)) continue; // save up
-      tryBuild(world, island, key, now);
+    const brain = brainFor(persona);
+    const view = botView(world, player, now);
+    let out;
+    try {
+      out = brain.decide({ view, memory: player.memory || {}, now, rng: RNG }, { world, bot: player });
+    } catch (err) {
+      continue; // a brain's fault is its own; the tick goes on
     }
-    maybeScout(world, player, now);
-    maybeRaid(world, player, now);
-    maybeConquer(world, player, now);
-    maybeColonize(world, player, now);
+    if (out && Array.isArray(out.actions) && out.actions.length) applyActions(world, player, out.actions, now);
+    if (out && out.memory && typeof out.memory === 'object') player.memory = out.memory;
   }
 }
 
-export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep };
+export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, instincts };

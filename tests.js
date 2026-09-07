@@ -643,6 +643,28 @@ console.log('beginner protection');
   check('verbs: a failure never stops the next action', r[11] && r[9].error && r[10].error);
 }
 {
+  // ---------------------------------------------- the brain registry (brain seam, step 5)
+  // A persona names its brain; unknown names fall back to classic; a brain
+  // that returns nothing leaves its bot idle; a brain that throws is its own
+  // problem and the tick goes on.
+  const { registerBrain, brainFor, brainNames } = await import('./brains/index.js');
+  const { botTick: tick, spawnBots } = await import('./bots.js');
+  check('registry: classic is built in', brainNames().includes('classic') && brainFor({}).name === 'classic');
+  check('registry: an unknown name falls back to classic', brainFor({ brain: 'typo' }).name === 'classic');
+  let threw = false; try { registerBrain('broken', {}); } catch { threw = true; }
+  check('registry: a module without decide is refused', threw);
+  registerBrain('idle', { name: 'idle', decide: () => ({ actions: [], memory: { slept: true } }) });
+  registerBrain('faulty', { name: 'faulty', decide: () => { throw new Error('boom'); } });
+  const w = g.createWorld();
+  spawnBots(w, 3, () => 0.5);
+  const [p1, p2, p3] = w.players;
+  for (const p of [p1, p2, p3]) { p.persona.sleepLen = 0; Object.assign(g.playerIsland(w, p.id).resources, { wood: 900, stone: 900, gold: 900 }); }
+  p1.persona.brain = 'idle'; p2.persona.brain = 'faulty'; // p3 stays classic
+  for (let i = 0; i < 40; i++) tick(w, t0 + i * 15000, () => 0.01);
+  check('registry: an idle brain leaves its bot idle, and its memory is kept', g.playerIsland(w, p1.id).queue.length === 0 && p1.memory && p1.memory.slept === true);
+  check('registry: a faulty brain does not stop the others', g.playerIsland(w, p3.id).queue.length + Object.values(g.playerIsland(w, p3.id).buildings).reduce((a, b) => a + b, 0) > Object.values(g.playerIsland(w, p1.id).buildings).reduce((a, b) => a + b, 0));
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');
