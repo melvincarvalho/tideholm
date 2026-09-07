@@ -19,7 +19,10 @@
 // Nothing calls botView yet: it exists so the boundary can be looked at, and
 // tested, before any instinct moves behind it. See the golden log in tests.js.
 
-import { playerIslands, playerPoints, islandPoints, isProtected } from './game.js';
+import {
+  playerIslands, playerPoints, islandPoints, isProtected,
+  tryBuild, tryTrain, sendAttack, sendScout, sendColonize, sendSupport, withdrawSupport,
+} from './game.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -70,4 +73,46 @@ export function botView(world, bot, now = Date.now()) {
     grudges: clone(bot.grudges || {}),
     memory: clone(bot.memory || {}),
   };
+}
+
+// ---------------------------------------------------------------- the verbs
+//
+// An action is a request: { verb, from, to, key, count, units }. Every verb
+// routes to the SAME game function a human's request reaches, with the same
+// validation, so a brain can do nothing a player cannot. `from` must be one
+// of the bot's own isles; `to` any isle id. Results come back one per action,
+// in order — { ok } or { error } — and a failure never stops the next action.
+// Unknown verbs and malformed requests are errors, not exceptions: a brain is
+// a guest, and a guest's mistake must not take the tick down with it.
+export const VERBS = ['build', 'train', 'attack', 'scout', 'colonize', 'support', 'withdraw'];
+
+export function applyActions(world, bot, actions, now = Date.now()) {
+  const results = [];
+  if (!Array.isArray(actions)) return results;
+  const mine = new Map(playerIslands(world, bot.id).map((i) => [i.id, i]));
+  const isle = (id) => world.islands.find((i) => i.id === id) || null;
+  for (const a of actions) {
+    try {
+      if (!a || typeof a !== 'object' || !VERBS.includes(a.verb)) { results.push({ error: 'err.unknownVerb' }); continue; }
+      if (a.verb === 'withdraw') {
+        const target = isle(a.to);
+        results.push(target ? withdrawSupport(world, bot, target, now) : { error: 'err.noIsland' });
+        continue;
+      }
+      const from = mine.get(a.from);
+      if (!from) { results.push({ error: 'err.notYourIsland' }); continue; }
+      switch (a.verb) {
+        case 'build': results.push(tryBuild(world, from, String(a.key || ''), now)); break;
+        case 'train': results.push(tryTrain(world, from, String(a.key || ''), a.count, now)); break;
+        case 'attack': { const t = isle(a.to); results.push(t ? sendAttack(world, bot, from, t, a.units || {}, now) : { error: 'err.noIsland' }); break; }
+        case 'scout': { const t = isle(a.to); results.push(t ? sendScout(world, bot, from, t, a.count, now) : { error: 'err.noIsland' }); break; }
+        case 'colonize': { const t = isle(a.to); results.push(t ? sendColonize(world, bot, from, t, now) : { error: 'err.noIsland' }); break; }
+        case 'support': { const t = isle(a.to); results.push(t ? sendSupport(world, bot, from, t, a.units || {}, now) : { error: 'err.noIsland' }); break; }
+        default: results.push({ error: 'err.unknownVerb' });
+      }
+    } catch (err) {
+      results.push({ error: 'err.brainFault', detail: String(err && err.message || err) });
+    }
+  }
+  return results;
 }

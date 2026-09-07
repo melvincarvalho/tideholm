@@ -608,6 +608,40 @@ console.log('beginner protection');
   check('view: a copy, not a window — editing it touches nothing', bi.resources.wood !== 1e9 && bot.intel[ib.id].def === 1500);
 }
 {
+  // ---------------------------------------------- the verbs (brain seam, step 4)
+  // A brain's actions reach the same game functions a human's clicks do, with
+  // the same refusals. Nothing calls applyActions yet.
+  const { applyActions } = await import('./brain.js');
+  const { w, a, b, ia, ib } = freshWorld();
+  const bot = g.createPlayer(w, 'Doer', null, true).player;
+  const bi = g.playerIsland(w, bot.id);
+  bi.x = 3; bi.y = 3; bi.units.raider = 20; bi.units.scout = 6; bi.units.colonyship = 1;
+  bi.buildings.barracks = 1; // training needs one — the game refuses otherwise, as it should
+  Object.assign(bi.resources, { wood: 5000, stone: 5000, gold: 5000 });
+  const free = g.newIsland(w, null, 'Uncharted Isle'); free.x = 6; free.y = 3;
+  const r = applyActions(w, bot, [
+    { verb: 'build', from: bi.id, key: 'lumberyard' },                    // 0 ok
+    { verb: 'train', from: bi.id, key: 'spearman', count: 3 },            // 1 ok
+    { verb: 'attack', from: bi.id, to: ib.id, units: { raider: 10 } },    // 2 ok
+    { verb: 'scout', from: bi.id, to: ia.id, count: 3 },                  // 3 ok
+    { verb: 'colonize', from: bi.id, to: free.id },                       // 4 ok
+    { verb: 'attack', from: ia.id, to: ib.id, units: { raider: 1 } },     // 5 not my isle
+    { verb: 'attack', from: bi.id, to: bi.id, units: { raider: 1 } },     // 6 own isle — the game refuses
+    { verb: 'colonize', from: bi.id, to: ib.id },                         // 7 inhabited — the game refuses
+    { verb: 'train', from: bi.id, key: 'dragon', count: 1 },              // 8 unknown unit
+    { verb: 'teleport', from: bi.id },                                    // 9 unknown verb
+    null,                                                                 // 10 garbage
+    { verb: 'attack', from: bi.id, to: 999999, units: { raider: 1 } },    // 11 no such isle
+  ], t0);
+  check('verbs: build, train, attack, scout, colonize go through', [0, 1, 2, 3, 4].every((k) => r[k] && r[k].ok));
+  check('verbs: the world moved (queue, training, three fleets at sea)', bi.queue.length === 1 && bi.trainQueue.length === 1 && w.movements.filter((m) => m.ownerId === bot.id).length === 3);
+  check('verbs: another player\'s isle is not mine to act from', r[5].error === 'err.notYourIsland');
+  check('verbs: the game\'s own refusals come back as errors', r[6].error && r[7].error && r[8].error);
+  check('verbs: unknown verbs and garbage are errors, not exceptions', r[9].error === 'err.unknownVerb' && r[10].error === 'err.unknownVerb' && r[11].error === 'err.noIsland');
+  check('verbs: one result per action, in order', r.length === 12);
+  check('verbs: a failure never stops the next action', r[11] && r[9].error && r[10].error);
+}
+{
   // downward bully guard: a big bot leaves small-but-legal humans alone
   const { w, b, ib } = freshWorld();
   const { botTick } = await import('./bots.js');
