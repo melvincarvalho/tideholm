@@ -148,6 +148,9 @@ th .res-ico { width: 17px; height: 17px; vertical-align: -4px; }
 
 main { padding: 14px; }
 
+/* The islands dock is a fixed 40px bar over the page's foot; the alliance view
+   ends in the chat widget, so it needs room to scroll clear of the dock. */
+#view-alliance { padding-bottom: 64px; }
 section {
   background: var(--paper);
   border: 1px solid var(--accent);
