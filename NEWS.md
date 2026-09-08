@@ -755,6 +755,14 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **Bots get the morale shield** (2026-09-08): `BOT_MORALE_FLOOR` from 1 to
+  0.3, the same as against humans. Since July a big player fought bots at full
+  strength ("bots stay crackable", #14); at 1,100 points against 350-point
+  barbarians that had become free farming. Now bullying a small bot blunts
+  your attack exactly as bullying a small human does — bots as players, the
+  direction the brains are going. Nobody was fighting anyone but bots, so no
+  report went out; this line is the record.
+
 - **New captains claim a berth** (#179, 2026-08-31): a joining player now
   takes a random uncharted isle instead of conjuring a new one — joins,
   refuges (#172) and colonization all claim; minting is everywhere the
