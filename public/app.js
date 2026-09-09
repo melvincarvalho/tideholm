@@ -255,15 +255,7 @@ function renderIslands() {
   const sum = (f) => rows.reduce((n, i) => n + f(i), 0);
   $('isl-t-wood').textContent = fmtNum(sum((i) => i.resources.wood));
   $('isl-t-stone').textContent = fmtNum(sum((i) => i.resources.stone));
-  // The isles' gold, then what is elsewhere beside it: the vault, and gold
-  // sealed at the Tidegate. Same cell, so the foot of the table stays one row.
-  const goldCell = $('isl-t-gold');
-  goldCell.textContent = fmtNum(sum((i) => i.resources.gold));
-  const vault = state.player && state.player.vault, sealed = state.player && state.player.pegged;
-  const aside = [];
-  if (vault > 0) aside.push(T('ui.islands.vaultAside', { n: fmtNum(Math.floor(vault)) }));
-  if (sealed > 0) aside.push(T('ui.islands.sealedAside', { n: fmtNum(Math.floor(sealed)) }));
-  if (aside.length) { const sm = document.createElement('small'); sm.className = 'hint aside'; sm.textContent = ' ' + aside.join(' · '); goldCell.appendChild(sm); }
+  $('isl-t-gold').textContent = fmtNum(sum((i) => i.resources.gold));
   // The production row (#77 follow-up, take two): empire output per hour,
   // its own row rather than fine print squeezed under every stock figure.
   $('isl-p-wood').textContent = `+${fmtNum(sum((i) => (i.rates && i.rates.wood) || 0))}/h`;
@@ -289,7 +281,13 @@ function renderIslands() {
   const atSea = (r) => moves.reduce((n, m) => n + ((m.loot && m.loot[r]) || 0), 0);
   $('isl-s-wood').textContent = fmtNum(Math.floor(atSea('wood')));
   $('isl-s-stone').textContent = fmtNum(Math.floor(atSea('stone')));
-  $('isl-s-gold').textContent = fmtNum(Math.floor(atSea('gold')));
+  // Gold "elsewhere" is more than at sea: the vault, and gold sealed at the
+  // Tidegate. One cell, the breakdown in its tooltip; the row stays one row.
+  const vault = Math.floor((state.player && state.player.vault) || 0), sealed = Math.floor((state.player && state.player.pegged) || 0);
+  const goldSea = Math.floor(atSea('gold'));
+  const g = $('isl-s-gold');
+  g.textContent = fmtNum(goldSea + vault + sealed);
+  g.title = `${T('ui.stage.atsea')} ${fmtNum(goldSea)} · ${T('ui.vault.title')} ${fmtNum(vault)} · ${T('ui.islands.sealedWord')} ${fmtNum(sealed)}`;
 
   // The empire-wide movements table (#104): every fleet and cargo in one
   // place, exactly the view the movements box shows one island at a time.
