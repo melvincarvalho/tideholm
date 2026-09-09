@@ -16,6 +16,30 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-09 · Quality of life: rooms on top, clickable links, sortable isles, past seasons as a footnote
+
+> ⚓ Small things, no new laws. The rooms now sit at the top of the Alliance
+> tab, and links in them are clickable. The Islands table sorts by Points or
+> Def — click the header; lowest first either way, so the isle that needs you
+> is on top, and your choice is remembered. Past seasons have moved under the
+> Rankings as a footnote; this season leads. Fair winds.
+
+- **The rooms first**: the common room and the alliance room open the Alliance
+  tab; the board, members and diplomacy follow.
+- **Links** in either room become anchors, built as elements, never markup —
+  a bare domain stays text, a trailing full stop is not part of the link.
+- **Islands table**: click *Def* or *Points* to sort; lowest first either way,
+  remembered in the browser, the hint says which.
+- **Past seasons**: one collapsed line under the live rankings, a plain table
+  when opened, winners tallied — the Rankings tab is for this season.
+- **The alliance room** re-checks its key once a minute and remounts when it
+  rotates; an unread badge on the Alliance tab counts lines you have not seen.
+- **Read-only rooms** say what to do: "seal gold once at the Market and this
+  key will speak here."
+
+Delivered 2026-09-09 via `/api/admin/announce`, 355 characters, the #101 route.
+The Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-07 · Quality of life: the rooms, indigo allies, the slip lands on the Market
 
 > ⚓ Quality of life, no new laws. The Alliance tab now holds two rooms: the
