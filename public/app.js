@@ -255,7 +255,15 @@ function renderIslands() {
   const sum = (f) => rows.reduce((n, i) => n + f(i), 0);
   $('isl-t-wood').textContent = fmtNum(sum((i) => i.resources.wood));
   $('isl-t-stone').textContent = fmtNum(sum((i) => i.resources.stone));
-  $('isl-t-gold').textContent = fmtNum(sum((i) => i.resources.gold));
+  // The isles' gold, then what is elsewhere beside it: the vault, and gold
+  // sealed at the Tidegate. Same cell, so the foot of the table stays one row.
+  const goldCell = $('isl-t-gold');
+  goldCell.textContent = fmtNum(sum((i) => i.resources.gold));
+  const vault = state.player && state.player.vault, sealed = state.player && state.player.pegged;
+  const aside = [];
+  if (vault > 0) aside.push(T('ui.islands.vaultAside', { n: fmtNum(Math.floor(vault)) }));
+  if (sealed > 0) aside.push(T('ui.islands.sealedAside', { n: fmtNum(Math.floor(sealed)) }));
+  if (aside.length) { const sm = document.createElement('small'); sm.className = 'hint aside'; sm.textContent = ' ' + aside.join(' · '); goldCell.appendChild(sm); }
   // The production row (#77 follow-up, take two): empire output per hour,
   // its own row rather than fine print squeezed under every stock figure.
   $('isl-p-wood').textContent = `+${fmtNum(sum((i) => (i.rates && i.rates.wood) || 0))}/h`;
