@@ -161,6 +161,10 @@ details.hof summary:hover { opacity: 1; }
 details.hof table { margin-top: 8px; font-size: 13px; }
 details.hof td { padding: 3px 12px 3px 0; }
 details.hof a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+/* Islands table: click Def or Points to sort; the active one carries the mark. */
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { text-decoration: underline; }
+th.sortable.active::after { content: ' ▾'; opacity: .7; }
 section {
   background: var(--paper);
   border: 1px solid var(--accent);

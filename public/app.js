@@ -198,11 +198,26 @@ function showTab(which) {
 // row per island, so this renders whatever the last refresh brought back.
 // Sorted by defence ascending, because the question it exists to answer is
 // "which of mine is undefended" — that answer belongs at the top.
+const ISLANDS_SORT_KEY = 'tideholm.islandsSort';
+function islandsSortKey() { try { return localStorage.getItem(ISLANDS_SORT_KEY) === 'def' ? 'def' : 'points'; } catch { return 'points'; } }
+for (const key of ['def', 'points']) {
+  const th = $('isl-sort-' + key);
+  if (th) th.addEventListener('click', () => { try { localStorage.setItem(ISLANDS_SORT_KEY, key); } catch { /* private mode */ } renderIslands(); });
+}
+
 function renderIslands() {
   const tbody = $('islands-table').querySelector('tbody');
   tbody.innerHTML = '';
   if (!state) return;
-  const rows = [...state.islands].sort((a, b) => a.defence - b.defence || a.points - b.points);
+  // Sort by points (highest first, the default) or by defence (weakest first);
+  // the choice is remembered in this browser.
+  const sortKey = islandsSortKey();
+  const rows = [...state.islands].sort(sortKey === 'def'
+    ? (a, b) => a.defence - b.defence || a.points - b.points || String(a.name).localeCompare(String(b.name))
+    : (a, b) => b.points - a.points || a.defence - b.defence || String(a.name).localeCompare(String(b.name)));
+  const hint = document.querySelector('[data-i18n="ui.islands.hint"]');
+  if (hint) hint.textContent = T(sortKey === 'def' ? 'ui.islands.hintDef' : 'ui.islands.hintPoints');
+  for (const id of ['isl-sort-def', 'isl-sort-points']) { const th = $(id); if (th) th.classList.toggle('active', id === 'isl-sort-' + sortKey); }
   for (const i of rows) {
     const tr = document.createElement('tr');
     tr.className = 'clickable' + (i.id === state.island.id ? ' active' : '');
