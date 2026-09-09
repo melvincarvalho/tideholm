@@ -197,9 +197,15 @@ h2 { margin-top: 2px; }
 /* an <a> styled as a small-btn: keep it on the baseline with the buttons */
 .did-link { text-decoration: none; white-space: nowrap; line-height: 1.6; }
 /* trade form: the ▲ is the fill-max control; native spinners retire (#? QoL) */
-#trade-form input[type=number] { appearance: textfield; -moz-appearance: textfield; width: 5.5em; }
+#trade-form input[type=number], #attack-units input[type=number] { appearance: textfield; -moz-appearance: textfield; width: 5.5em; }
 #trade-form input[type=number]::-webkit-inner-spin-button,
-#trade-form input[type=number]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+#trade-form input[type=number]::-webkit-outer-spin-button,
+#attack-units input[type=number]::-webkit-inner-spin-button,
+#attack-units input[type=number]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+/* The attack form's ▲: the same fill control the shipping form has. */
+#attack-units .num-fill { display: inline-flex; align-items: stretch; }
+#attack-units .unit-max { font: inherit; font-size: 11px; padding: 0 6px; border: 1px solid var(--accent); border-left: 0; background: transparent; color: inherit; cursor: pointer; opacity: .75; }
+#attack-units .unit-max:hover { opacity: 1; }
 .res-max {
   font-size: 11px; padding: 2px 6px; margin: 0 10px 0 2px; cursor: pointer;
   background: #eadfc4; border: 1px solid #c9b68c; border-radius: 3px;

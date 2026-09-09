@@ -1239,14 +1239,25 @@ function openAttackPanel(target) {
       if (u.ship || key === 'scout') continue; // ships sail their own missions, scouts spy
       const row = document.createElement('label');
       row.className = 'attack-row';
+      // ▲ fills this unit to everything you have — the others stay as they are,
+      // since an army mixes raiders and spearmen (the shipping form's ▲ clears
+      // the rest because a shipment carries one resource).
       row.innerHTML = `${T('ui.attack.have', { name: u.name, n: u.count })}
-        <input type="number" min="0" max="${u.count}" value="0" data-attack-unit="${key}">`;
+        <span class="num-fill"><input type="number" min="0" max="${u.count}" value="0" data-attack-unit="${key}"
+        ><button type="button" class="unit-max" data-unit="${key}" title="${T('ui.attack.fillAll')}">▲</button></span>`;
       box.appendChild(row);
     }
     $('scout-n').max = state.unitTypes.scout.count;
     for (const input of box.querySelectorAll('input')) {
       input.addEventListener('input', updateAttackEta);
       input.addEventListener('input', runSimulator);
+    }
+    for (const btn of box.querySelectorAll('.unit-max')) {
+      btn.addEventListener('click', () => {
+        const input = box.querySelector(`input[data-attack-unit="${btn.dataset.unit}"]`);
+        input.value = input.max;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
     }
     updateAttackEta();
     $('sim-box').classList.toggle('hidden', supportOnly);
