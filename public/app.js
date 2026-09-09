@@ -209,12 +209,12 @@ function renderIslands() {
   const tbody = $('islands-table').querySelector('tbody');
   tbody.innerHTML = '';
   if (!state) return;
-  // Sort by points (highest first, the default) or by defence (weakest first);
-  // the choice is remembered in this browser.
+  // Sort by points (lowest first, the default) or by defence (weakest first):
+  // either way the isle that needs attention is on top. Remembered in this browser.
   const sortKey = islandsSortKey();
   const rows = [...state.islands].sort(sortKey === 'def'
     ? (a, b) => a.defence - b.defence || a.points - b.points || String(a.name).localeCompare(String(b.name))
-    : (a, b) => b.points - a.points || a.defence - b.defence || String(a.name).localeCompare(String(b.name)));
+    : (a, b) => a.points - b.points || a.defence - b.defence || String(a.name).localeCompare(String(b.name)));
   const hint = document.querySelector('[data-i18n="ui.islands.hint"]');
   if (hint) hint.textContent = T(sortKey === 'def' ? 'ui.islands.hintDef' : 'ui.islands.hintPoints');
   for (const id of ['isl-sort-def', 'isl-sort-points']) { const th = $(id); if (th) th.classList.toggle('active', id === 'isl-sort-' + sortKey); }
