@@ -47,6 +47,10 @@ check('cost growth is 1.55x per level', (() => {
   const c6 = g.upgradeCost('quarry', 6).wood;
   return close(c6 / c5, 1.55, 0.02); // ceil() wobble
 })());
+check('#187 the Beacon\'s three legs weigh the same (level 8: 107,472 each)', (() => {
+  const c = g.upgradeCost('wonder', 8);
+  return c.wood === 107472 && c.stone === 107472 && c.gold === 107472 && c.gold <= g.storageCapacity(14);
+})());
 check('storage capacity 400*1.5^lvl (lvl1=600, lvl2=900, lvl5=3038)',
   g.storageCapacity(1) === 600 && g.storageCapacity(2) === 900 && g.storageCapacity(5) === 3038);
 check('production lvl1 = base perHour at speed 1',

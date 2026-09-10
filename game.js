@@ -126,7 +126,11 @@ const BUILDINGS = {
     // Shown text comes from i18n ('building.wonder.desc' interpolates the
     // configured level); these table fields are documentation for readers.
     desc: 'Raise it to WONDER_WIN_LEVEL and the world is yours.',
-    base: { wood: 5000, stone: 5000, gold: 3000 },
+    // Three legs of equal weight (#187): gold was 3,000 until 2026-09-10,
+    // which made the pacifist crown the cheap one in the choke resource.
+    // At 5,000 level 8's gold leg is 107,472 — exactly a level-14
+    // storehouse, the same ceiling the wood and stone legs already had.
+    base: { wood: 5000, stone: 5000, gold: 5000 },
     time: 3600,
     requires: { hall: 10 },
   },

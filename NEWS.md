@@ -16,6 +16,26 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-10 · Season 6 law: three towers, and a Beacon that weighs the same all round
+
+> 🗼 Twelfth law for season 6, two parts. The wonder now crowns only the
+> captain who holds THREE winning-level Beacons at once — build them, or
+> take them, conquest carries buildings intact. And the Beacon's gold leg
+> now weighs as much as its wood and stone: 5,000 at level one, 107,472
+> at level eight, the same as the other two. The tower is no longer cheap
+> in the one coin everything else is priced in. Fair winds.
+
+#187 (filed from the alliance room by the Harbourmaster) and a balance
+call on the win count. The gold leg is a plain constant in the building
+table, not a knob; level 8's gold leg lands exactly on a level-14
+storehouse, the ceiling the other legs already had. Three towers instead
+of two: `WONDER_WIN_COUNT=3`, applied by re-supplying the whole
+environment with `--update-env`. Together the pacifist crown is ~881k of
+each resource, the price of twenty-odd conquests — the two roads to the
+world now cost the same order. No Beacon has been raised yet, so
+nobody pays the new price for a level already bought. Delivered
+2026-09-10 via `/api/admin/announce`, 412 characters, the #101 route.
+
 ### 2026-09-10 · Season 6 law: the vault has a ceiling
 
 > ⚓ Eleventh law for season 6: the Vault holds a million gold and no more.
