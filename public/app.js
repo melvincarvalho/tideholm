@@ -494,7 +494,9 @@ function renderState() {
   // Vault balance (#132) — raid-proof gold, shown in the Market tab. When the
   // withdrawal-fee knob is on (0 today), note the rate beside the balance.
   if ($('vault-balance') && state.player.vault != null) {
-    let txt = T('ui.vault.balance', { n: fmtNum(state.player.vault) });
+    let txt = state.vaultCap > 0
+      ? T('ui.vault.balanceCap', { n: fmtNum(state.player.vault), cap: fmtNum(state.vaultCap) })
+      : T('ui.vault.balance', { n: fmtNum(state.player.vault) });
     if (state.vaultFee > 0) {
       txt += ' · ' + T('ui.vault.fee', { pct: +(state.vaultFee * 100).toFixed(2) });
     }

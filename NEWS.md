@@ -779,6 +779,12 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The vault has a ceiling** (#188, 2026-09-10): a million gold, a plain
+  constant. Deposits past it are refused with the room left; the Market shows
+  the balance against the cap. Only the island side is gated — gold coming
+  back through the Tidegate is never stranded. Nobody is within sight of it,
+  so no report; a strongroom is not a bottomless well.
+
 - **Bots get the morale shield** (2026-09-08): `BOT_MORALE_FLOOR` from 1 to
   0.3, the same as against humans. Since July a big player fought bots at full
   strength ("bots stay crackable", #14); at 1,100 points against 350-point

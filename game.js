@@ -1274,11 +1274,18 @@ function sendPoolWithdraw(world, player, island, shares, now) {
 // cross-chain "sealed" withdrawal (blocktrails) will be a SEPARATE path with
 // its own knob, layered on top — not a change to this one.
 const VAULT_WITHDRAW_FEE = Number(process.env.VAULT_WITHDRAW_FEE) || 0;
+// The vault has a ceiling (#188): a strongroom, not a bottomless well. One
+// million gold, a plain constant — deposits past it are refused with the room
+// left. Only the island side is gated: gold returning from the Tidegate
+// (peg-out) is never stranded, so a full vault still redeems its winnings.
+const VAULT_CAP = 1_000_000;
 function vaultDeposit(world, player, island, amount, now) {
   resolveIsland(island, now);
   amount = Math.floor(Number(amount));
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'err.badRequest' };
   if (amount > Math.floor(island.resources.gold)) return { error: 'err.noResources' };
+  const room = VAULT_CAP - Math.floor(player.vault || 0);
+  if (amount > room) return { error: 'err.vaultFull', errorParams: { room: Math.max(0, room), cap: VAULT_CAP } };
   island.resources.gold -= amount;
   player.vault = Math.floor((player.vault || 0) + amount);
   return { ok: true, vault: player.vault, gold: Math.floor(island.resources.gold) };
@@ -2940,7 +2947,7 @@ export {
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
-  vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, vaultPegIn, vaultPegOut,
+  vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, VAULT_CAP, vaultPegIn, vaultPegOut,
   tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,

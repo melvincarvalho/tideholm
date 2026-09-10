@@ -494,6 +494,7 @@ export function createApp(opts = {}) {
       moraleFloor: game.MORALE_FLOOR,
       botMoraleFloor: game.BOT_MORALE_FLOOR,
       vaultFee: game.VAULT_WITHDRAW_FEE, // withdrawal fee knob, 0 for now (#132)
+      vaultCap: game.VAULT_CAP, // the strongroom's ceiling (#188)
       // Season phase + launch time for the pregame countdown (#8).
       phase: game.worldPhase(world, Date.now()),
       startAt: world.startAt,

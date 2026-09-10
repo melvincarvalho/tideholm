@@ -948,6 +948,22 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('#132 a withdraw with no storehouse room is refused (gold not lost)',
       vr.status !== 200 && vp.vault === 5000, `${vr.status} vault=${vp.vault}`);
 
+    // The ceiling (#188): a million, deposits only; peg-out may overshoot.
+    check('#188 the vault cap is a million', gameMod.VAULT_CAP === 1000000, String(gameMod.VAULT_CAP));
+    vp.vault = gameMod.VAULT_CAP - 100; visl.resources.gold = 1000;
+    let cr = gameMod.vaultDeposit(openApp.world, vp, visl, 101, Date.now());
+    check('#188 a deposit past the cap is refused with the room left',
+      cr.error === 'err.vaultFull' && cr.errorParams.room === 100 && vp.vault === gameMod.VAULT_CAP - 100
+      && Math.floor(visl.resources.gold) === 1000, JSON.stringify(cr));
+    cr = gameMod.vaultDeposit(openApp.world, vp, visl, 100, Date.now());
+    check('#188 a deposit landing exactly on the cap is accepted',
+      cr.ok && vp.vault === gameMod.VAULT_CAP && Math.floor(visl.resources.gold) === 900, JSON.stringify(cr));
+    vp.pegged = 50;
+    cr = gameMod.vaultPegOut(vp, 50);
+    check('#188 peg-out is never stranded by a full vault',
+      cr.ok && vp.vault === gameMod.VAULT_CAP + 50 && vp.pegged === 0, JSON.stringify(cr));
+    vp.pegged = 0;
+
     // Withdrawal fee knob — ceil(amount*fee) burned, net reaches the island.
     vp.vault = 1000; visl.buildings.storehouse = 14; visl.resources.gold = 0;
     let fr = gameMod.vaultWithdraw(openApp.world, vp, visl, 250, Date.now(), 0.01);
