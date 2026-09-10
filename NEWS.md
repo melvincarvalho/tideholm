@@ -16,6 +16,21 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-10 · Season 6 law: the vault has a ceiling
+
+> ⚓ Eleventh law for season 6: the Vault holds a million gold and no more.
+> Past that the door stays shut — a deposit that would overflow is refused
+> and tells you the room left. The Market shows your balance against the
+> ceiling. Gold coming home through the Tidegate is never turned away. A
+> strongroom, not a bottomless well. Fair winds.
+
+#188, filed from the alliance room by the Harbourmaster. A plain constant,
+`VAULT_CAP = 1_000_000`, not a knob. Only the island side is gated: peg-out
+from the Tidegate may overshoot so tavern winnings are never stranded.
+Nobody is within sight of it today (largest vault: 335) — a rule for the
+season's shape, not a fix. Delivered 2026-09-10 via `/api/admin/announce`,
+334 characters, the #101 route.
+
 ### 2026-09-09 · Quality of life: rooms on top, clickable links, sortable isles, past seasons as a footnote
 
 > ⚓ Small things, no new laws. The rooms now sit at the top of the Alliance
@@ -136,7 +151,7 @@ costs ~762k all-in — within 0.3% of the entire Beacon (~764k) — so a
 would pick over the tower. Half the living world tracks beacon-cost all
 season. WIN_BASIS knob (all|populated, default all), WIN_SHARE stays
 0.5. Delivered 2026-08-31 via `/api/admin/announce`, 376 characters,
-the #101 route.
+334 characters, the #101 route.
 
 ### 2026-08-27 · Season 6 law: the Tidepool trims its sails
 
@@ -778,12 +793,6 @@ Shipped in #60.
 ---
 
 ## Shipped without an announcement
-
-- **The vault has a ceiling** (#188, 2026-09-10): a million gold, a plain
-  constant. Deposits past it are refused with the room left; the Market shows
-  the balance against the cap. Only the island side is gated — gold coming
-  back through the Tidegate is never stranded. Nobody is within sight of it,
-  so no report; a strongroom is not a bottomless well.
 
 - **Bots get the morale shield** (2026-09-08): `BOT_MORALE_FLOOR` from 1 to
   0.3, the same as against humans. Since July a big player fought bots at full
