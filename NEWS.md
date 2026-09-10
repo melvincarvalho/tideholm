@@ -151,7 +151,7 @@ costs ~762k all-in — within 0.3% of the entire Beacon (~764k) — so a
 would pick over the tower. Half the living world tracks beacon-cost all
 season. WIN_BASIS knob (all|populated, default all), WIN_SHARE stays
 0.5. Delivered 2026-08-31 via `/api/admin/announce`, 376 characters,
-334 characters, the #101 route.
+the #101 route.
 
 ### 2026-08-27 · Season 6 law: the Tidepool trims its sails
 
