@@ -814,6 +814,12 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The Elsewhere tooltip speaks three languages** (2026-09-10): the hover
+  text on the Islands table's Elsewhere row ("at sea; and for gold, the
+  vault and the seal") had gone in as hardcoded English and tripped the
+  guard test that exists for exactly that. Moved to an i18n key; German
+  and Czech added. Nothing visible changes for an English reader.
+
 - **Bots get the morale shield** (2026-09-08): `BOT_MORALE_FLOOR` from 1 to
   0.3, the same as against humans. Since July a big player fought bots at full
   strength ("bots stay crackable", #14); at 1,100 points against 350-point
