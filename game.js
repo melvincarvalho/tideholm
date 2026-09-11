@@ -2325,19 +2325,30 @@ function tidegateTrail(player) {
 // sig stays valid; if they don't match the expected chain we reject rather than
 // re-stamp a record the signature no longer fits. A null return is soft: the
 // money move already stuck; only the seal lagged — never fail the peg over it.
+// When a peg moves the seal but its signed transition does not chain, the
+// record is dropped and the peg stands (the money already moved). That used
+// to happen in silence — a seal sat 700 away from its trail tip for six days
+// with nothing anywhere saying when or why. Now every dropped record says so
+// on the server log: who, what was offered, what was expected.
+function sealLag(player, why, t) {
+  const offered = t && typeof t === 'object' ? ` offered ${t.prev}→${t.next} (Δ${t.delta})` : '';
+  console.warn(`tidegate: trail record dropped for ${player && (player.nostrDid || player.name)} — ${why}${offered}; seal ${Math.floor((player && player.pegged) || 0)}`);
+  return null;
+}
+
 function tidegateRecord(player, t) {
   try {
-    if (!t || typeof t !== 'object') return null;
+    if (!t || typeof t !== 'object') return sealLag(player, 'no transition carried');
     const prev = Number(t.prev), delta = Number(t.delta), next = Number(t.next);
-    if (![prev, delta, next].every(Number.isSafeInteger) || delta === 0) return null;
-    if (next !== prev + delta) return null;               // internally consistent
+    if (![prev, delta, next].every(Number.isSafeInteger) || delta === 0) return sealLag(player, 'malformed transition', t);
+    if (next !== prev + delta) return sealLag(player, 'arithmetic does not add up', t); // internally consistent
     const pegged = Math.floor(player.pegged || 0);
-    if (next !== pegged) return null;                     // mirrors the authoritative balance
+    if (next !== pegged) return sealLag(player, `next ${next} is not the seal ${pegged}`, t); // mirrors the authoritative balance
     const trail = tidegateTrail(player);
     // Chain: prev is the last recorded balance, or — for the first entry — the
     // balance the player already held before we began recording (pegged - delta).
     const expectedPrev = trail.length ? trail[trail.length - 1].next : pegged - delta;
-    if (prev !== expectedPrev) return null;
+    if (prev !== expectedPrev) return sealLag(player, `prev ${prev} is not the trail tip ${expectedPrev}`, t);
     const entry = {
       did: player.nostrDid || t.did || null,
       prev, delta, next,
@@ -2378,7 +2389,7 @@ function tidegateRecord(player, t) {
     fs.mkdirSync(TIDEGATE_DIR, { recursive: true });
     fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
     return trail;
-  } catch { return null; }
+  } catch (err) { return sealLag(player, 'threw: ' + (err && err.message)); }
 }
 
 // Replay a courier slip (#146): signed transitions produced by ANOTHER app

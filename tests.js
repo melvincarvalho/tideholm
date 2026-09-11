@@ -3974,5 +3974,24 @@ console.log('joins claim (#179)');
     w2.islands.length === b2 + 1 && !!g.playerIsland(w2, p2.id));
 }
 
+// ---------------------------------------------------------------- seal lag is logged
+// A peg whose signed transition does not chain keeps the money move and drops
+// the trail record — by design. It must no longer do so in silence.
+console.log('tidegate: a dropped trail record is logged');
+{
+  const said = [];
+  const warn = console.warn;
+  console.warn = (m) => said.push(String(m));
+  let out;
+  try {
+    out = g.tidegateRecord({ name: 'Lagger', nostrDid: 'did:nostr:' + 'ab'.repeat(32), pegged: 100 },
+      { prev: 0, delta: 50, next: 50, sig: 'x' });
+  } finally { console.warn = warn; }
+  check('a non-chaining transition is still dropped (null)', out === null);
+  check('and the drop is logged with who, offered and expected',
+    said.length === 1 && /trail record dropped/.test(said[0]) && /Lagger|did:nostr:abab/.test(said[0]) && /next 50 is not the seal 100/.test(said[0]) && /offered 0→50/.test(said[0]),
+    said.join(' | '));
+}
+
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
 process.exit(failures ? 1 : 0);
