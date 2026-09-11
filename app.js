@@ -33,6 +33,16 @@ import {
 } from './regatta.js';
 import { spawnBots, botTick } from './bots.js';
 import { daoBuy, daoRemaining, daoView, DAO_PRICE, DAO_MAX_BUY } from './dao.js';
+
+// Is this 64-hex an x-coordinate on secp256k1 — a possible nostr pubkey?
+let _schnorr = null;
+async function onCurve(hex) {
+  try {
+    if (!_schnorr) ({ schnorr: _schnorr } = await import('@noble/curves/secp256k1'));
+    _schnorr.utils.lift_x(BigInt('0x' + hex));
+    return true;
+  } catch { return false; }
+}
 import { t } from './public/i18n.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -868,6 +878,12 @@ export function createApp(opts = {}) {
       // or a full did:nostr URI; store the canonical form either way.
       const m = /^(?:did:nostr:)?([0-9a-f]{64})$/.exec(raw);
       if (!m) return sendErr(res, 400, lang, 'err.badNostrDid');
+      // A nostr pubkey is the x-coordinate of a secp256k1 point, and about
+      // half of all 64-hex strings are not: a hand-typed or mangled key
+      // passes the regex and then fails everywhere downstream — the anchor
+      // ("sqrt invalid"), the fuel address (unspendable, forever), the seal
+      // (signed by some other key). Refuse it here, where it is cheap.
+      if (!(await onCurve(m[1]))) return sendErr(res, 400, lang, 'err.badNostrKey');
       player.nostrDid = `did:nostr:${m[1]}`;
       game.saveIdentityFor(player, player.nostrDid); // #86: survives seasons
       game.saveWorld(world);

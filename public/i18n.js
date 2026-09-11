@@ -120,6 +120,7 @@
       // server errors
       'err.badRequest': 'Bad request.',
       'err.badNostrDid': 'Expected did:nostr: followed by a 64-character hex pubkey.',
+      'err.badNostrKey': 'That is not a nostr public key — it does not lie on the curve. Paste the PUBLIC key of the key you sign with.',
       'err.nameFormat': 'Name must be 2-24 letters, digits or spaces.',
       'err.passwordShort': 'Password too short (min 3).',
       'err.wrongLogin': 'Wrong name or password.',
@@ -606,6 +607,7 @@
       // server errors
       'err.badRequest': 'Ungültige Anfrage.',
       'err.badNostrDid': 'Erwartet did:nostr: mit 64 Hex-Zeichen als Pubkey.',
+      'err.badNostrKey': 'Das ist kein Nostr-Pubkey — der Punkt liegt nicht auf der Kurve. Füge den ÖFFENTLICHEN Schlüssel des Schlüssels ein, mit dem du signierst.',
       'err.nameFormat': 'Der Name muss 2-24 Buchstaben, Ziffern oder Leerzeichen haben.',
       'err.passwordShort': 'Passwort zu kurz (mind. 3 Zeichen).',
       'err.wrongLogin': 'Falscher Name oder falsches Passwort.',
@@ -1092,6 +1094,7 @@
       // server errors
       'err.badRequest': 'Neplatný požadavek.',
       'err.badNostrDid': 'Očekává se did:nostr: a 64 hex znaků pubkey.',
+      'err.badNostrKey': 'To není nostr veřejný klíč — bod neleží na křivce. Vlož VEŘEJNÝ klíč toho klíče, kterým podepisuješ.',
       'err.nameFormat': 'Jméno musí mít 2-24 písmen, číslic nebo mezer.',
       'err.passwordShort': 'Heslo je příliš krátké (min. 3 znaky).',
       'err.wrongLogin': 'Špatné jméno nebo heslo.',

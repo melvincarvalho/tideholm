@@ -839,6 +839,15 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **A linked nostr identity must be a real key** (2026-09-11): the Mail tab
+  now refuses a 64-hex did that does not lie on the secp256k1 curve, with a
+  message saying to paste the PUBLIC key of the key you sign with. About
+  half of all hex strings are not points; one linked that way passed the old
+  regex and then failed everywhere downstream — "sqrt invalid" at the
+  anchor, a fuel address nobody can ever spend from, seal moves signed by a
+  different key than the did. Proof of possession at link time is still
+  open, with #149.
+
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
   and the tavern's den and dice room cut their stored slip at that identity

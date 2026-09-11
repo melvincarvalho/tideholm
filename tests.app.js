@@ -1611,14 +1611,20 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
   // ---- #86: the did:nostr link survives a world reset ----
   {
     process.env.IDENTITY_FILE = path.join(process.env.DATA_DIR, 'identity.json');
-    const DID = 'did:nostr:' + 'cd'.repeat(32);
+    // a REAL pubkey: derived from a private key, so it lies on the curve
+    const { schnorr: sch } = await import('@noble/curves/secp256k1');
+    const DID = 'did:nostr:' + Buffer.from(sch.getPublicKey('cd'.repeat(32))).toString('hex');
     const idApp = createApp({ botCount: 0, freeIsles: 2, log: silent });
     const { srv, port } = await serve(idApp);
     const reg = await req(port, 'POST', '/api/register',
       { body: { name: 'Banner Bearer', password: 'sekritsekrit', lang: 'en' } });
     const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
-    const link = await req(port, 'POST', '/api/identity/nostr',
-      { cookie, body: { did: DID } });
+    // 64 hex that is NOT a curve point (a real player linked exactly this one,
+    // then hit "sqrt invalid" at the anchor and an unspendable fuel address)
+    let link = await req(port, 'POST', '/api/identity/nostr',
+      { cookie, body: { did: 'did:nostr:d41cf743b5d0223d0ac691b5b4d6e65a09c16cfbe7355a9ea2fd1ac2b5c0b11d' } });
+    check('a 64-hex that is not on the curve is refused as a did', link.status === 400 && /curve/.test(link.data.error), JSON.stringify(link.data));
+    link = await req(port, 'POST', '/api/identity/nostr', { cookie, body: { did: DID } });
     check('#86 link accepted', link.status === 200 && link.data.nostrDid === DID,
       JSON.stringify(link.data));
     srv.close();
