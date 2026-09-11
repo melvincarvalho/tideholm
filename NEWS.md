@@ -16,6 +16,20 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-11 · The Season DAO, how to use it — and the prize
+
+> 🏛️ How the Season DAO works, in five steps. 1) Market tab: put gold in the vault, then Peg in to seal it. 2) The Games Fleet → The Season DAO. 3) Sign a purchase: one gold a share, burned for good. 4) Come home and press Redeem — the shares land in the book then, not before. 5) There is a prize: 100 testnet sats a share, paid every hour to your season address; click your bar at the venue to see it arrive. Your linked nostr key must be a real public key to be paid. Fair winds.
+
+The second notice of the day, after the venue gained its prize. Since the
+opening notice at 09:53 CET: the prize became real — a local cashier (the
+till, a `did:nostr` agent with 1 tBTC, see #189) pays 100 sats a share every
+hour on the hour to each holder's season address (their key plus the season
+number times G), and the venue links every holder's bar to that address on
+mempool.guide. The two steps that trip people are said plainly: shares land
+only on Redeem, and only a real nostr public key can be paid. Delivered
+2026-09-11 via `/api/admin/announce`, 480 characters, the #101 route.
+The Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-11 · The Season DAO opens
 
 > 🏛️ The Season DAO is open in the fleet: a million shares for season 6,
