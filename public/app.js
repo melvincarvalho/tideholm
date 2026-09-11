@@ -182,7 +182,12 @@ $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
 $('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); renderTavernLine(); renderSlip(); });
-$('tab-alliance').addEventListener('click', () => { showTab('alliance'); loadAlliance(); mountAllianceChat(); if (roomVisible()) markRoomRead(); });
+$('tab-alliance').addEventListener('click', () => {
+  showTab('alliance'); loadAlliance(); mountAllianceChat();
+  // The room scrolls to its end when it is SHOWN on screen — a room made the
+  // default at boot was scrolled while hidden and empty, which did nothing.
+  if (roomVisible()) { markRoomRead(); if (_privateChat) _privateChat.scrollToEnd(); }
+});
 $('tab-messages').addEventListener('click', () => { showTab('messages'); loadMessages(); });
 
 function showTab(which) {
