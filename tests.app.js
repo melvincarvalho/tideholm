@@ -1098,6 +1098,17 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     check('#146 the slip lands on the trail, chained',
       vr.data.trail.length === 2 && vr.data.trail[0].next === 110 && vr.data.trail[1].next === 105,
       JSON.stringify(vr.data.trail.map((t) => t.next)));
+    // The state names the trail's tip by signature, so the fleet door can
+    // carry it and a venue can cut its slip at an identity, not a balance.
+    vr = await req(oa.port, 'GET', '/api/state', { cookie: vcookie });
+    check('the state carries the trail tip\'s signature as sealTip',
+      vr.data.player.sealTip === slip1[1].sig, String(vr.data.player.sealTip).slice(0, 16));
+    check('an unsigned tip is named by position',
+      (() => { const trail = gameMod.tidegateTrail(vp); const saved = trail[trail.length - 1].sig; trail[trail.length - 1].sig = null;
+        fs.writeFileSync(path.join(process.env.DATA_DIR, 'tidegate', `${PUB}.json`), JSON.stringify(trail));
+        const tip = gameMod.tidegateTip(vp); trail[trail.length - 1].sig = saved;
+        fs.writeFileSync(path.join(process.env.DATA_DIR, 'tidegate', `${PUB}.json`), JSON.stringify(trail));
+        return tip === 'seq:2'; })());
 
     // Tamper: the delta is altered after signing — the signature no longer covers it.
     const bad = mkTx(105, -10); bad.delta = -20; bad.next = 85;

@@ -2311,6 +2311,19 @@ function tidegateFile(player) { return path.join(TIDEGATE_DIR, `${tidegateKey(pl
 
 // The player's signed trail, oldest first (empty if they've never pegged, or if
 // the doc is missing or somehow not an array — callers push/read it as a list).
+// The identity of the trail's last move — what a venue must cut its slip at.
+// A balance is not an identity: a slip that ended at 900 and a peg-out that
+// brought the seal back to 800 look the same by number, and a slip cut by
+// number forks from the trail (learned live, den night, 2026-09-11). The
+// signature of the tip is unique per signing; an unsigned entry (an admin
+// repair) is named by its position instead. Null when nothing is recorded.
+function tidegateTip(player) {
+  const trail = tidegateTrail(player);
+  if (!trail.length) return null;
+  const tip = trail[trail.length - 1];
+  return typeof tip.sig === 'string' && tip.sig ? tip.sig : `seq:${trail.length}`;
+}
+
 function tidegateTrail(player) {
   try {
     const t = JSON.parse(fs.readFileSync(tidegateFile(player), 'utf8'));
@@ -2963,7 +2976,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, VAULT_CAP, vaultPegIn, vaultPegOut,
-  tidegateRecord, tidegateTrail, tidegateStamp, tidegateSync, tidegateBlocktrails,
+  tidegateRecord, tidegateTrail, tidegateTip, tidegateStamp, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,

@@ -814,6 +814,15 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The fleet door names the trail's tip** (2026-09-11): the link out to the
+  games now carries `tip=`, the signature of the seal's last recorded move,
+  and the tavern's den and dice room cut their stored slip at that identity
+  instead of at a matching balance. A slip the trail moved past (a peg, or
+  another game) is set aside with a notice rather than continued — a slip
+  cut by balance forked from the trail on den night, because a peg-out had
+  brought the seal back to the slip's base by coincidence. The peg record
+  also logs when it drops a transition, which used to happen in silence.
+
 - **The Elsewhere tooltip speaks three languages** (2026-09-10): the hover
   text on the Islands table's Elsewhere row ("at sea; and for gold, the
   vault and the seal") had gone in as hardcoded English and tripped the

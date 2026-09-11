@@ -488,6 +488,7 @@ export function createApp(opts = {}) {
         vault: Math.floor(player.vault || 0), // raid-proof gold treasury (#132)
         pegged: Math.floor(player.pegged || 0), // gold sealed to the Tidegate (#135)
         did: player.nostrDid || null, // identity the Tidegate trail is keyed to
+        sealTip: player.nostrDid ? game.tidegateTip(player) : null, // the trail's last move, for venues to cut slips at
       },
       // Morale floors so the battle simulator matches the server's combat,
       // including a separate floor when the defender is a bot (#config).
