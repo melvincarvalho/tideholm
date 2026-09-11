@@ -2383,11 +2383,14 @@ async function mountPrivateChat(secret) {
   } catch (_) { return; }
   const signer = await roomSigner();
   if (signer) _privateChat.setSigner(signer);
+  // The alliance room is the first tab when there is one: the moment its key
+  // arrives, show it — unless the player has already picked a room by hand.
+  if (!_roomPicked) showRoom('alliance');
 }
 // Unread lines in the alliance room → a badge on the Alliance tab, like Mail.
 // "Read" is per browser: the newest line's time is kept in localStorage under
 // the room's key, and advanced whenever the room is actually on screen.
-let _roomUnread = 0, _roomNewest = 0, _roomTab = 'common';
+let _roomUnread = 0, _roomNewest = 0, _roomTab = 'common', _roomPicked = false;
 const roomReadKey = () => 'tide-room-read-' + (_privateSecret || '').slice(0, 16);
 function roomLastRead() { try { return Number(localStorage.getItem(roomReadKey())) || 0; } catch { return 0; } }
 function roomVisible() {
@@ -2430,8 +2433,8 @@ async function bootAllianceRoom() {
   await check();
   setInterval(check, 60000);
 }
-$('roomtab-common').addEventListener('click', () => showRoom('common'));
-$('roomtab-alliance').addEventListener('click', () => showRoom('alliance'));
+$('roomtab-common').addEventListener('click', () => { _roomPicked = true; showRoom('common'); });
+$('roomtab-alliance').addEventListener('click', () => { _roomPicked = true; showRoom('alliance'); });
 
 async function loadAlliance() {
   $('alliance-error').textContent = '';
