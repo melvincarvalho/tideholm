@@ -16,6 +16,27 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-11 · The Season DAO opens
+
+> 🏛️ The Season DAO is open in the fleet: a million shares for season 6,
+> one gold each, bought with sealed gold that is burned on the spot. Nothing
+> pays it back — what you hold is a line in a book that sits beside the hall
+> of fame and outlives the tide. First come, first served. Who holds the
+> season shows under the Rankings, and at the venue as charts. Market tab →
+> The Games Fleet → The Season DAO. No vote and no trading yet — each is a
+> later law. Fair winds.
+
+#189, v1. The book is `dao.json` beside the hall of fame, keyed by season;
+`/api/dao` serves it public for the venue at tide-games.github.io/dao. A
+buy is a negative trail move with evidence `{venue:'dao', mark, stake,
+shares}`; Redeem checks one gold a share, a 100,000-share ceiling per move
+and the season's remaining supply before the seal moves, then credits the
+ledger. No per-key cap: scarcity with no cap is the honest first
+experiment, and the daily pro-rata tithe in #189 is the fix if it goes
+badly. The first hundred shares were bought at 09:48 CET, before the
+notice went out. Delivered 2026-09-11 via `/api/admin/announce`, 461
+characters, the #101 route.
+
 ### 2026-09-10 · Season 6 law: three towers, and a Beacon that weighs the same all round
 
 > 🗼 Twelfth law for season 6, two parts. The wonder now crowns only the
@@ -274,7 +295,7 @@ losing a flagship catastrophic rather than expensive. Corrected to ×1.2
 the same day, announced batched with the fourth law — the delivered ×1.3
 text above stands, per the charter, as what players received.
 Delivered 2026-08-27 via `/api/admin/announce`, 347 characters, the #101
-route.
+461 characters, the #101 route.
 
 ### 2026-08-27 · Season 6 law: bots are mortal
 
@@ -813,14 +834,6 @@ Shipped in #60.
 ---
 
 ## Shipped without an announcement
-
-- **The Season DAO opens** (#189, 2026-09-11): a million shares a season, one
-  gold each, bought with sealed gold that is burned. A venue in the fleet
-  (tide-games.github.io/dao) draws the sale and the holders live from a
-  public book that sits beside the hall of fame and outlives the season; a
-  buy is a signed trail move redeemed like any slip. First come first served,
-  no vote, no trading — v1. Announced when the first shares are sold, not
-  before.
 
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
