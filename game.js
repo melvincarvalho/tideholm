@@ -2380,7 +2380,15 @@ function tidegateRecord(player, t) {
       // tavern bets carry target (1-99), regatta bets carry boat (0-4).
       // #180: den bets carry no height — no chain seed exists for a
       // player-attested venue; {venue, mark, stake} is the whole tuple.
-      if (t.bet.venue === 'den') {
+      if (t.bet.venue === 'dao') {
+        // #189: a share purchase — {venue, mark, stake, shares}; stake is the
+        // gold burned, shares what it bought. The ledger beside the hall of
+        // fame is the record; this is the trail's copy of why the gold left.
+        const sh = Math.trunc(Number(t.bet.shares));
+        if (Number.isSafeInteger(bs) && bs > 0 && Number.isSafeInteger(sh) && sh > 0 && mark) {
+          entry.bet = { venue: 'dao', mark, stake: bs, shares: sh };
+        }
+      } else if (t.bet.venue === 'den') {
         if (Number.isSafeInteger(bs) && bs > 0 && mark) {
           entry.bet = { venue: 'den', mark, stake: bs };
         }

@@ -32,6 +32,7 @@ import {
   WEIGHT_SPACE as REGATTA_SPACE,
 } from './regatta.js';
 import { spawnBots, botTick } from './bots.js';
+import { daoBuy, daoRemaining, daoView, DAO_PRICE, DAO_MAX_BUY } from './dao.js';
 import { t } from './public/i18n.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -681,6 +682,15 @@ export function createApp(opts = {}) {
       }
     }
 
+    // The Season DAO's book (#189): public and CORS-open, the venue in the
+    // fleet draws its charts from this. Names and share counts only — what
+    // the rankings already show.
+    if (req.method === 'GET' && pathname === '/api/dao') {
+      res.setHeader('access-control-allow-origin', '*');
+      const season = Number(query.get('season')) || game.loadHall().length + 1;
+      return sendJson(res, 200, daoView(season));
+    }
+
     // Password auth is Tideholm's own; a host with `identify` owns identity
     // and these endpoints go dark.
     if (req.method === 'POST' && pathname === '/api/register') {
@@ -1010,7 +1020,11 @@ export function createApp(opts = {}) {
           };
         })
         .sort((a, b) => b.level - a.level);
-      return sendJson(res, 200, { rankings: rows, wonders, hallOfFame: game.loadHall() });
+      // The Season DAO (#189) rides along as a footnote under the live table.
+      const daoSeason = game.loadHall().length + 1;
+      const dv = daoView(daoSeason, { ledgerTail: 0 });
+      return sendJson(res, 200, { rankings: rows, wonders, hallOfFame: game.loadHall(),
+        dao: { season: dv.season, supply: dv.supply, sold: dv.sold, holders: dv.holders.map((h) => ({ name: h.name, shares: h.shares, pct: h.pct })) } });
     }
 
     if (req.method === 'GET' && pathname === '/api/messages') {
@@ -1449,8 +1463,37 @@ export function createApp(opts = {}) {
           if (winner !== boat) return sendErr(res, 400, lang, 'err.sealSync');
         }
       }
+      // Season DAO buys (#189): a NEGATIVE move whose evidence names the
+      // venue — gold leaving the seal for shares. Shape and arithmetic are
+      // checked here (one gold per share, a per-move ceiling), and the
+      // season's remaining supply BEFORE the seal moves, so a slip that would
+      // overshoot is refused whole and no gold leaves for nothing. Moves the
+      // trail already holds are skipped by tidegateSync; the same set is
+      // skipped here so a re-carried slip never credits twice.
+      const season = game.loadHall().length + 1;
+      const known = new Set(game.tidegateTrail(player).map((e) => e.sig));
+      const daoBuys = [];
+      for (const t of body.transitions) {
+        const b = t.bet || {};
+        if (b.venue !== 'dao') continue;
+        const delta = Math.trunc(Number(t.delta));
+        const stake = Math.trunc(Number(b.stake));
+        const shares = Math.trunc(Number(b.shares));
+        const mark = String(b.mark || '');
+        if (!(delta < 0) || stake !== -delta || shares !== stake / DAO_PRICE || !Number.isSafeInteger(shares)
+          || shares < 1 || shares > DAO_MAX_BUY || !mark || mark.length > 64) {
+          return sendErr(res, 400, lang, 'err.sealSync');
+        }
+        if (!known.has(t.sig)) daoBuys.push({ shares, mark });
+      }
+      const wanted = daoBuys.reduce((a, x) => a + x.shares, 0);
+      if (wanted > daoRemaining(season)) {
+        return gameErr(res, lang, { error: 'err.daoSoldOut', errorParams: { remaining: daoRemaining(season) } });
+      }
       const result = game.tidegateSync(player, body.transitions);
       if (result.error) return gameErr(res, lang, result);
+      const now = Date.now();
+      for (const x of daoBuys) daoBuy(season, player, x.shares, x.mark, now);
       return sendJson(res, 200, { ...stateFor(player, island.id), applied: result.applied });
     }
 

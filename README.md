@@ -238,3 +238,14 @@ devDependency; the game itself stays zero-dependency).
 - `NEWS.md` — announcements sent to players in-game, with the exact text and
   what each one shipped
 - `deploy/` — systemd unit, Caddyfile, Dockerfile, fly.toml, deploy guide
+
+## The Season DAO (#189)
+
+A million shares a season, one gold each, bought with sealed gold that is burned.
+The book is `dao.json` beside the hall of fame (`DAO_FILE`, default under
+`DATA_DIR`), keyed by season, and outlives the world. `GET /api/dao` serves it
+public and CORS-open for the venue at https://tide-games.github.io/dao/. A buy is
+a negative trail move whose evidence is `{ venue: 'dao', mark, stake, shares }`;
+`/api/tidegate/sync` checks one gold a share, a 100,000-share ceiling per move and
+the season's remaining supply before the seal moves, then credits the ledger. No
+per-key cap, no vote, no trading in v1. Constants in `dao.js`.

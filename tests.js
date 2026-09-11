@@ -3974,6 +3974,41 @@ console.log('joins claim (#179)');
     w2.islands.length === b2 + 1 && !!g.playerIsland(w2, p2.id));
 }
 
+// ---------------------------------------------------------------- the Season DAO (#189)
+console.log('Season DAO (#189)');
+{
+  process.env.DAO_FILE = path.join(os.tmpdir(), `tideholm-dao-test-${process.pid}.json`);
+  try { fs.rmSync(process.env.DAO_FILE, { force: true }); } catch { /* gone */ }
+  const dao = await import('./dao.js');
+  const ann = { name: 'Ann', nostrDid: 'did:nostr:' + 'aa'.repeat(32) };
+  const bob = { name: 'Bob' };
+  check('supply is a million a season at one gold a share', dao.DAO_SUPPLY === 1000000 && dao.DAO_PRICE === 1);
+  let r = dao.daoBuy(6, ann, 1500, 'm1', 1000);
+  check('a buy credits shares and reports the sale', r.ok && r.shares === 1500 && r.sold === 1500 && r.remaining === 998500, JSON.stringify(r));
+  r = dao.daoBuy(6, bob, 500, 'm2', 2000);
+  r = dao.daoBuy(6, ann, 250, 'm3', 3000);
+  check('shares accumulate per holder', r.ok && r.shares === 1750, JSON.stringify(r));
+  const v = dao.daoView(6);
+  check('the view ranks holders by shares with their share of the supply',
+    v.sold === 2250 && v.remaining === 997750 && v.holders.length === 2 && v.holders[0].name === 'Ann' && v.holders[0].shares === 1750 && v.holders[0].pct === 0.175 && v.holders[1].name === 'Bob',
+    JSON.stringify(v.holders));
+  check('the sale is a cumulative series for the chart', JSON.stringify(v.series.map((p) => p.sold)) === '[1500,2000,2250]');
+  check('holders are keyed by nostr identity where there is one, else by name',
+    v.holders[0].key === ann.nostrDid && v.holders[1].key === 'name:Bob');
+  check('a different season is a different book', dao.daoView(7).sold === 0 && dao.daoRemaining(7) === 1000000);
+  check('zero and junk are refused', dao.daoBuy(6, bob, 0, 'x').error === 'err.badRequest' && dao.daoBuy(6, bob, 'many', 'x').error === 'err.badRequest');
+  check('one move cannot buy more than the courier can carry', dao.daoBuy(6, bob, dao.DAO_MAX_BUY + 1, 'x').error === 'err.daoTooMany');
+  r = dao.daoBuy(6, bob, dao.DAO_MAX_BUY, 'x');
+  let sold = dao.daoView(6).sold;
+  while (dao.daoRemaining(6) > 0) { const n = Math.min(dao.DAO_MAX_BUY, dao.daoRemaining(6)); dao.daoBuy(6, bob, n, 'fill'); }
+  check('the season sells out at exactly a million', dao.daoView(6).sold === 1000000 && dao.daoRemaining(6) === 0);
+  r = dao.daoBuy(6, ann, 1, 'late');
+  check('and one more share is refused with the room left (none)', r.error === 'err.daoSoldOut' && r.errorParams.remaining === 0, JSON.stringify(r));
+  check('the ledger survives on disk beside the hall, keyed by season',
+    JSON.parse(fs.readFileSync(process.env.DAO_FILE, 'utf8')).seasons['6'].holders[ann.nostrDid].shares === 1750);
+  try { fs.rmSync(process.env.DAO_FILE, { force: true }); } catch { /* gone */ }
+}
+
 // ---------------------------------------------------------------- seal lag is logged
 // A peg whose signed transition does not chain keeps the money move and drops
 // the trail record — by design. It must no longer do so in silence.

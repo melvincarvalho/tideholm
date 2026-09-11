@@ -1585,6 +1585,29 @@ async function loadRankings() {
     }
   }
 
+  // The Season DAO (#189) — who holds the season, a footnote like the hall.
+  const dao = data.dao;
+  if ($('dao-box')) {
+    $('dao-box').classList.toggle('hidden', !dao);
+    if (dao) {
+      $('dao-summary').textContent = dao.sold > 0
+        ? T('ui.dao.summary', { season: dao.season, sold: fmtNum(dao.sold), supply: fmtNum(dao.supply), n: dao.holders.length })
+        : T('ui.dao.none', { season: dao.season, supply: fmtNum(dao.supply) });
+      const tb = $('dao-table').querySelector('tbody');
+      tb.innerHTML = '';
+      for (const h of dao.holders) {
+        const tr = document.createElement('tr');
+        for (const v of [h.name, fmtNum(h.shares), h.pct + '%']) { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }
+        tb.appendChild(tr);
+      }
+      $('dao-table').classList.toggle('hidden', !dao.holders.length);
+      $('dao-venue').href = 'https://tide-games.github.io/dao/' + (fuelDid() ? '?did=' + encodeURIComponent(fuelDid())
+        + '&seal=' + Math.floor((state.player && state.player.pegged) || 0)
+        + (state.player && state.player.sealTip ? '&tip=' + encodeURIComponent(state.player.sealTip) : '')
+        + '&return=' + encodeURIComponent(location.origin + location.pathname) : '');
+    }
+  }
+
   const tbody = $('ranking-table').querySelector('tbody');
   tbody.innerHTML = '';
   rankingRows = data.rankings; // the Mail profile reads these, no second fetch

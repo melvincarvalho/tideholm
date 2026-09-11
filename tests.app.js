@@ -1239,6 +1239,47 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     dr = await req(da.port, 'POST', '/api/tidegate/sync', { body: nightBody, cookie: dcookie });
     check('a 14-match den night redeems in one slip (body cap follows the transition cap)',
       dr.status === 200 && dp.pegged === 1530, `${dr.status} pegged=${dp.pegged}`);
+
+    // ------------------------------------------ the Season DAO (#189)
+    // A share buy is a NEGATIVE move whose evidence names the venue: gold
+    // leaves the seal, shares land in the ledger beside the hall of fame.
+    // Same app and player as the den: pegged 1530, plenty of rate budget left.
+    const daoBet = (shares, mark) => ({ venue: 'dao', stake: shares, shares, mark });
+    const buy1 = mkDenTx(1530, -300, daoBet(300, 'buy-1'));
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [buy1] }, cookie: dcookie });
+    let dv = await req(da.port, 'GET', '/api/dao');
+    check('#189 a share buy burns sealed gold and credits shares in the season book',
+      dr.status === 200 && dp.pegged === 1230 && dv.status === 200 && dv.data.sold === 300
+      && dv.data.holders[0].name === 'Den Tester' && dv.data.holders[0].shares === 300,
+      `${dr.status} pegged=${dp.pegged} ${JSON.stringify(dv.data.holders)}`);
+    check('#189 the book is public and CORS-open', dv.headers.get('access-control-allow-origin') === '*' && dv.data.supply === 1000000);
+    // the SAME signed move re-carried (a venue cannot know a slip was accepted)
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [buy1] }, cookie: dcookie });
+    dv = await req(da.port, 'GET', '/api/dao');
+    check('#189 a re-carried buy neither moves the seal nor credits twice',
+      dr.status === 200 && dp.pegged === 1230 && dv.data.sold === 300, `${dr.status} pegged=${dp.pegged} sold=${dv.data.sold}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(1230, -100, { venue: 'dao', stake: 100, shares: 250, mark: 'cheat' })] }, cookie: dcookie });
+    check('#189 shares must equal the gold burned (one gold a share)', dr.status === 400 && dp.pegged === 1230, `${dr.status} pegged=${dp.pegged}`);
+    const { daoBuy: fill, DAO_MAX_BUY: maxBuy } = await import('./dao.js');
+    while ((await req(da.port, 'GET', '/api/dao')).data.remaining > 50) {
+      const left = (await req(da.port, 'GET', '/api/dao')).data.remaining - 50;
+      fill(1, { name: 'Whale' }, Math.min(maxBuy, left), 'fill');
+    }
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(1230, -60, daoBet(60, 'over'))] }, cookie: dcookie });
+    check('#189 a buy past the season\'s supply is refused whole and no gold leaves',
+      dr.status === 400 && /only 50 shares/.test(dr.data.error) && dp.pegged === 1230, `${dr.status} ${JSON.stringify(dr.data).slice(0, 80)} pegged=${dp.pegged}`);
+    dr = await req(da.port, 'POST', '/api/tidegate/sync',
+      { body: { islandId: disl.id, transitions: [mkDenTx(1230, -50, daoBet(50, 'last'))] }, cookie: dcookie });
+    dv = await req(da.port, 'GET', '/api/dao');
+    check('#189 the last shares sell exactly to the million', dr.status === 200 && dp.pegged === 1180 && dv.data.sold === 1000000 && dv.data.remaining === 0);
+    const tr = gameMod.tidegateTrail(dp);
+    check('#189 the trail keeps the buy evidence', tr[tr.length - 1].bet && tr[tr.length - 1].bet.venue === 'dao' && tr[tr.length - 1].bet.shares === 50, JSON.stringify(tr[tr.length - 1].bet));
+    const rk = await req(da.port, 'GET', '/api/rankings', { cookie: dcookie });
+    check('#189 the rankings carry the DAO footnote', rk.data.dao && rk.data.dao.sold === 1000000 && rk.data.dao.holders.some((h) => h.name === 'Den Tester' && h.shares === 350), JSON.stringify(rk.data.dao).slice(0, 120));
     da.srv.close();
 
     // The public blocktrails.json export: NO session, CORS-open, the shape

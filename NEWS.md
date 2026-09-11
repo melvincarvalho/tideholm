@@ -814,6 +814,14 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The Season DAO opens** (#189, 2026-09-11): a million shares a season, one
+  gold each, bought with sealed gold that is burned. A venue in the fleet
+  (tide-games.github.io/dao) draws the sale and the holders live from a
+  public book that sits beside the hall of fame and outlives the season; a
+  buy is a signed trail move redeemed like any slip. First come first served,
+  no vote, no trading — v1. Announced when the first shares are sold, not
+  before.
+
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
   and the tavern's den and dice room cut their stored slip at that identity
