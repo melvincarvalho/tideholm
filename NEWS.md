@@ -36,6 +36,7 @@ experiment, and the daily pro-rata tithe in #189 is the fix if it goes
 badly. The first hundred shares were bought at 09:48 CET, before the
 notice went out. Delivered 2026-09-11 via `/api/admin/announce`, 461
 characters, the #101 route.
+The Harbourmaster carried the same notice into the common room.
 
 ### 2026-09-10 · Season 6 law: three towers, and a Beacon that weighs the same all round
 
