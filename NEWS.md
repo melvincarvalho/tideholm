@@ -16,6 +16,30 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-12 · Quality of life: fill bands in two colours, the alliance room first, only real keys
+
+> ⚓ Small things, no new laws. The Islands table now shades how full each isle is: brown behind wood, stone and gold as the storehouse fills, sea-teal behind population as the farm fills — pressure in one colour, strength in the other — and the population header is the 👥 icon. The alliance room is the first tab when you have one, and opens at its newest line. Linking a nostr identity now refuses anything that is not a real public key, so a pasted secret cannot slip in. Fair winds.
+
+- **Fill bands**: the Islands table already shaded wood, stone and gold toward
+  the storehouse cap. Population now shades toward the farm cap, counting
+  troops abroad, in sea-teal rather than storehouse brown — a full farm is
+  strength, a full storehouse is pressure, one colour per meaning. The
+  header is the 👥 icon with its name for screen readers, so the column is
+  no wider than its numbers.
+- **The alliance room first**: when a room key arrives at boot the alliance
+  room is shown, unless you picked a room yourself; opening the Alliance tab
+  scrolls it to its newest line.
+- **Only real keys**: the Mail tab refuses a 64-hex did that does not lie on
+  the secp256k1 curve, with a message to paste the PUBLIC key you sign with.
+  One captain had linked his secret; the anchor said "sqrt invalid" and his
+  fuel address was unspendable. Proof of possession is still open (#149).
+- Under the hood, no visible change: the fleet door carries the trail's tip
+  signature and the venues cut their slip at it; the peg record logs when it
+  drops a transition; the Elsewhere tooltip speaks three languages.
+
+Delivered 2026-09-12 via `/api/admin/announce`, 483 characters, the #101
+route. The Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-11 · The Season DAO, how to use it — and the prize
 
 > 🏛️ How the Season DAO works, in five steps. 1) Market tab: put gold in the vault, then Peg in to seal it. 2) The Games Fleet → The Season DAO. 3) Sign a purchase: one gold a share, burned for good. 4) Come home and press Redeem — the shares land in the book then, not before. 5) There is a prize: 100 testnet sats a share, paid every hour to your season address; click your bar at the venue to see it arrive. Your linked nostr key must be a real public key to be paid. Fair winds.
