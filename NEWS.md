@@ -16,6 +16,19 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-12 · Drag a resource onto another isle
+
+> ⚓ One small thing. In the Islands table you can now drag a wood, stone or gold cell onto another of your isles, and that harbour sends merchants with as much of it as they can carry. The row lights up as you cross it and a line under the table tells you what sailed and how long it takes. Handy for gathering stone where a ship is to be built. The trade form under Market still works as before. Fair winds.
+
+No new controls: a grab cursor on the resource cells, the target row lit
+while you cross it, one line of feedback under the table. The amount is the
+most the harbour's free merchants can carry, so a drop is always a full
+shipment or a clear refusal. Each island row now carries its harbour's
+shipment capacity for it. The hint above the table says it in one sentence in
+all three languages. Delivered 2026-09-12 via `/api/admin/announce`,
+406 characters, the #101 route. The Harbourmaster carried the same
+notice into the common room.
+
 ### 2026-09-12 · Quality of life: fill bands in two colours, the alliance room first, only real keys
 
 > ⚓ Small things, no new laws. The Islands table now shades how full each isle is: brown behind wood, stone and gold as the storehouse fills, sea-teal behind population as the farm fills — pressure in one colour, strength in the other — and the population header is the 👥 icon. The alliance room is the first tab when you have one, and opens at its newest line. Linking a nostr identity now refuses anything that is not a real public key, so a pasted secret cannot slip in. Fair winds.
@@ -876,14 +889,6 @@ Shipped in #60.
 ---
 
 ## Shipped without an announcement
-
-- **Drag a resource onto another isle** (2026-09-12): in the Islands table,
-  drag a wood, stone or gold cell onto another of your rows and that isle's
-  harbour sends merchants with as much of it as they can carry. No new
-  controls — a grab cursor, the target row lit while you cross it, one line
-  of feedback under the table ("Sent 2,400 stone from N2 to W3 — 44 min").
-  The trade form under Market is unchanged and is still the way on a phone.
-  The hint above the table says it in one sentence.
 
 - **A linked nostr identity must be a real key** (2026-09-11): the Mail tab
   now refuses a 64-hex did that does not lie on the secp256k1 curve, with a
