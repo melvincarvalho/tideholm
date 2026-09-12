@@ -122,6 +122,18 @@
   const mailDing = () => bell(1175, 0.28, 0.05);           // a letter
   const buildBell = () => bell(660, 0.45, 0.07);           // work finished
   const questChime = () => { bell(523, 0.3, 0.08); setTimeout(() => bell(659, 0.35, 0.07), 100); };
+  const shipBell = () => { bell(880, 0.22, 0.06); setTimeout(() => bell(880, 0.28, 0.05), 160); }; // ding-ding: cargo cast off
+
+  // ---------------- named moments -------------------------------------
+  // The client says WHAT happened, never how it sounds: it dispatches
+  // `tide:sound` with a detail naming the moment, and this file decides.
+  // Unknown names are silent, so the client can announce freely.
+  const moments = { hauled: shipBell };
+  document.addEventListener('tide:sound', (e) => {
+    if (!enabled()) return;
+    const play = moments[e.detail];
+    if (play) play();
+  });
 
   // ---------------- event watcher (reads what the client renders) -------
 

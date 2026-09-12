@@ -231,6 +231,7 @@ async function haulTo(target) {
     const mv = list.filter((m) => m.type === 'trade').sort((a, b) => b.arrive - a.arrive)[0];
     const min = mv ? Math.max(1, Math.round((mv.arrive - (Date.now() + clockSkew)) / 60000)) : null;
     say(T('ui.islands.hauled', { n: fmtNum(n), res: T('res.' + h.res), from: from.name, to: target.name, min: min == null ? '?' : min }));
+    document.dispatchEvent(new CustomEvent('tide:sound', { detail: 'hauled' })); // sound.js decides what that sounds like
   } catch (err) { say(err.message); }
 }
 
