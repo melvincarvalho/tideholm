@@ -877,6 +877,14 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **Drag a resource onto another isle** (2026-09-12): in the Islands table,
+  drag a wood, stone or gold cell onto another of your rows and that isle's
+  harbour sends merchants with as much of it as they can carry. No new
+  controls — a grab cursor, the target row lit while you cross it, one line
+  of feedback under the table ("Sent 2,400 stone from N2 to W3 — 44 min").
+  The trade form under Market is unchanged and is still the way on a phone.
+  The hint above the table says it in one sentence.
+
 - **A linked nostr identity must be a real key** (2026-09-11): the Mail tab
   now refuses a 64-hex did that does not lie on the secp256k1 curve, with a
   message saying to paste the PUBLIC key of the key you sign with. About

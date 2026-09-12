@@ -922,6 +922,9 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       JSON.stringify({ status: vr.status, vault: vp.vault, gold: visl.resources.gold }));
     check('#132 the payload carries the vault balance',
       vr.data.player && vr.data.player.vault === 1200, JSON.stringify(vr.data.player));
+    check('every island row carries the harbour\'s shipment capacity (drag-to-haul fills to it)',
+      Array.isArray(vr.data.islands) && vr.data.islands.length > 0 && vr.data.islands.every((r) => r.tradeCap === gameMod.tradeCapacity(openApp.world.islands.find((i) => i.id === r.id).buildings.harbor)),
+      JSON.stringify((vr.data.islands || []).map((r) => r.tradeCap)));
 
     // Raid-proof: a raid loots island.resources; the vault sits on the player.
     const beforeVault = vp.vault;

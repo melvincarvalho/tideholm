@@ -210,6 +210,30 @@ for (const key of ['def', 'points']) {
   if (th) th.addEventListener('click', () => { try { localStorage.setItem(ISLANDS_SORT_KEY, key); } catch { /* private mode */ } renderIslands(); });
 }
 
+// The haul in flight: set on dragstart, read on drop. dataTransfer is not
+// readable during dragover in every browser, so the source rides here.
+let _haul = null;
+async function haulTo(target) {
+  const h = _haul; _haul = null;
+  if (!h || !state) return;
+  const from = (state.islands || []).find((x) => x.id === h.from);
+  const msg = $('islands-msg');
+  const say = (t) => { if (msg) msg.textContent = t; };
+  if (!from) return;
+  if (from.tradeSlots && from.tradeSlots.free === 0) { say(T('ui.islands.haulNoMerchant', { from: from.name })); return; }
+  const n = Math.max(0, Math.min(Math.floor(from.resources[h.res] || 0), from.tradeCap || 0));
+  if (n < 1) { say(T('ui.islands.haulNothing')); return; }
+  try {
+    state = await api('/api/trade', { x: target.x, y: target.y, resources: { wood: 0, stone: 0, gold: 0, [h.res]: n }, islandId: from.id });
+    clockSkew = state.serverNow - Date.now();
+    renderState();
+    const list = Array.isArray(state.movements) ? state.movements : ((state.movements && state.movements.outgoing) || []);
+    const mv = list.filter((m) => m.type === 'trade').sort((a, b) => b.arrive - a.arrive)[0];
+    const min = mv ? Math.max(1, Math.round((mv.arrive - (Date.now() + clockSkew)) / 60000)) : null;
+    say(T('ui.islands.hauled', { n: fmtNum(n), res: T('res.' + h.res), from: from.name, to: target.name, min: min == null ? '?' : min }));
+  } catch (err) { say(err.message); }
+}
+
 function renderIslands() {
   const tbody = $('islands-table').querySelector('tbody');
   tbody.innerHTML = '';
@@ -239,9 +263,21 @@ function renderIslands() {
     // How full the storehouse is, as a faint band behind the number (the
     // red "full" warning stays as it was).
     const fill = (td, n, cap = i.capacity) => { td.classList.add('fill'); td.style.setProperty('--fill', `${Math.min(100, Math.round(100 * n / (cap || 1)))}%`); return td; };
-    tr.appendChild(fill(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''), i.resources.wood));
-    tr.appendChild(fill(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''), i.resources.stone));
-    tr.appendChild(fill(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''), i.resources.gold));
+    // Drag a resource cell onto another of your rows and the harbour's
+    // merchants carry as much of it as they can. No controls: a grab cursor,
+    // the target row lit while you cross it, one line of feedback below.
+    const haul = (td, r) => {
+      td.classList.add('haul'); td.draggable = true;
+      td.addEventListener('dragstart', (ev) => { _haul = { from: i.id, res: r }; ev.dataTransfer.effectAllowed = 'move'; try { ev.dataTransfer.setData('text/plain', `${i.name} ${r}`); } catch (_) { /* old engines */ } td.classList.add('dragging'); });
+      td.addEventListener('dragend', () => { td.classList.remove('dragging'); _haul = null; });
+      return td;
+    };
+    tr.appendChild(haul(fill(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''), i.resources.wood), 'wood'));
+    tr.appendChild(haul(fill(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''), i.resources.stone), 'stone'));
+    tr.appendChild(haul(fill(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''), i.resources.gold), 'gold'));
+    tr.addEventListener('dragover', (ev) => { if (!_haul || _haul.from === i.id) return; ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; tr.classList.add('drop-target'); });
+    tr.addEventListener('dragleave', () => tr.classList.remove('drop-target'));
+    tr.addEventListener('drop', (ev) => { ev.preventDefault(); tr.classList.remove('drop-target'); if (_haul && _haul.from !== i.id) haulTo(i); });
     // Population fills toward the farm's cap the same way — counting troops
     // abroad, which is the number a training order is checked against.
     const popTd = fill(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''), pop, i.popCap);

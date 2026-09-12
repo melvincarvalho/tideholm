@@ -157,6 +157,10 @@ td.fill { background: linear-gradient(90deg, rgba(120, 90, 30, .16) var(--fill, 
 /* Population fills in sea-teal, not storehouse brown: a full farm is strength,
    a full storehouse is pressure — one colour per meaning. */
 td.fill.pop { background: linear-gradient(90deg, rgba(30, 111, 142, .16) var(--fill, 0%), transparent var(--fill, 0%)); }
+/* drag-to-haul: a grab cursor on resource cells, the target row lit while crossed */
+#islands-table td.haul { cursor: grab; }
+#islands-table td.haul.dragging { opacity: .5; cursor: grabbing; }
+#islands-table tr.drop-target td { box-shadow: inset 0 0 0 2px #b8860b; }
 /* Past seasons under the rankings: a muted, collapsed footnote (#17). */
 details.hof { margin-top: 18px; font-size: 13px; color: var(--ink-mut, #6b5f4a); }
 details.hof summary { cursor: pointer; opacity: .75; }

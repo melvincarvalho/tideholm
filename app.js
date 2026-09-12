@@ -532,6 +532,7 @@ export function createApp(opts = {}) {
         // must count them or its pop column disagrees with the island view.
         popAbroad: game.popAbroad(world, i),
         popCap: game.popCap(i.buildings.farm),
+        tradeCap: game.tradeCapacity(i.buildings.harbor), // drag-to-haul fills to this
         wall: i.buildings.wall,
         // The wall multiplies defenders and adds flat defence, so the honest
         // column is the one combat actually uses, not the raw unit total.
