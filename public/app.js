@@ -244,7 +244,9 @@ function renderIslands() {
     tr.appendChild(fill(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''), i.resources.gold));
     // Population fills toward the farm's cap the same way — counting troops
     // abroad, which is the number a training order is checked against.
-    tr.appendChild(fill(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''), pop, i.popCap));
+    const popTd = fill(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''), pop, i.popCap);
+    popTd.classList.add('pop');
+    tr.appendChild(popTd);
     tr.appendChild(cell(fmtNum(i.defence), i.defence === 0 ? 'warn' : ''));
     tr.appendChild(cell(String(i.wall)));
     tr.appendChild(cell(slots, i.tradeSlots && i.tradeSlots.free === 0 ? 'warn' : ''));
