@@ -238,11 +238,13 @@ function renderIslands() {
     tr.appendChild(cell(`${i.name} (${i.x}:${i.y})`));
     // How full the storehouse is, as a faint band behind the number (the
     // red "full" warning stays as it was).
-    const fill = (td, n) => { td.classList.add('fill'); td.style.setProperty('--fill', `${Math.min(100, Math.round(100 * n / (i.capacity || 1)))}%`); return td; };
+    const fill = (td, n, cap = i.capacity) => { td.classList.add('fill'); td.style.setProperty('--fill', `${Math.min(100, Math.round(100 * n / (cap || 1)))}%`); return td; };
     tr.appendChild(fill(cell(fmtNum(i.resources.wood), i.resources.wood >= i.capacity ? 'warn' : ''), i.resources.wood));
     tr.appendChild(fill(cell(fmtNum(i.resources.stone), i.resources.stone >= i.capacity ? 'warn' : ''), i.resources.stone));
     tr.appendChild(fill(cell(fmtNum(i.resources.gold), i.resources.gold >= i.capacity ? 'warn' : ''), i.resources.gold));
-    tr.appendChild(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''));
+    // Population fills toward the farm's cap the same way — counting troops
+    // abroad, which is the number a training order is checked against.
+    tr.appendChild(fill(cell(`${pop}/${i.popCap}`, pop >= i.popCap ? 'warn' : ''), pop, i.popCap));
     tr.appendChild(cell(fmtNum(i.defence), i.defence === 0 ? 'warn' : ''));
     tr.appendChild(cell(String(i.wall)));
     tr.appendChild(cell(slots, i.tradeSlots && i.tradeSlots.free === 0 ? 'warn' : ''));
