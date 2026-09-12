@@ -1586,7 +1586,7 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     // per header, not by counting: equal counts across the pane would pass
     // even if one <th> had both and another had neither.
     const hidden = ths.filter((th) => th.includes('aria-hidden="true"'));
-    check('the emoji headers are the three resource columns', hidden.length === 3, hidden.length);
+    check('the emoji headers are the three resource columns and population', hidden.length === 4, hidden.length);
     for (const th of hidden) {
       check(`  its emoji is paired with an sr-only label: ${th.replace(/<[^>]*>/g, '').trim()}`,
         th.includes('class="sr-only"'), th);
