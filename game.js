@@ -975,7 +975,12 @@ function sendTrade(world, player, island, target, resources, now) {
 // ---------------------------------------------------------------- market
 
 const OFFER_LIMIT = 5;
-const OFFER_MAX = 1000;
+// An offer's goods sail as one trade movement on one merchant slot, so each
+// side is capped at what the poster's Harbor carries in a run — the same
+// number the trade form shows. Was a flat 1,000 from season 5; at season-6
+// scale that made the board useless for moving stone, and refused with a
+// bare "Bad request" that named no number.
+function offerMax(island) { return tradeCapacity(island.buildings.harbor); }
 
 function fullLoad(res, amount) {
   const load = { wood: 0, stone: 0, gold: 0 };
@@ -984,8 +989,7 @@ function fullLoad(res, amount) {
 }
 
 function validSide(side) {
-  return side && RESOURCES.includes(side.res) &&
-    Number.isInteger(side.amount) && side.amount >= 1 && side.amount <= OFFER_MAX;
+  return side && RESOURCES.includes(side.res) && Number.isInteger(side.amount) && side.amount >= 1;
 }
 
 // Post an offer: goods are escrowed from the island at once.
@@ -996,6 +1000,10 @@ function createOffer(world, player, island, give, want, now) {
   }
   if (!validSide(give) || !validSide(want) || give.res === want.res) {
     return { error: 'err.badRequest' };
+  }
+  const max = offerMax(island);
+  if (give.amount > max || want.amount > max) {
+    return { error: 'err.offerTooBig', errorParams: { max } };
   }
   if (world.offers.filter((o) => o.playerId === player.id).length >= OFFER_LIMIT) {
     return { error: 'err.offerLimit' };

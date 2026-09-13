@@ -867,6 +867,20 @@ console.log('market');
   }
   check('offer limit enforced',
     g.createOffer(w, a, ia, { res: 'wood', amount: 10 }, { res: 'gold', amount: 5 }, t0).error === 'err.offerLimit');
+  // each side is capped at the poster's Harbor shipment capacity, and the
+  // refusal names the number (was a flat 1,000 and a bare "Bad request")
+  {
+    ib.buildings.harbor = 3; g.resolveIsland(ib, t0); ib.resources = { wood: 0, stone: 0, gold: 0 };
+    const cap = g.tradeCapacity(3);
+    const big = g.createOffer(w, b, ib, { res: 'wood', amount: cap + 1 }, { res: 'gold', amount: 5 }, t0);
+    check('an offer above the harbour shipment capacity is refused with the cap named',
+      big.error === 'err.offerTooBig' && big.errorParams.max === cap, JSON.stringify(big));
+    const want = g.createOffer(w, b, ib, { res: 'wood', amount: 5 }, { res: 'gold', amount: cap + 1 }, t0);
+    check('the want side is capped the same way', want.error === 'err.offerTooBig');
+    const atCap = g.createOffer(w, b, ib, { res: 'wood', amount: cap }, { res: 'gold', amount: cap }, t0);
+    check('exactly the cap is not too big (refused here only for lack of stock)', atCap.error === 'err.noResources', JSON.stringify(atCap));
+    check('a bigger harbour allows a bigger offer', g.tradeCapacity(7) > cap);
+  }
 
   // cancel refunds
   const mine = w.offers.filter((o) => o.playerId === a.id);

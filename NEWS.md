@@ -890,6 +890,15 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **An offer is one merchant's load** (2026-09-13): each side of a market
+  offer is capped at the poster's Harbor shipment capacity — the number the
+  trade form already shows — instead of a flat 1,000 left over from season
+  5. A bigger harbour, a bigger offer. The refusal now names the cap in all
+  three languages instead of "Bad request", the form shows it, and the
+  inputs no longer hard-code 1,000. An offer's goods sail as one trade
+  movement on one merchant slot, so this is the same rule the harbour
+  applies to a direct haul, not a new one.
+
 - **A linked nostr identity must be a real key** (2026-09-11): the Mail tab
   now refuses a 64-hex did that does not lie on the secp256k1 curve, with a
   message saying to paste the PUBLIC key of the key you sign with. About

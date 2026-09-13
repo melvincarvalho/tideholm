@@ -539,6 +539,11 @@ function renderState() {
   $('who').textContent = state.player.name;
   // Vault balance (#132) — raid-proof gold, shown in the Market tab. When the
   // withdrawal-fee knob is on (0 today), note the rate beside the balance.
+  // An offer is one merchant's load: say the cap where the offer is posted.
+  if ($('offer-cap') && state.island && state.island.tradeCap != null) {
+    $('offer-cap').textContent = T('ui.trade.cap', { cap: fmtNum(state.island.tradeCap) });
+    for (const id of ['offer-give-n', 'offer-want-n']) { const el = $(id); if (el) el.max = String(state.island.tradeCap); }
+  }
   if ($('vault-balance') && state.player.vault != null) {
     let txt = state.vaultCap > 0
       ? T('ui.vault.balanceCap', { n: fmtNum(state.player.vault), cap: fmtNum(state.vaultCap) })
