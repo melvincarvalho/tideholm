@@ -16,6 +16,26 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-16 · The attack quotient, and an offer is one merchant's load
+
+> ⚓ Two small things. The Army table now shows an attack quotient: a green percentage beside your raider total, raiders for every point of empire, so one figure says how militarised your fleet is. And a market offer is one merchant's load — each side is capped at your Harbor's shipment capacity instead of a flat 1,000, so a bigger harbour posts a bigger offer, and a refusal names the number instead of saying Bad request. Fair winds.
+
+- **The attack quotient**: a small green percentage beside the raider total
+  in the Army table — raiders for every point of built empire. One figure
+  for how militarised a fleet is, and it reads the map at a glance: a
+  captain with points and no raiders is nobody's threat. It divides the
+  total it sits next to, so the two always agree. Green as growth should be,
+  the convention the production row set; hovering names it in words.
+- **An offer is one merchant's load**: each side of a market offer is capped
+  at the poster's Harbor shipment capacity, the number the trade form
+  already shows, instead of the flat 1,000 left from season 5. An offer's
+  goods sail as one trade movement on one merchant slot, so this is the
+  harbour's own rule, not a new one. The refusal names the cap; the form
+  shows it; the inputs no longer stop at 1,000.
+
+Delivered 2026-09-16 via `/api/admin/announce`, 434 characters, the #101
+route. The Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-12 · Drag a resource onto another isle
 
 > ⚓ One small thing. In the Islands table you can now drag a wood, stone or gold cell onto another of your isles, and that harbour sends merchants with as much of it as they can carry. The row lights up as you cross it and a line under the table tells you what sailed and how long it takes. Handy for gathering stone where a ship is to be built. The trade form under Market still works as before. Fair winds.
@@ -889,31 +909,6 @@ Shipped in #60.
 ---
 
 ## Shipped without an announcement
-
-- **Raiders per point** (2026-09-16): the Army table's Total row carries a
-  small green percentage beside the raider count — raiders for every point
-  of built empire, so one number says how militarised the whole fleet is.
-  It divides the total it sits next to, so the two always agree. Green as
-  growth should be, the convention the production row set. Hovering says it
-  in words. Nothing else on the screen moved.
-
-- **An offer is one merchant's load** (2026-09-13): each side of a market
-  offer is capped at the poster's Harbor shipment capacity — the number the
-  trade form already shows — instead of a flat 1,000 left over from season
-  5. A bigger harbour, a bigger offer. The refusal now names the cap in all
-  three languages instead of "Bad request", the form shows it, and the
-  inputs no longer hard-code 1,000. An offer's goods sail as one trade
-  movement on one merchant slot, so this is the same rule the harbour
-  applies to a direct haul, not a new one.
-
-- **A linked nostr identity must be a real key** (2026-09-11): the Mail tab
-  now refuses a 64-hex did that does not lie on the secp256k1 curve, with a
-  message saying to paste the PUBLIC key of the key you sign with. About
-  half of all hex strings are not points; one linked that way passed the old
-  regex and then failed everywhere downstream — "sqrt invalid" at the
-  anchor, a fuel address nobody can ever spend from, seal moves signed by a
-  different key than the did. Proof of possession at link time is still
-  open, with #149.
 
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
