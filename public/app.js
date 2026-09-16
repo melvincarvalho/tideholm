@@ -419,8 +419,8 @@ function renderArmy(rows) {
     + own.map((u) => {
       const n = sum(u);
       const per = u === 'raider' && pts > 0 && n > 0
-        ? ` <small class="per-pt" title="${T('ui.islands.perPoint', { n: (n / pts).toFixed(2) })}">`
-          + `${T('ui.islands.perPointShort', { n: (n / pts).toFixed(2) })}</small>`
+        ? ` <small class="per-pt" title="${T('ui.islands.perPoint')}">`
+          + `${T('ui.islands.perPointShort', { n: Math.round(100 * n / pts) })}</small>`
         : '';
       return `<td class="n">${n}${per}</td>`;
     }).join('');
