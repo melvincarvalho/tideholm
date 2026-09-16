@@ -409,9 +409,21 @@ function renderArmy(rows) {
   const sum = (u) => rows.reduce((n, i) =>
     n + ((i.army && (i.army.home[u] || 0) + (i.army.abroad[u] || 0)) || 0), 0);
   const totalAtk = rows.reduce((n, i) => n + homeAtk(i.army), 0);
+  // Raiders per point of built empire, tucked beside the count it divides:
+  // one figure for how militarised the whole fleet is. A captain with points
+  // and no raiders is nobody's threat; one near 1 is all teeth. Same basis as
+  // the total above it, so the two always agree.
+  const pts = (state && state.player && state.player.points) || 0;
   $('army-total').innerHTML = `<th>${T('ui.islands.total')}</th>`
     + `<td class="n atk">${fmtNum(totalAtk)}</td>`
-    + own.map((u) => `<td class="n">${sum(u)}</td>`).join('');
+    + own.map((u) => {
+      const n = sum(u);
+      const per = u === 'raider' && pts > 0 && n > 0
+        ? ` <small class="per-pt" title="${T('ui.islands.perPoint', { n: (n / pts).toFixed(2) })}">`
+          + `${T('ui.islands.perPointShort', { n: (n / pts).toFixed(2) })}</small>`
+        : '';
+      return `<td class="n">${n}${per}</td>`;
+    }).join('');
 }
 
 // ---------------------------------------------------------------- rendering

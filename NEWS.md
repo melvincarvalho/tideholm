@@ -890,6 +890,13 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **Raiders per point** (2026-09-16): the Army table's Total row carries a
+  small teal figure beside the raider count — raiders for every point of
+  built empire, so one number says how militarised the whole fleet is. It
+  divides the total it sits next to, so the two always agree. Teal because
+  it is a strength number, the same rule as the population band. Hovering
+  says it in words. Nothing else on the screen moved.
+
 - **An offer is one merchant's load** (2026-09-13): each side of a market
   offer is capped at the poster's Harbor shipment capacity — the number the
   trade form already shows — instead of a flat 1,000 left over from season
