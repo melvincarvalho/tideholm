@@ -16,6 +16,27 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-18 · The seal writes on txbt4
+
+> ⚓ The seal now writes on txbt4 — XBT's testnet4, the BLAKE2b fork on mempool.guide. The till, the prizes and the DAO book were there already; your anchor fuel is too if it is older than block 150,307. Your next anchor starts a fresh chain there; old anchors keep their links. A chain dropdown beside the seal chooses what the panel reads — anchors always write on the game's chain. The tavern's dice settle on txbt4 too. Fair winds.
+
+txbt4 is XBT's testnet4 — the BLAKE2b fork that parted from plain testnet4
+at block 150,307, which mempool.guide follows and Melvin's own node
+validates. The till, the prizes and the DAO book had been there since day
+one by accident: the blocktrails library maps "testnet4" to mempool.guide
+while the anchor library mapped the same word to mempool.space, and for a
+week nobody compared them. Now everything agrees: the anchor library names
+its chain in every commitment (`network`, txbt4 by default) and starts a
+fresh key chain when the chain under it has changed; the game's
+provably-fair verifier reads mempool.guide and pins a block above the fork
+so a wrong `CHAIN_API` refuses loudly; the CLI, the tavern's block seed and
+the fuel line follow. The Market gained a read-only chain dropdown (txbt4 ·
+tbtc4 · mainnet, not yet) so chain 3 on plain testnet4 stays readable;
+anchors are always written on the game's chain. Phil's fuel, post-fork on
+plain testnet4, was topped up on txbt4 from the till. Delivered 2026-09-18
+via `/api/admin/announce`, 432 characters, the #101 route. The
+Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-16 · The attack quotient, and an offer is one merchant's load
 
 > ⚓ Two small things. The Army table now shows an attack quotient: a green percentage beside your raider total, raiders for every point of empire, so one figure says how militarised your fleet is. And a market offer is one merchant's load — each side is capped at your Harbor's shipment capacity instead of a flat 1,000, so a bigger harbour posts a bigger offer, and a refusal names the number instead of saying Bad request. Fair winds.
@@ -909,20 +930,6 @@ Shipped in #60.
 ---
 
 ## Shipped without an announcement
-
-- **The seal writes on txbt4** (2026-09-18): XBT's testnet4 — the BLAKE2b
-  fork that parted from plain testnet4 at block 150,307, which mempool.guide
-  follows. The till, the prizes and the DAO book were already there by
-  accident: the blocktrails library maps "testnet4" to mempool.guide while
-  the anchor library mapped the same word to mempool.space, and nobody had
-  compared them. Now everything agrees: the anchor library, the game's
-  provably-fair verifier (which pins a block above the fork and refuses a
-  wrong chain), the CLI, the tavern's block seed, the fuel line. Every anchor
-  stamp names its chain, so chain 3's links still point at plain testnet4
-  while chain 4 starts on txbt4 with the fuel that was already there — the
-  two chains share every coin older than the fork. The Market gained a chain
-  dropdown (txbt4 · tbtc4 · mainnet, not yet) that chooses what the panel
-  READS; anchors are always written on the game's chain. Not announced yet.
 
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
