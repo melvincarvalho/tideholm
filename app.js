@@ -68,20 +68,47 @@ const MIME = {
   '.json': 'application/json',
 };
 
-// The tide's ledger, for proving wins (#149): block hash by height from
-// mempool.space testnet4. Hashes are immutable — cached forever. Returns null
-// when the block does not exist (a false claim), throws on network trouble
-// (retryable). Injectable (opts.tideChain) so tests stay off the network.
+// The tide's ledger, for proving wins (#149): block hash by height from the
+// chain's explorer — txbt4, XBT's testnet4 on mempool.guide, unless CHAIN_API
+// says otherwise. Hashes are immutable — cached forever. Returns null when
+// the block does not exist (a false claim, or a bet on a block still at sea:
+// mempool.space answers 404, mempool.guide a 500 carrying a JSON complaint),
+// throws on other trouble (retryable).
+//
+// Which chain is part of the proof, not a detail: above the fork the same
+// height names a different block on plain testnet4. So the first read checks
+// a pinned block above the fork, and a verifier pointed at the wrong chain
+// refuses loudly rather than settle dice against another chain's history.
+// CHAIN_PIN=<height>:<hash> re-pins it for another chain; CHAIN_PIN=off skips.
+// Injectable (opts.tideChain) so tests stay off the network.
+const CHAIN_API = (process.env.CHAIN_API || 'https://mempool.guide/testnet4/api').replace(/\/+$/, '');
+const CHAIN_PIN = (() => {
+  const v = process.env.CHAIN_PIN;
+  if (v === 'off') return null;
+  const m = /^(\d+):([0-9a-f]{64})$/i.exec(v || '');
+  return m ? { height: Number(m[1]), hash: m[2].toLowerCase() }
+    : { height: 150400, hash: '00000000c4ad4d820915ea836c9a174282f0a5192278e2b2b017f674d3406df6' }; // txbt4, 92 blocks above the fork
+})();
 function defaultTideChain() {
   const hashes = new Map();
+  let pinned = !CHAIN_PIN;
+  const read = async (h) => {
+    const r = await fetch(`${CHAIN_API}/block-height/${h}`);
+    if (r.status === 404 || r.status === 500) return null;
+    if (!r.ok) throw new Error(`hash ${r.status}`);
+    const x = (await r.text()).trim().toLowerCase();
+    return /^[0-9a-f]{64}$/.test(x) ? x : null;
+  };
   return {
     async hash(h) {
       if (hashes.has(h)) return hashes.get(h);
-      const r = await fetch(`https://mempool.space/testnet4/api/block-height/${h}`);
-      if (r.status === 404) return null;
-      if (!r.ok) throw new Error(`hash ${r.status}`);
-      const x = (await r.text()).trim().toLowerCase();
-      hashes.set(h, x);
+      if (!pinned) {
+        const got = await read(CHAIN_PIN.height);
+        if (got !== CHAIN_PIN.hash) throw new Error(`chain: ${CHAIN_API} is not the pinned chain at ${CHAIN_PIN.height} (got ${got})`);
+        pinned = true;
+      }
+      const x = await read(h);
+      if (x) hashes.set(h, x);
       return x;
     },
   };
@@ -507,6 +534,7 @@ export function createApp(opts = {}) {
       botMoraleFloor: game.BOT_MORALE_FLOOR,
       vaultFee: game.VAULT_WITHDRAW_FEE, // withdrawal fee knob, 0 for now (#132)
       vaultCap: game.VAULT_CAP, // the strongroom's ceiling (#188)
+      chain: game.TIDEGATE_DEFAULT_NETWORK, // the chain the seal writes on — anchors go here, whatever the client views
       // Season phase + launch time for the pregame countdown (#8).
       phase: game.worldPhase(world, Date.now()),
       startAt: world.startAt,

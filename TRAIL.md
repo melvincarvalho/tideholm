@@ -247,7 +247,8 @@ the single highest-value open item in the platform.
 
 ### 7.1 What an anchor is
 
-An anchor commits the trail tip to Bitcoin (testnet4 today) as a
+An anchor commits the trail tip to Bitcoin (txbt4 today — XBT's testnet4,
+the BLAKE2b fork; a commitment names its chain, see `network`) as a
 **BlockTrails state advance**: spending the previous anchor's output to a
 freshly derived taproot address **is** the commitment. The committed state is
 a canonical string in **literal key order**:
@@ -278,7 +279,7 @@ refused); **one stamp per tip**; address restricted to the bech32m charset;
 output 0"). The stamp is metadata on the tip entry:
 
 ```json
-"commitment": { "network": "tbtc4", "seq": 4, "txid": "<64 hex>",
+"commitment": { "network": "txbt4", "seq": 4, "txid": "<64 hex>",
                 "address": "tb1p…", "amount": 546, "vout": 0,
                 "explorer": "…", "at": 1755000000000 }
 ```
@@ -349,9 +350,9 @@ spelling; the directory form exists because the verifier appends
 
 ```json
 { "@type": "Blocktrail", "version": "0.0.3", "profile": "tidegate",
-  "pubkeyBase": "02<hex>", "chain": "tbtc4",
+  "pubkeyBase": "02<hex>", "chain": "txbt4",
   "states": ["tideholm seq 4 · sealed 1296 🪙", …],
-  "txo":    ["txo:tbtc4:<txid>:0?amount=546", …] }
+  "txo":    ["txo:txbt4:<txid>:0?amount=546", …] }
 ```
 
 Only anchored marks appear; no anchors → 404 (`null`). ⚠ The `states`

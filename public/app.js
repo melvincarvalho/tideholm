@@ -181,7 +181,7 @@ $('tab-islands').addEventListener('click', () => { showTab('islands'); renderIsl
 $('tab-map').addEventListener('click', () => { showTab('map'); loadMap(); });
 $('tab-reports').addEventListener('click', () => { showTab('reports'); loadReports(); });
 $('tab-rankings').addEventListener('click', () => { showTab('rankings'); loadRankings(); });
-$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); refreshFuel(); refreshAnchored(); renderTavernLine(); renderSlip(); });
+$('tab-market').addEventListener('click', () => { showTab('market'); loadMarket(); renderChain(); refreshFuel(); refreshAnchored(); renderTavernLine(); renderSlip(); });
 $('tab-alliance').addEventListener('click', () => {
   showTab('alliance'); loadAlliance(); mountAllianceChat();
   // The room scrolls to its end when it is SHOWN on screen — a room made the
@@ -1948,15 +1948,48 @@ if ($('tidegate-pegin')) {
   $('tidegate-pegout').addEventListener('click', () => pegMove('out'));
 }
 
-// The testnet4 "fuel" behind the seal (#135). The taproot address this identity
-// controls IS a Bitcoin address (same secp256k1 key), and its testnet4 balance
-// is what a BlockTrails committer will eventually spend to anchor the trail.
+// The "fuel" behind the seal (#135). The taproot address this identity
+// controls IS a Bitcoin address (same secp256k1 key), and its balance on the
+// game's chain is what the BlockTrails committer spends to anchor the trail.
 // Read-only, and deliberately NOT in the poll loop: fetched only when the market
 // opens and on an explicit refresh, cached with a cooldown so repeats coalesce
-// and a single in-flight request is never duplicated. mempool.space serves
-// testnet4 with permissive CORS, so the browser reads it directly. Address
+// and a single in-flight request is never duplicated. The explorer serves the
+// chain with permissive CORS, so the browser reads it directly. Address
 // derivation is public-key only — no signer, so this never prompts for a key.
-const FUEL_TTL = 60000; // never re-hit mempool more than once a minute
+// Which chain this panel READS (#140, the txbt4 switch). The game WRITES on
+// one chain — state.chain, the server's — and every anchor goes there; the
+// dropdown only chooses which explorer the fuel line, the anchor status and
+// the links read from, so chain 3 on plain testnet4 stays readable after
+// chain 4 starts on txbt4. Per browser, remembered like the sort order.
+const CHAINS = {
+  txbt4: { api: 'https://mempool.guide/testnet4/api', explorer: 'https://mempool.guide/testnet4' },
+  tbtc4: { api: 'https://mempool.space/testnet4/api', explorer: 'https://mempool.space/testnet4' },
+};
+const CHAIN_KEY = 'tideholm.chain';
+function gameChain() { return (state && state.chain && CHAINS[state.chain]) ? state.chain : 'txbt4'; }
+function viewChain() { try { const c = localStorage.getItem(CHAIN_KEY); return CHAINS[c] ? c : gameChain(); } catch { return gameChain(); } }
+const chainApi = () => CHAINS[viewChain()].api;
+const chainExplorer = () => CHAINS[viewChain()].explorer;
+function renderChain() {
+  const sel = $('tidegate-chain'); if (!sel) return;
+  sel.value = viewChain();
+  const lbl = $('tidegate-chain-label'); if (lbl) lbl.textContent = T('ui.tidegate.chainLabel', { chain: gameChain() });
+  const locked = viewChain() !== gameChain();
+  const ab = $('tidegate-anchor');
+  if (ab) { ab.disabled = locked; if (locked) ab.title = T('ui.tidegate.chainLocked', { chain: gameChain() }); else ab.title = T('ui.tidegate.anchorTitle'); }
+}
+if ($('tidegate-chain')) {
+  $('tidegate-chain').addEventListener('change', (ev) => {
+    const c = ev.target.value;
+    if (!CHAINS[c]) { renderChain(); return; }
+    try { localStorage.setItem(CHAIN_KEY, c); } catch (_) { /* private mode */ }
+    _fuel = { did: null, addr: null, data: null, at: 0, pending: false };            // another ledger: read again
+    _anchored = { txid: null, confirmed: false, retired: false, checkedAt: 0 };
+    renderChain(); refreshFuel(true); refreshAnchored();
+  });
+}
+
+const FUEL_TTL = 60000; // never re-hit the explorer more than once a minute
 let _fuel = { did: null, addr: null, data: null, at: 0, pending: false };
 let _btcMod = null;
 
@@ -1981,7 +2014,7 @@ async function refreshFuel(force) {
       const btc = _btcMod || (_btcMod = await import('https://melvincarvalho.github.io/tidegate/btc.js'));
       _fuel.addr = btc.taprootAddress(did, 'testnet');
     }
-    const r = await fetch(`https://mempool.space/testnet4/api/address/${_fuel.addr}`);
+    const r = await fetch(`${chainApi()}/address/${_fuel.addr}`);
     if (!r.ok) throw new Error('http ' + r.status);
     const j = await r.json();
     const c = j.chain_stats || {};
@@ -2012,6 +2045,8 @@ async function anchorFlow() {
   const btn = $('tidegate-anchor');
   const msg = $('tidegate-msg');
   if (btn.disabled) return; // one flight at a time — a double-click must not double-broadcast
+  // Anchors are written on the game's chain, never on the one being viewed.
+  if (viewChain() !== gameChain()) { msg.textContent = T('ui.tidegate.chainLocked', { chain: gameChain() }); return; }
   btn.disabled = true;
   msg.textContent = '';
   try {
@@ -2019,7 +2054,7 @@ async function anchorFlow() {
     const did = state.player.did;
     const { trail } = await api('/api/tidegate/trail');
     if (!_anchorArmed) {
-      const p = await mod.previewAnchor(did, trail);
+      const p = await mod.previewAnchor(did, trail, { network: gameChain() });
       const o = p.outputs[0];
       msg.textContent = T('ui.tidegate.anchorPreview', { sats: fmtNum(o.value), addr: o.address.slice(0, 12) + '…', fee: p.fee })
         + (p.regenesis ? ' · ' + T('ui.tidegate.regenesis') : '');
@@ -2027,7 +2062,7 @@ async function anchorFlow() {
       _anchorArmed = true;
       return;
     }
-    const c = await mod.anchor(did, trail);          // sign + broadcast, in-browser
+    const c = await mod.anchor(did, trail, { network: gameChain() }); // sign + broadcast, in-browser, on the game's chain
     _anchorArmed = false;
     btn.textContent = T('ui.tidegate.anchor');
     await api('/api/tidegate/anchor', { commitment: { seq: c.seq, txid: c.txid, address: c.address, network: c.network, amount: c.value, chain: c.chain } });
@@ -2043,7 +2078,7 @@ async function anchorFlow() {
     if (btn) btn.textContent = T('ui.tidegate.anchor');
     msg.textContent = err.message || String(err);
   } finally {
-    btn.disabled = false;
+    btn.disabled = viewChain() !== gameChain();
   }
 }
 if ($('tidegate-anchor')) $('tidegate-anchor').addEventListener('click', anchorFlow);
@@ -2072,14 +2107,14 @@ async function refreshAnchored() {
     if ((!_anchored.confirmed || !_anchored.retired) && Date.now() - _anchored.checkedAt > 60000) {
       _anchored.checkedAt = Date.now();
       try {
-        const s = await (await fetch(`https://mempool.space/testnet4/api/tx/${c.txid}/status`)).json();
+        const s = await (await fetch(`${chainApi()}/tx/${c.txid}/status`)).json();
         _anchored.confirmed = !!s.confirmed;
       } catch (_) { /* stays pending; re-checked on the next open */ }
       // Retirement detection (re-genesis): the tip output spent with no newer
       // stamp means the chain was swept closed — the next anchor starts fresh.
       // Read from the chain itself; the sweep never phones home.
       try {
-        const os = await (await fetch(`https://mempool.space/testnet4/api/tx/${c.txid}/outspend/${c.vout || 0}`)).json();
+        const os = await (await fetch(`${chainApi()}/tx/${c.txid}/outspend/${c.vout || 0}`)).json();
         _anchored.retired = !!(os && os.spent);
       } catch (_) { /* unknown — say nothing rather than guess */ }
     }
@@ -2093,7 +2128,7 @@ async function refreshAnchored() {
       ? T('ui.tidegate.anchoredChainSeq', { chain: chainNo, seq: c.seq })
       : T('ui.tidegate.anchoredSeq', { seq: c.seq })) + ' '));
     const a = document.createElement('a');
-    a.href = c.explorer || `https://mempool.space/testnet4/tx/${c.txid}`;
+    a.href = c.explorer || `${chainExplorer()}/tx/${c.txid}`; // a stamp knows its own chain
     a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.textContent = c.txid.slice(0, 10) + '…';
     el.appendChild(a);
@@ -2207,7 +2242,7 @@ function renderFuel() {
   if (!_fuel.data) label.textContent = '⛽ ' + T('ui.tidegate.fuelChecking');
   else if (_fuel.data.error) label.textContent = '⛽ ' + T('ui.tidegate.fuelOffline');
   else {
-    label.textContent = '⛽ ' + T('ui.tidegate.fuel', { sat: fmtNum(_fuel.data.sat) });
+    label.textContent = '⛽ ' + T('ui.tidegate.fuel', { sat: fmtNum(_fuel.data.sat), chain: viewChain() });
     if (_fuel.data.pending) {
       label.textContent += ' · ' + T('ui.tidegate.fuelPending',
         { sat: (_fuel.data.pending > 0 ? '+' : '') + fmtNum(_fuel.data.pending) });
@@ -2217,7 +2252,7 @@ function renderFuel() {
   if (_fuel.addr) {
     el.appendChild(document.createTextNode(' · '));
     const a = document.createElement('a');
-    a.href = `https://mempool.space/testnet4/address/${_fuel.addr}`;
+    a.href = `${chainExplorer()}/address/${_fuel.addr}`;
     a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.textContent = _fuel.addr.slice(0, 10) + '…' + _fuel.addr.slice(-4);
     el.appendChild(a);

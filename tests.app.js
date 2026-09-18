@@ -1074,6 +1074,31 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     vr = await req(oa.port, 'POST', '/api/tidegate/anchor',
       { body: { commitment: { seq: 2, txid: 'cd'.repeat(32) } }, cookie: vcookie });
     check('#140 an already-stamped tip refuses a second stamp', vr.status === 400, vr.status);
+    // The chain a stamp names (the txbt4 switch): the explorer link follows
+    // it, an unknown name falls back to the game's chain, and the state says
+    // which chain the seal writes on.
+    {
+      const tr = gameMod.tidegateTrail(vp);
+      check('a stamp naming tbtc4 links to mempool.space', tr[1].commitment.network === 'tbtc4' && tr[1].commitment.explorer.startsWith('https://mempool.space/testnet4/tx/'), tr[1].commitment.explorer);
+      // a fresh tip to stamp: chain from the trail's own tip (earlier tests moved the seal without recording)
+      const tipA = gameMod.tidegateTrail(vp).slice(-1)[0]; vp.pegged = tipA.next - 1;
+      const recA = gameMod.tidegateRecord(vp, { did: vp.nostrDid, prev: tipA.next, delta: -1, next: tipA.next - 1, sig: 'x', pubkey: 'c'.repeat(64) });
+      check('  (fixture) a fresh trail entry was recorded', Array.isArray(recA), String(recA));
+      const trail2 = gameMod.tidegateTrail(vp);
+      gameMod.tidegateStamp(vp, { seq: trail2.length, txid: 'ef'.repeat(32), network: 'txbt4', chain: 2 });
+      const t2 = gameMod.tidegateTrail(vp);
+      check('a stamp naming txbt4 links to mempool.guide', t2[t2.length - 1].commitment.network === 'txbt4' && t2[t2.length - 1].commitment.explorer.startsWith('https://mempool.guide/testnet4/tx/'), t2[t2.length - 1].commitment.explorer);
+      const tipB = gameMod.tidegateTrail(vp).slice(-1)[0]; vp.pegged = tipB.next - 1;
+      gameMod.tidegateRecord(vp, { did: vp.nostrDid, prev: tipB.next, delta: -1, next: tipB.next - 1, sig: 'y', pubkey: 'c'.repeat(64) });
+      const trail3 = gameMod.tidegateTrail(vp);
+      gameMod.tidegateStamp(vp, { seq: trail3.length, txid: '01'.repeat(32), network: 'nonsense', chain: 2 });
+      const t3 = gameMod.tidegateTrail(vp);
+      check('an unknown chain name falls back to the game\'s chain (txbt4)', t3[t3.length - 1].commitment.network === 'txbt4', t3[t3.length - 1].commitment.network);
+      const bt = gameMod.tidegateBlocktrails(vp.nostrDid.slice('did:nostr:'.length));
+      check('the public blocktrails doc names the live spine\'s chain', bt && bt.chain === 'txbt4' && bt.txo.every((u) => u.startsWith('txo:txbt4:')), JSON.stringify(bt && { chain: bt.chain, txo: bt.txo }));
+    }
+    vr = await req(oa.port, 'GET', '/api/state', { cookie: vcookie });
+    check('the state names the chain the seal writes on', vr.data.chain === 'txbt4', vr.data.chain);
 
     // #146 the courier slip: signed transitions another app produced against
     // this seal, replayed through /api/tidegate/sync — REAL Schnorr signatures,
@@ -1297,7 +1322,7 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
       vr.status === 200 && vr.data['@type'] === 'Blocktrail' && vr.data.profile === 'tidegate',
       JSON.stringify(vr.data).slice(0, 120));
     check('#135 marks carry txo URIs with the stamped amount',
-      Array.isArray(vr.data.txo) && vr.data.txo[vr.data.txo.length - 1] === `txo:tbtc4:${'ee'.repeat(32)}:0?amount=9778`,
+      Array.isArray(vr.data.txo) && vr.data.txo[vr.data.txo.length - 1] === `txo:txbt4:${'ee'.repeat(32)}:0?amount=9778`,
       JSON.stringify(vr.data.txo));
     check('#135 pubkeyBase is the even-Y form of the npub',
       vr.data.pubkeyBase === '02' + PUB, vr.data.pubkeyBase);

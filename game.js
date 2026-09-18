@@ -2515,16 +2515,29 @@ function tidegateSync(player, txs) {
 // what is anchored. Guards: txid shape, seq must equal the current trail length
 // (the tip the client actually anchored), and a tip is stamped at most once.
 // Never throws; null = not stamped.
+// The chains a stamp may name. txbt4 is XBT's testnet4 — the BLAKE2b fork,
+// which mempool.guide follows and the fleet writes on; tbtc4 is plain
+// testnet4, where the early anchors (chain 3) were made. A stamp records the
+// chain it was written on, so its explorer link points at the right ledger
+// and the next anchor knows to start a fresh key chain when the chain under
+// it has changed. Unknown or missing = the default.
+const TIDEGATE_NETWORKS = {
+  txbt4: 'https://mempool.guide/testnet4',
+  tbtc4: 'https://mempool.space/testnet4',
+};
+const TIDEGATE_DEFAULT_NETWORK = TIDEGATE_NETWORKS[process.env.TIDEGATE_NETWORK] ? process.env.TIDEGATE_NETWORK : 'txbt4';
+
 function tidegateStamp(player, c) {
   try {
     if (!c || typeof c !== 'object') return null;
+    const network = TIDEGATE_NETWORKS[c.network] ? c.network : TIDEGATE_DEFAULT_NETWORK;
     const txid = String(c.txid || '').toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(txid)) return null;
     const trail = tidegateTrail(player);
     if (!trail.length || Math.trunc(Number(c.seq)) !== trail.length) return null;
     if (trail[trail.length - 1].commitment) return null; // one stamp per tip
     trail[trail.length - 1].commitment = {
-      network: 'tbtc4',
+      network,
       seq: trail.length,
       // Which key chain this mark belongs to (re-genesis, TRAIL.md §7.5):
       // a swept chain cannot advance, so the next anchor starts chain n+1
@@ -2538,7 +2551,7 @@ function tidegateStamp(player, c) {
       // skips a missing amount, so they still verify.
       amount: Number.isSafeInteger(Number(c.amount)) && Number(c.amount) > 0 ? Number(c.amount) : null,
       vout: 0, // the trail float is always output 0 by the anchor convention
-      explorer: `https://mempool.space/testnet4/tx/${txid}`,
+      explorer: `${TIDEGATE_NETWORKS[network]}/tx/${txid}`,
       at: Date.now(),
     };
     fs.writeFileSync(tidegateFile(player), JSON.stringify(trail, null, 2));
@@ -2585,7 +2598,9 @@ function tidegateBlocktrails(hex) {
     version: '0.0.3',
     profile: 'tidegate',
     pubkeyBase: '02' + hex, // the even-Y convention: derivable from the npub alone
-    chain: 'tbtc4',
+    // the live spine's chain: what its own stamps say (old stamps predate the
+    // field and were all plain testnet4)
+    chain: (live[0] && live[0].commitment.network) || 'tbtc4',
     states: live.map((e) => {
       const c = e.commitment;
       return `tideholm seq ${c.seq} · sealed ${e.next} 🪙`;
@@ -2992,7 +3007,7 @@ export {
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
   tradeCapacity, sendTrade, renameIsland, checkVictory, checkQuests, currentQuest,
   vaultDeposit, vaultWithdraw, VAULT_WITHDRAW_FEE, VAULT_CAP, vaultPegIn, vaultPegOut,
-  tidegateRecord, tidegateTrail, tidegateTip, tidegateStamp, tidegateSync, tidegateBlocktrails,
+  tidegateRecord, tidegateTrail, tidegateTip, tidegateStamp, TIDEGATE_NETWORKS, TIDEGATE_DEFAULT_NETWORK, tidegateSync, tidegateBlocktrails,
   tidegatePublicTrail,
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,

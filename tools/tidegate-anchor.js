@@ -10,8 +10,9 @@
 //   * crypto  — the `blocktrails` reference LIBRARY (scalar tweak, chained key
 //     derivation, taproot sighash + Schnorr). Never hand-rolled, so a
 //     BlockTrails verifier accepts what we write.
-//   * network — mempool.space/testnet4 (UTXO fetch, fee rates, broadcast). The
-//     CLI's built-in host (mempool.guide) is dead, which is why we drive the
+//   * network — the chain's esplora API (UTXO fetch, fee rates, broadcast):
+//     txbt4, XBT's testnet4 on mempool.guide, unless TIDEGATE_NETWORK=tbtc4
+//     (plain testnet4, mempool.space). We drive the
 //     library instead of `blocktrails mark`.
 //
 // Modes:
@@ -46,8 +47,10 @@ import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-const NETWORK = 'tbtc4';
-const API = 'https://mempool.space/testnet4/api';
+const NETWORKS = { txbt4: 'https://mempool.guide/testnet4', tbtc4: 'https://mempool.space/testnet4' };
+const NETWORK = NETWORKS[process.env.TIDEGATE_NETWORK] ? process.env.TIDEGATE_NETWORK : 'txbt4';
+const EXPLORER = NETWORKS[NETWORK];
+const API = `${EXPLORER}/api`;
 
 // ---------------------------------------------------------------- arguments
 
@@ -310,7 +313,7 @@ console.log(`  txid      ${txid}`);
 console.log(`  raw       ${rawHex}`);
 
 if (!args.includes('--yes')) {
-  console.log('\nsigned but NOT pushed. Inspect the raw tx (e.g. mempool.space testnet4 → Recent txs → Push TX decodes it),');
+  console.log(`\nsigned but NOT pushed. Inspect the raw tx (e.g. ${EXPLORER} → Recent txs → Push TX decodes it),`);
   console.log('then re-run the same command with --yes to broadcast this exact hex (signing is deterministic).');
   process.exit(0);
 }
@@ -322,11 +325,11 @@ if (!resp.ok) {
   process.exit(1);
 }
 console.log(`\nbroadcast accepted: ${body.trim()}`);
-console.log(`explorer: https://mempool.space/testnet4/tx/${txid}`);
+console.log(`explorer: ${EXPLORER}/tx/${txid}`);
 
 // Record the advance and stamp the commitment onto the trail tip.
 // numeric `at`, matching the server's stamp shape (and the trail's own entries)
-const commitment = { network: NETWORK, seq, address: nextAddress, txid, explorer: `https://mempool.space/testnet4/tx/${txid}`, at: Date.now() };
+const commitment = { network: NETWORK, seq, address: nextAddress, txid, explorer: `${EXPLORER}/tx/${txid}`, at: Date.now() };
 chain.states.push({ state, ...commitment });
 fs.writeFileSync(chainFile, JSON.stringify(chain, null, 2));
 try {

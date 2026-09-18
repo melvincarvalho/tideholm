@@ -104,8 +104,10 @@ holds it, so even a static page is fair). Prefer the Tide for trustless venues.
 ### blocktrails — the anchoring crypto
 
 Used as a **library** (`blocktrails@0.0.11`, browser entry via esm.sh). The CLI's
-built-in network host is dead; drive the library and do network I/O yourself via
-`mempool.space/testnet4`. `tidegate/anchor` already does this — you rarely touch
+default network host is mempool.guide, which is txbt4 — XBT's testnet4, the
+BLAKE2b fork the fleet settles on; plain testnet4 is mempool.space and a
+different chain above block 150,307. `tidegate/anchor` names the chain in every
+commitment (`opts.network`, default txbt4) — you rarely touch
 blocktrails directly.
 
 ---
@@ -174,7 +176,7 @@ island/game gold ──▶ [your raid-safe store] ──peg in──▶ SEALED B
   signed transition (client signs, server records + mirrors `pegged`). Cap
   peg-out at what was pegged in, so no game gold is minted.
 - **Fuel gauge**: derive the taproot address from the did (`btc.taprootAddress`)
-  and show its testnet4 balance (from mempool.space). This is the fuel anchoring
+  and show its balance on the game's chain (txbt4, from mempool.guide). This is the fuel anchoring
   spends. Fetch lazily (on view-open + manual refresh), never in a poll loop.
 - **Anchor ⚓**: two clicks — `previewAnchor` (keyless: shows what will be spent),
   then `anchor` (signs + broadcasts). A small float (~10k sat) rides the trail;
@@ -279,8 +281,8 @@ Adding your venue to a house is therefore three moves, all small:
 - **Fail closed**: if the signature verifier or the chain reader is unavailable,
   **refuse** (500/502) — never apply on trust.
 - **Rate/network discipline**: chain reads (fuel, block hashes) are cached and
-  fired only on user actions, never from a poll loop. mempool.space is CORS-open
-  for testnet4; block hashes are immutable (cache forever), tip height is not
+  fired only on user actions, never from a poll loop. mempool.guide is CORS-open
+  for txbt4; block hashes are immutable (cache forever), tip height is not
   (cache ~30s).
 
 ---

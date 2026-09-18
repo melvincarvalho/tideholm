@@ -910,6 +910,20 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The seal writes on txbt4** (2026-09-18): XBT's testnet4 — the BLAKE2b
+  fork that parted from plain testnet4 at block 150,307, which mempool.guide
+  follows. The till, the prizes and the DAO book were already there by
+  accident: the blocktrails library maps "testnet4" to mempool.guide while
+  the anchor library mapped the same word to mempool.space, and nobody had
+  compared them. Now everything agrees: the anchor library, the game's
+  provably-fair verifier (which pins a block above the fork and refuses a
+  wrong chain), the CLI, the tavern's block seed, the fuel line. Every anchor
+  stamp names its chain, so chain 3's links still point at plain testnet4
+  while chain 4 starts on txbt4 with the fuel that was already there — the
+  two chains share every coin older than the fork. The Market gained a chain
+  dropdown (txbt4 · tbtc4 · mainnet, not yet) that chooses what the panel
+  READS; anchors are always written on the game's chain. Not announced yet.
+
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
   and the tavern's den and dice room cut their stored slip at that identity
