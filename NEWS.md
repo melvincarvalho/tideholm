@@ -16,6 +16,18 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-20 · ▲ on the training table
+
+> ⚓ One small thing. On the training table each unit now has a ▲ beside its count, like the shipping and attack forms. Press it and the count fills to the most that island can train right now — what fits the farm and what the purse can pay, up to 500, with ships priced up their ladder for the batch. What ▲ fills, Train accepts. The up and down arrows are gone. Fair winds.
+
+The count is filled by a `maxTrain` in the engine — the tighter of the
+farm's room and the purse, capped at 500, costed with the same ladder-priced
+formula Train charges — so what ▲ fills is what Train accepts, and a ship is
+priced up its rungs for the batch rather than at the single-unit price. Zero,
+with the button greyed, where the unit cannot be built here. Delivered
+2026-09-20 via `/api/admin/announce`, 372 characters, the #101 route.
+The Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-18 · The seal writes on txbt4
 
 > ⚓ The seal now writes on txbt4 — XBT's testnet4, the BLAKE2b fork on mempool.guide. The till, the prizes and the DAO book were there already; your anchor fuel is too if it is older than block 150,307. Your next anchor starts a fresh chain there; old anchors keep their links. A chain dropdown beside the seal chooses what the panel reads — anchors always write on the game's chain. The tavern's dice settle on txbt4 too. Fair winds.
@@ -930,13 +942,6 @@ Shipped in #60.
 ---
 
 ## Shipped without an announcement
-
-- **▲ on the training table** (2026-09-20): the count beside each unit lost
-  its up/down spinner and gained the same ▲ as the shipping and attack forms.
-  It fills the most this island can train right now — fits the farm, can be
-  paid for, at most 500 — computed by the engine with the same rule Train
-  applies, so what ▲ fills is what Train accepts. Ships are priced up their
-  ladder for the count, not at the single-unit price.
 
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
