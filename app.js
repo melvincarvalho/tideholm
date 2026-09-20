@@ -434,6 +434,7 @@ export function createApp(opts = {}) {
         available: island.buildings[need] >= 1,
         time: game.trainTime(key, island.buildings[need]),
         count: island.units[key],
+        max: game.maxTrain(world, island, key), // what ▲ fills: fits the farm, can be paid, ≤ 500
       };
     }
     return out;

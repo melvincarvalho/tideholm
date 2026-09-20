@@ -931,6 +931,13 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **▲ on the training table** (2026-09-20): the count beside each unit lost
+  its up/down spinner and gained the same ▲ as the shipping and attack forms.
+  It fills the most this island can train right now — fits the farm, can be
+  paid for, at most 500 — computed by the engine with the same rule Train
+  applies, so what ▲ fills is what Train accepts. Ships are priced up their
+  ladder for the count, not at the single-unit price.
+
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
   and the tavern's den and dice room cut their stored slip at that identity

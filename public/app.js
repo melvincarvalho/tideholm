@@ -766,8 +766,14 @@ function renderTroops() {
   ubody.innerHTML = '';
   for (const [key, u] of Object.entries(state.unitTypes)) {
     const tr = document.createElement('tr');
+    // ▲ fills the most this island can train right now — fits the farm, can
+    // be paid, at most 500 — the same rule the server applies, so what it
+    // fills is what Train accepts. The native up/down arrows are gone: nobody
+    // orders 6 raiders by clicking up from 5.
+    const dflt = Math.max(1, Math.min(u.ship || u.capture ? 1 : 5, u.max || 1));
     const trainCell = u.available
-      ? `<input type="number" min="1" max="500" value="${u.ship || u.capture ? 1 : 5}" id="train-n-${key}">
+      ? `<span class="num-fill"><input type="number" min="1" max="${Math.max(1, u.max || 1)}" value="${dflt}" id="train-n-${key}"
+         ><button type="button" class="unit-max" data-train-max="${key}" title="${T('ui.train.fillMax')}" ${u.max > 0 ? '' : 'disabled'}>▲</button></span>
          <button data-train="${key}">${T('ui.train.button', { t: fmtTime(u.time) })}</button>`
       : `<small class="hint">${T('ui.needs', { building: u.requires })}</small>`;
     tr.innerHTML = `
@@ -779,6 +785,16 @@ function renderTroops() {
   }
   for (const btn of ubody.querySelectorAll('button[data-train]')) {
     btn.addEventListener('click', () => train(btn.dataset.train));
+  }
+  for (const btn of ubody.querySelectorAll('button[data-train-max]')) {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.trainMax;
+      const input = $(`train-n-${key}`);
+      const u = state.unitTypes[key];
+      if (!input || !u || !(u.max > 0)) return;
+      input.value = u.max;
+      input.dispatchEvent(new Event('input', { bubbles: true })); // re-quote the batch price
+    });
   }
   // The catalog price is for ONE unit, but the Colony Ship steps per ship along
   // the expansion curve, so cost x count under-quotes badly (#62). Ask the

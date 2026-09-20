@@ -211,6 +211,14 @@ h2 { margin-top: 2px; }
 #attack-units input[type=number]::-webkit-outer-spin-button { appearance: none; margin: 0; }
 /* The attack form's ▲: the same fill control the shipping form has. */
 #attack-units .num-fill { display: inline-flex; align-items: stretch; }
+/* the training table's count: same ▲-to-max as the attack form, no spinner */
+.train-cell input[type=number] { appearance: textfield; -moz-appearance: textfield; width: 4.5em; }
+.train-cell input[type=number]::-webkit-inner-spin-button,
+.train-cell input[type=number]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.train-cell .num-fill { display: inline-flex; align-items: stretch; margin-right: 4px; }
+.train-cell .unit-max { font: inherit; font-size: 11px; padding: 0 6px; border: 1px solid var(--accent); border-left: 0; background: transparent; color: inherit; cursor: pointer; opacity: .75; }
+.train-cell .unit-max:hover { opacity: 1; }
+.train-cell .unit-max:disabled { opacity: .3; cursor: default; }
 #attack-units .unit-max { font: inherit; font-size: 11px; padding: 0 6px; border: 1px solid var(--accent); border-left: 0; background: transparent; color: inherit; cursor: pointer; opacity: .75; }
 #attack-units .unit-max:hover { opacity: 1; }
 .res-max {

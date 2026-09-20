@@ -244,6 +244,22 @@ console.log('wall & population');
   check('training within the cap works', !g.tryTrain(w, ia, 'spearman', 40, t0).error);
   check('queued troops count against population', g.popUsed(ia) === 40);
   check('a second batch is blocked by the queue pop', g.tryTrain(w, ia, 'spearman', 2, t0).error === 'err.noPop');
+  // maxTrain: the largest order tryTrain would accept, by the same rules
+  {
+    const { w: w2, ia: ib2 } = freshWorld();
+    ib2.buildings.barracks = 1; ib2.buildings.farm = 5; g.resolveIsland(ib2, t0);
+    ib2.resources = { wood: 2000, stone: 2000, gold: 2000 }; ib2.units = g.zeroUnits(); ib2.trainQueue = [];
+    const m = g.maxTrain(w2, ib2, 'spearman');
+    const room = g.popCap(5) - g.popUsed(ib2) - g.popAbroad(w2, ib2);
+    const byRes = Math.min(Math.floor(2000 / 50), Math.floor(2000 / 30), Math.floor(2000 / 20));
+    check('maxTrain is the tighter of the farm and the purse', m === Math.min(500, room, byRes), `${m} vs room ${room} res ${byRes}`);
+    const probe = JSON.parse(JSON.stringify(w2)); const pi = probe.islands.find((i) => i.id === ib2.id);
+    check('  tryTrain accepts exactly that many', !g.tryTrain(probe, pi, 'spearman', m, t0).error);
+    const probe2 = JSON.parse(JSON.stringify(w2)); const pi2 = probe2.islands.find((i) => i.id === ib2.id);
+    check('  and refuses one more', !!g.tryTrain(probe2, pi2, 'spearman', m + 1, t0).error);
+    ib2.buildings.barracks = 0;
+    check('  0 where the unit is not available', g.maxTrain(w2, ib2, 'spearman') === 0);
+  }
 }
 
 // ---------------------------------------------------------------- loyalty conquest

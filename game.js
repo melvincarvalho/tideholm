@@ -729,6 +729,29 @@ function trainCostAt(owned, island, key, count) {
   return cost;
 }
 
+// The most of `key` this island can train in one order right now: the
+// largest count (≤ 500) that both fits the farm and can be paid for, with
+// the ladder-priced ships costed by the same trainCost tryTrain charges.
+// Binary search, since a ship's price steps per unit. 0 when nothing fits
+// or the unit is not available here. What the ▲ on the training table fills.
+// Reads the island as it stands — never resolves it: the catalog is built on
+// every state poll, and a poll must not advance a pregame island's clock.
+function maxTrain(world, island, key) {
+  if (!UNITS[key]) return 0;
+  const need = UNITS[key].building || 'barracks';
+  if (!island.buildings[need] || island.buildings[need] < 1) return 0;
+  if ((island.trainQueue || []).length >= TRAIN_QUEUE_MAX) return 0;
+  const room = popCap(island.buildings.farm) - popUsed(island) - popAbroad(world, island);
+  let hi = Math.min(500, Math.floor(room / UNITS[key].pop));
+  if (hi < 1) return 0;
+  let lo = 0;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (canAfford(island, trainCost(world, island, key, mid))) lo = mid; else hi = mid - 1;
+  }
+  return lo;
+}
+
 function tryTrain(world, island, key, count, now) {
   if (!UNITS[key]) return { error: 'err.unknownUnit' };
   count = Math.floor(Number(count));
@@ -3001,7 +3024,7 @@ export {
   maxBuildingLevel, setMaxBuildingLevel,
   islandRates, islandPoints,
   resolveIsland, resolveWorld, pendingLevel, canAfford, tryBuild,
-  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, trainCostAt, colonyPosition, tryTrain,
+  zeroUnits, totalUnits, unitPower, carryCapacity, trainTime, trainCost, trainCostAt, colonyPosition, tryTrain, maxTrain,
   popCap, popUsed, popAbroad, supportCostsPop, TRANSIT_POP_FACTOR, LOYALTY_MAX, WALL_FLAT_DEF, WALL_DEF_BONUS,
   MORALE_FLOOR, BOT_MORALE_FLOOR, worldPhase,
   travelDuration, sendAttack, sendColonize, sendSupport, withdrawSupport, sendScout,
