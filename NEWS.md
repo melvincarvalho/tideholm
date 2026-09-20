@@ -943,6 +943,20 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The settlers and warlords get a bigger garrison** (2026-09-20): the bot
+  defence cap is now set per temperament. Settlers and warlords hold up to
+  `island points × 18` instead of `× 12`; barbarians stay on 12, which their
+  persona halves to an effective 6, so Dan and Turner are untouched and the
+  gold wells stay farmable. Measured first: the whole bot population was
+  sitting at 102% of its old cap, pinned rather than under-armed, with four
+  bots above it from garrisons built before the cap bit. At 18 the big
+  settlers become roughly 3,700-raider jobs instead of 2,400, and they arm
+  gradually at their own tempo rather than overnight. Unset, every kind takes
+  the base ratio, which is what the tests and the golden log run — the
+  fixture is byte-identical. Knobs `BOT_GARRISON_SETTLER`,
+  `BOT_GARRISON_WARLORD`, `BOT_GARRISON_BARBARIAN`. No announcement, as with
+  the morale shield: nobody is fighting anyone but bots, and this is a knob.
+
 - **The fleet door names the trail's tip** (2026-09-11): the link out to the
   games now carries `tip=`, the signature of the seal's last recorded move,
   and the tavern's den and dice room cut their stored slip at that identity
