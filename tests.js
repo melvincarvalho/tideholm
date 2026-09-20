@@ -4004,6 +4004,35 @@ console.log('joins claim (#179)');
     w2.islands.length === b2 + 1 && !!g.playerIsland(w2, p2.id));
 }
 
+// ---------------------------------------------------------------- per-kind garrison caps
+// One temperament can be armed without arming the rest. Unset, every kind
+// takes the base ratio — which is what this suite and the golden log run, so
+// the fixture never moves. Season 6 arms settlers and warlords and leaves
+// barbarians where they are (their persona halves their own cap).
+console.log('bot garrison cap, per temperament');
+{
+  process.env.BOT_GARRISON_SETTLER = '18';
+  process.env.BOT_GARRISON_WARLORD = '18';
+  process.env.BOT_GARRISON_BARBARIAN = '12';
+  const b2 = await import('./bots.js?perkind');
+  const K = b2.TUNING.BOT_GARRISON_BY_KIND;
+  check('the per-kind table carries what the env set', K.settler === 18 && K.warlord === 18 && K.barbarian === 12, JSON.stringify(K));
+  const isle = { buildings: { hall: 5, farm: 5, storehouse: 5 }, units: g.zeroUnits() };
+  const pts = g.islandPoints(isle);
+  const cap = (kind, dr) => b2.instincts.garrisonCap(isle, dr === undefined ? { kind } : { kind, defenseRatio: dr });
+  check('a settler is capped at points x 18', cap('settler') === pts * 18, `${cap('settler')} vs ${pts * 18}`);
+  check('a warlord too', cap('warlord') === pts * 18);
+  check('a barbarian keeps an effective 6 — ratio 12 halved by its persona',
+    cap('barbarian', 0.5) === pts * 6, `${cap('barbarian', 0.5)} vs ${pts * 6}`);
+  check('so arming the settlers left the barbarians alone', cap('barbarian', 0.5) * 3 === cap('settler'));
+  delete process.env.BOT_GARRISON_SETTLER; delete process.env.BOT_GARRISON_WARLORD; delete process.env.BOT_GARRISON_BARBARIAN;
+  const b3 = await import('./bots.js?base');
+  check('unset, every kind falls back to the base ratio (the golden log\'s world)',
+    b3.TUNING.BOT_GARRISON_BY_KIND.settler === b3.TUNING.BOT_GARRISON_RATIO
+    && b3.TUNING.BOT_GARRISON_BY_KIND.barbarian === b3.TUNING.BOT_GARRISON_RATIO,
+    JSON.stringify(b3.TUNING.BOT_GARRISON_BY_KIND));
+}
+
 // ---------------------------------------------------------------- the Season DAO (#189)
 console.log('Season DAO (#189)');
 {

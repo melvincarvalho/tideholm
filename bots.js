@@ -26,6 +26,23 @@ const BULLY_RATIO = Number(process.env.BULLY_RATIO ?? 3); // no punching up OR d
 // defence — so bots don't turtle to unbeatable fortresses far above their
 // economy. Default Infinity = uncapped (prior behavior); set e.g. 12 to enable.
 const BOT_GARRISON_RATIO = Number(process.env.BOT_GARRISON_RATIO ?? Infinity);
+// …and per temperament, so one kind can be armed without arming the rest.
+// Each defaults to the base ratio, so a world that sets only the base (every
+// test, and the golden log) behaves exactly as it did. Season 6 runs the
+// settlers and warlords at 18 and leaves the barbarians on 12 — which their
+// persona's defenseRatio of 0.5 halves to an effective 6, unchanged, so the
+// wells stay farmable. The cap still exempts raiders: a capped bot turns to
+// attacking rather than turtling.
+const BOT_GARRISON_BY_KIND = Object.freeze({
+  settler: Number(process.env.BOT_GARRISON_SETTLER ?? BOT_GARRISON_RATIO),
+  warlord: Number(process.env.BOT_GARRISON_WARLORD ?? BOT_GARRISON_RATIO),
+  barbarian: Number(process.env.BOT_GARRISON_BARBARIAN ?? BOT_GARRISON_RATIO),
+});
+// The defence a bot will hold on this island before it stops adding more.
+function garrisonCap(island, persona) {
+  const ratio = BOT_GARRISON_BY_KIND[persona && persona.kind] ?? BOT_GARRISON_RATIO;
+  return islandPoints(island) * ratio * ((persona && persona.defenseRatio) || 1);
+}
 const MAX_BOT_ISLANDS = 3;
 const SCOUT_CHANCE = 0.25;        // per bot per tick — intel drives everything
 const SCOUTS_KEEP = 12;           // standing scout pool per island
@@ -261,9 +278,7 @@ function maybeTrain(world, bot, island, now) {
   // Garrison cap: don't add defensive units (sentinel/spearman) once this
   // island is already well-defended for its size. Raiders (offensive) are
   // exempt, so a capped bot shifts toward attacking rather than turtling.
-  if (unit !== 'raider'
-      && unitPower(island.units, 'def')
-         > islandPoints(island) * BOT_GARRISON_RATIO * (persona.defenseRatio || 1)) {
+  if (unit !== 'raider' && unitPower(island.units, 'def') > garrisonCap(island, persona)) {
     return;
   }
   tryTrain(world, island, unit, persona.batch, now); // silently skips if unaffordable
@@ -448,12 +463,12 @@ function legacyTick(world, player, now, moved = new Set(), hooks = {}) {
   if (moved.has('conquer')) hooks.conquer(); else maybeConquer(world, player, now);
   if (!moved.has('colonize')) maybeColonize(world, player, now);
 }
-const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize };
+const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize, garrisonCap };
 // The numbers the instincts are tuned with. Read by the classic brain while
 // the instincts migrate; they move with the last of them.
 const TUNING = Object.freeze({ RAID_CHANCE, RAID_RANGE, MIN_RAID_POWER, BULLY_RATIO, SCOUT_CHANCE, SCOUTS_KEEP, SCOUT_PARTY,
   CONQUER_CHANCE, MIN_CONQUER_POWER, HUMAN_CONQUER_FLOOR, INTEL_MAX_AGE, RAID_EDGE, WARLORD_EDGE, GRUDGE_EDGE, MAX_BOT_ISLANDS,
-  BOT_GARRISON_RATIO, NEUTRAL });
+  BOT_GARRISON_RATIO, BOT_GARRISON_BY_KIND, NEUTRAL });
 
 // One decision pass for every bot: awake → tempo roll → view → decide → apply.
 // The brain sees the view; what it returns goes through the same verbs a
