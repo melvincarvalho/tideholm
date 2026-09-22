@@ -173,8 +173,7 @@ export function raidArmy(isle) {
 // A raid: from the isle with the strongest party, at the softest beatable
 // known target (or a grudge, intel or no intel). One die: RAID_CHANCE, twice
 // that for warlords. Barbarians never attack. The action carries `grudgeOn`:
-// a raid that lands settles one score with that owner — the caller applies
-// that on success, since a brain does not see results until the next tick.
+// the owner it was aimed at, so the brain can settle one score when it sails.
 export function raid(view, rng, now) {
   const persona = view.me.persona || {};
   if (persona.kind === 'barbarian') return [];
@@ -256,24 +255,46 @@ export function colonize(view) {
   return [];
 }
 
+// ------------------------------------------------------------ grudges
+// A grudge is this brain's own memory (#185). The view says who attacked us,
+// each landing numbered; every one not yet seen is a score against the
+// attacker. A raid launched at a grudge settles one score — counted when it
+// sails, since a brain does not see whether it arrived.
+export function remember(view, memory = {}) {
+  const grudges = { ...(memory.grudges || {}) };
+  let attackSeen = memory.attackSeen || 0;
+  for (const f of view.attacked || []) {
+    if (f.seq <= attackSeen) continue;
+    grudges[f.by] = (grudges[f.by] || 0) + 1;
+    attackSeen = f.seq;
+  }
+  return { ...memory, grudges, attackSeen };
+}
+export function settle(memory, ownerId) {
+  const g = memory.grudges;
+  if (ownerId == null || !g || !g[ownerId]) return;
+  g[ownerId] -= 1;
+  if (g[ownerId] <= 0) delete g[ownerId];
+}
+
 export function decide({ view, memory, now, rng }, escape) {
   const actions = [];
+  const mem = remember(view, memory);
+  const seen = { ...view, grudges: mem.grudges }; // what the instincts reason from
   if (escape && escape.world && escape.bot) {
     // — not yet moved: the old path, verbatim, in the old order, minus what has moved —
     const hooks = {
-      isles: () => applyActions(escape.world, escape.bot, homeFront(view, rng), now),
-      scout: () => applyActions(escape.world, escape.bot, scout(view, rng, now), now),
-      conquer: () => applyActions(escape.world, escape.bot, conquer(view, rng, now), now),
+      isles: () => applyActions(escape.world, escape.bot, homeFront(seen, rng), now),
+      scout: () => applyActions(escape.world, escape.bot, scout(seen, rng, now), now),
+      conquer: () => applyActions(escape.world, escape.bot, conquer(seen, rng, now), now),
       raid: () => {
-        const acts = raid(view, rng, now);
-        const res = applyActions(escape.world, escape.bot, acts, now);
-        // one raid that lands settles one score (the old code read the result too)
-        const a = acts[0], r = res[0], g = escape.bot.grudges;
-        if (a && r && !r.error && g && g[a.grudgeOn]) { g[a.grudgeOn] -= 1; if (g[a.grudgeOn] <= 0) delete g[a.grudgeOn]; }
+        const acts = raid(seen, rng, now);
+        if (acts[0]) settle(mem, acts[0].grudgeOn);
+        applyActions(escape.world, escape.bot, acts, now);
       },
     };
     instincts.legacyTick(escape.world, escape.bot, now, MOVED, hooks);
   }
-  actions.push(...colonize(view));
-  return { actions, memory };
+  actions.push(...colonize(seen));
+  return { actions, memory: mem };
 }

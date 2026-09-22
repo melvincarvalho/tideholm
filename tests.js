@@ -611,8 +611,7 @@ console.log('beginner protection');
   ib.buildings.wall = 6;
   ia.support = [{ ownerId: b.id, units: { ...g.zeroUnits(), sentinel: 9 } }];
   bot.intel = { [ib.id]: { def: 1500, time: t0 } };
-  bot.grudges = { [a.id]: 2 };
-  bot.memory = { note: 'kept' };
+  bot.memory = { note: 'kept', grudges: { [a.id]: 2 } };
   const view = botView(w, bot, t0);
   const text = JSON.stringify(view);
   check('view: my own isle is in full', view.isles.length === 1 && view.isles[0].id === bi.id && view.isles[0].resources && view.isles[0].buildings);
@@ -621,17 +620,17 @@ console.log('beginner protection');
   check('view: another player\'s garrison never leaks', !/"raider":7|"sentinel":40|"sentinel":9/.test(text));
   check('view: another player\'s wall never leaks', !view.map.some((i) => 'wall' in i));
   check('view: the intel book is exactly what my scouts brought', view.intel[ib.id] && view.intel[ib.id].def === 1500 && Object.keys(view.intel).length === 1);
-  check('view: grudges, memory and persona ride along', view.grudges[a.id] === 2 && view.memory.note === 'kept' && view.me.persona && view.me.id === bot.id);
+  check('view: memory (grudges and all) and persona ride along', view.memory.grudges[a.id] === 2 && view.memory.note === 'kept' && view.me.persona && view.me.id === bot.id);
+  check('view: the game keeps no grudges of its own to show (#185)', !('grudges' in view));
   check('view: the public rankings are public', view.rankings.some((r) => r.name === 'B' && typeof r.points === 'number' && !('resources' in r)));
   check('view: it is plain JSON (a round trip loses nothing)', JSON.stringify(JSON.parse(text)) === text);
   view.isles[0].resources.wood = 1e9; view.intel[ib.id].def = 0;
   check('view: a copy, not a window — editing it touches nothing', bi.resources.wood !== 1e9 && bot.intel[ib.id].def === 1500);
 }
 {
-  // #185, option 4 (a): a bot is told when it is attacked. The game records
-  // the fact a human reads in a report — who, which isle, when — numbered and
-  // capped, and the view carries it. Grudges are still written as before;
-  // nothing reads the facts yet, so the bots behave exactly as they did.
+  // #185, option 4: a bot is told when it is attacked. The game records the
+  // fact a human reads in a report — who, which isle, when — numbered and
+  // capped, and the view carries it. The grudge is the brain's to keep.
   const { botView } = await import('./brain.js');
   const { w, a, b, ia, ib } = freshWorld();
   const bot = g.createPlayer(w, 'Told', null, true).player;
@@ -648,7 +647,7 @@ console.log('beginner protection');
   check('attacked: the send was legal (a bot is fair game)', !first.r.error);
   check('attacked: the landing is recorded — who, which isle, when',
     bot.attacked && bot.attacked.length === 1 && bot.attacked[0].by === a.id && bot.attacked[0].isle === bi.id && bot.attacked[0].at === first.arrive);
-  check('attacked: the grudge is still written as before', bot.grudges[a.id] === 1);
+  check('attacked: the game writes no grudge — that is the brain\'s business', !bot.grudges);
   hit(5);
   check('attacked: facts are numbered so a brain can tell the new from the seen', bot.attacked.map((f) => f.seq).join(',') === '1,2' && bot.attackSeq === 2);
   const view = botView(w, bot, t0);
@@ -666,6 +665,52 @@ console.log('beginner protection');
   for (let k = 0; k < g.BOT_ATTACK_LOG + 5; k++) g.noteAttack(bot, a.id, bi.id, t0 + k);
   check(`attacked: capped at ${g.BOT_ATTACK_LOG}, newest kept, numbering unbroken`,
     bot.attacked.length === g.BOT_ATTACK_LOG && bot.attacked[bot.attacked.length - 1].seq === g.BOT_ATTACK_LOG + 7 && bot.attacked[0].seq === 8);
+}
+{
+  // #185, option 4 (b): the classic brain keeps its own grudges. Each attack
+  // fact it has not seen is one score against the attacker; a raid it launches
+  // at a grudge settles one; a save from before moves its grudges into memory.
+  const { remember, settle, decide } = await import('./brains/classic.js');
+  const { botView } = await import('./brain.js');
+  const facts = (list) => ({ attacked: list });
+  let mem = remember(facts([{ seq: 1, by: 7 }, { seq: 2, by: 7 }, { seq: 3, by: 9 }]), {});
+  check('grudges: each unseen attack is one score', mem.grudges[7] === 2 && mem.grudges[9] === 1 && mem.attackSeen === 3);
+  mem = remember(facts([{ seq: 2, by: 7 }, { seq: 3, by: 9 }, { seq: 4, by: 9 }]), mem);
+  check('grudges: an attack already seen is not counted twice', mem.grudges[7] === 2 && mem.grudges[9] === 2 && mem.attackSeen === 4);
+  const before = { note: 'kept', grudges: { 7: 1 }, attackSeen: 4 };
+  const after = remember(facts([{ seq: 5, by: 7 }]), before);
+  check('grudges: remembering copies, it never edits the memory it was given', before.grudges[7] === 1 && after.grudges[7] === 2 && after.note === 'kept');
+  settle(after, 7);
+  check('grudges: a raid settles one score', after.grudges[7] === 1);
+  settle(after, 7);
+  check('grudges: a settled score is forgotten', !(7 in after.grudges));
+  settle(after, 123); settle(after, null);
+  check('grudges: settling with no grudge (or no target) does nothing', Object.keys(after.grudges).length === 0);
+  // end to end: a landing on a bot becomes a grudge in its memory next turn
+  const { w, a, ia } = freshWorld();
+  const bot = g.createPlayer(w, 'Remembers', null, true).player;
+  const bi = g.playerIsland(w, bot.id);
+  bi.x = 0; bi.y = 2;
+  ia.units.raider = 10;
+  g.sendAttack(w, a, ia, bi, { ...g.zeroUnits(), raider: 5 }, t0);
+  const mv = w.movements.find((m) => m.ownerId === a.id && m.toId === bi.id);
+  g.resolveWorld(w, mv.arrive + 1000);
+  const out = decide({ view: botView(w, bot, mv.arrive + 1000), memory: bot.memory || {}, now: mv.arrive + 1000, rng: () => 0.99 }, null);
+  check('grudges: the next turn after a landing, the brain holds the score', out.memory.grudges[a.id] === 1 && out.memory.attackSeen === 1);
+  // the save migration
+  const old = { players: [
+    { id: 1, isBot: true, grudges: { 5: 2 }, attackSeq: 3, memory: { note: 'x' } },
+    { id: 2, isBot: true, grudges: { 5: 1 }, memory: { grudges: { 5: 1, 6: 1 }, attackSeen: 9 } },
+    { id: 3, isBot: false, grudges: { 5: 1 } },
+    { id: 4, isBot: true } ] };
+  g.migrateGrudges(old);
+  const [p1, p2, p3, p4] = old.players;
+  check('migrate: a bot\'s old grudges move into memory, the rest of memory kept', p1.memory.grudges[5] === 2 && p1.memory.note === 'x' && !('grudges' in p1));
+  check('migrate: every attack already recorded counts as seen (it was counted then)', p1.memory.attackSeen === 3);
+  check('migrate: grudges already in memory are added to, not replaced', p2.memory.grudges[5] === 2 && p2.memory.grudges[6] === 1 && p2.memory.attackSeen === 9);
+  check('migrate: humans and grudge-less bots are left alone', p3.grudges[5] === 1 && !p3.memory && !p4.memory);
+  g.migrateGrudges(old);
+  check('migrate: running twice changes nothing', p1.memory.grudges[5] === 2 && p2.memory.grudges[5] === 2);
 }
 {
   // ---------------------------------------------- the verbs (brain seam, step 4)
@@ -2585,7 +2630,7 @@ console.log('bot personalities');
   bi.x = 0; bi.y = 3;
   bi.units.raider = 50; bi.units.scout = 10; bi.units.colonyship = 1; bi.units.flagship = 1;
   Object.assign(bi.buildings, { barracks: 3, harbor: 2 });
-  barb.grudges = { [a.id]: 9 };
+  barb.memory = { grudges: { [a.id]: 9 } };
   barb.intel = { [ia.id]: { def: 0, time: t0 } };
   g.newUnchartedIsland(w);
   for (let i = 0; i < 300; i++) botTick(w, t0 + i * 15000);
@@ -2645,14 +2690,14 @@ console.log('bot personalities');
   const bot = g.createPlayer(w, 'Wronged Wilma', null, true).player; // neutral settler
   const bi = g.playerIsland(w, bot.id);
   bi.x = 0; bi.y = 4; bi.units.raider = 30;
-  bot.grudges = { [a.id]: 3 };
+  bot.memory = { grudges: { [a.id]: 3 } };
   let hit = false;
   for (let i = 0; i < 400 && !hit; i++) {
     botTick(w, t0 + i * 15000);
     hit = w.movements.some((m) => m.type === 'attack' && m.ownerId === bot.id && m.toId === ia.id);
     w.movements = w.movements.filter((m) => m.ownerId !== bot.id);
     bi.units.raider = 30;
-    bot.grudges = { [a.id]: 3 };
+    bot.memory = { grudges: { [a.id]: 3 } };
   }
   check('grudge pierces the band with no intel at all', hit);
 }

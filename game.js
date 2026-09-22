@@ -1970,14 +1970,10 @@ function applyMovement(world, m) {
     return;
   }
 
-  // Bots hold grudges against whoever attacks them.
+  // A bot is told it was attacked (#185). What it makes of that — a grudge,
+  // forgiveness, a feud with the whole alliance — is its brain's business.
   const defOwner = world.players.find((p) => p.id === dest.ownerId);
-  if (defOwner && defOwner.isBot && attacker) {
-    defOwner.grudges = defOwner.grudges || {};
-    defOwner.grudges[attacker.id] = (defOwner.grudges[attacker.id] || 0) + 1;
-    // ...and are told it happened (#185), so a brain can one day keep its own.
-    noteAttack(defOwner, attacker.id, dest.id, m.arrive);
-  }
+  if (defOwner && defOwner.isBot && attacker) noteAttack(defOwner, attacker.id, dest.id, m.arrive);
 
   // Morale: bullying much smaller players blunts the attack.
   let morale = 1;
@@ -3018,9 +3014,26 @@ const WORLD_FILE = path.join(DATA_DIR, 'world.json');
 
 function loadWorld() {
   if (fs.existsSync(WORLD_FILE)) {
-    return JSON.parse(fs.readFileSync(WORLD_FILE, 'utf8'));
+    return migrateGrudges(JSON.parse(fs.readFileSync(WORLD_FILE, 'utf8')));
   }
   return null;
+}
+
+// #185: grudges used to be written by the game onto the bot; they are the
+// brain's memory now. A save from before carries them on the player, so they
+// move into memory once, on load — before any timer runs, so no landing can
+// fall between the old book and the new — marked as having seen every attack
+// already recorded, since those landings were counted when they happened.
+function migrateGrudges(world) {
+  for (const p of world.players || []) {
+    if (!p.isBot || !p.grudges) continue;
+    const mem = p.memory || {};
+    const g = { ...(mem.grudges || {}) };
+    for (const [id, n] of Object.entries(p.grudges)) g[id] = (g[id] || 0) + n;
+    p.memory = { ...mem, grudges: g, attackSeen: Math.max(mem.attackSeen || 0, p.attackSeq || 0) };
+    delete p.grudges;
+  }
+  return world;
 }
 
 function saveWorld(world) {
@@ -3031,7 +3044,7 @@ function saveWorld(world) {
 }
 
 export {
-  BOT_ATTACK_LOG, noteAttack,
+  BOT_ATTACK_LOG, noteAttack, migrateGrudges,
   SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, PROTECT_GRACE_MS, isProtected, RESOURCES, BUILDINGS, UNITS,
   LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,

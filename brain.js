@@ -75,8 +75,7 @@ export function botView(world, bot, now = Date.now()) {
       id: m.id, type: m.type, fromId: m.fromId, toId: m.toId, units: clone(m.units), depart: m.depart, arrive: m.arrive,
     })),
     intel: clone(bot.intel || {}),
-    grudges: clone(bot.grudges || {}),
-    attacked: clone(bot.attacked || []), // what landed on me, numbered (#185)
+    attacked: clone(bot.attacked || []), // what landed on me, numbered; grudges are the brain's own (#185)
     memory: clone(bot.memory || {}),
   };
 }
