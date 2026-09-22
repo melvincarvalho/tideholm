@@ -77,7 +77,7 @@ export function trainOrder(view, isle, persona, rng) {
   if (seafarer && isle.buildings.harbor >= 2 && isle.buildings.barracks >= 3 && isle.units.flagship === 0 && room
       && rng() < (persona.kind === 'warlord' ? 0.15 : 0.1)) return { key: 'flagship', count: 1 };
   if (rng() > 0.5) return null;
-  if (seafarer && isle.units.scout < T.SCOUTS_KEEP && rng() < 0.35) return { key: 'scout', count: 3 };
+  if (seafarer && isle.units.scout < scoutsWanted(view) && rng() < 0.35) return { key: 'scout', count: 3 };
   const unit = pickFromMix(persona.trainMix, rng);
   // the garrison cap, per temperament (settlers and warlords are armed for
   // season 6; barbarians keep their effective 6, so wells stay soft)
@@ -236,9 +236,13 @@ export function scout(view, rng, now) {
   if (rng() > T.SCOUT_CHANCE) return [];
   const from = view.isles.find((i) => i.units.scout >= 3);
   if (!from) return [];
-  const target = pickTarget(view, from, 0, now, 'scout');
+  // a screen that caught even the biggest party is let be for a day
+  const open = { ...view, map: view.map.filter((i) => !((screenFor(view, i.id) || {}).until > now)) };
+  const target = pickTarget(open, from, 0, now, 'scout');
   if (!target) return [];
-  return [{ verb: 'scout', from: from.id, to: target.id, count: Math.min(from.units.scout, T.SCOUT_PARTY) }];
+  const screen = screenFor(view, target.id);
+  if (screen && from.units.scout < screen.size) return []; // raising a bigger party first
+  return [{ verb: 'scout', from: from.id, to: target.id, count: screen ? screen.size : Math.min(from.units.scout, T.SCOUT_PARTY) }];
 }
 
 // A seafaring bot with a colony ship in stock and room to grow sends it to
@@ -272,8 +276,43 @@ export function remember(view, memory = {}) {
     grudges[f.by] = (grudges[f.by] || 0) + 1;
     attackSeen = f.seq;
   }
-  return { ...memory, grudges, attackSeen };
+  return { ...memory, grudges, attackSeen, ...rememberScreens(view, memory) };
 }
+
+// Scout screens. The engine catches every scout when the defender keeps as
+// many on guard, and a caught party brings no news — so a bot that sent six
+// into a screen of twelve (or twenty) sent six more next turn, forever: Coral
+// Kate spent some 1,700 scouts a day on philloster's screen. Now a party that
+// lands without fresh intel marks a screen, and the next party to that isle is
+// twice the size (6, 12, 24, up to SCOUT_PARTY_MAX); the scout pool is raised
+// to match; a screen that catches even that is let be for a day.
+const SCOUT_PARTY_MAX = 48;
+const SCREEN_GIVE_UP = 24 * 3600e3;
+const SCREEN_FORGET = 48 * 3600e3;
+function rememberScreens(view, memory) {
+  const now = view.now;
+  const scouting = { ...(memory.scouting || {}) };
+  const screens = { ...(memory.screens || {}) };
+  const atSea = new Set((view.moves || []).map((m) => m.id));
+  for (const m of view.moves || []) {
+    if (m.type === 'scout' && !scouting[m.id]) scouting[m.id] = { to: m.toId, arrive: m.arrive, sent: m.units.scout || 0 };
+  }
+  for (const [id, o] of Object.entries(scouting)) {
+    if (atSea.has(Number(id)) || now < o.arrive) continue;
+    delete scouting[id];
+    const k = view.intel[o.to];
+    if (k && k.time >= o.arrive - 1000) continue; // got through
+    screens[o.to] = o.sent >= SCOUT_PARTY_MAX
+      ? { size: SCOUT_PARTY_MAX, at: o.arrive, until: o.arrive + SCREEN_GIVE_UP }
+      : { size: Math.min(SCOUT_PARTY_MAX, Math.max(2 * o.sent, T.SCOUT_PARTY)), at: o.arrive };
+  }
+  for (const [id, sc] of Object.entries(screens)) if (now - sc.at > SCREEN_FORGET) delete screens[id];
+  return { scouting, screens };
+}
+const screenFor = (view, isleId) => (view.screens || {})[isleId];
+// The biggest party a live screen calls for: the scout pool is kept that deep.
+const scoutsWanted = (view) => Math.max(T.SCOUTS_KEEP,
+  ...Object.values(view.screens || {}).filter((sc) => !(sc.until > view.now)).map((sc) => sc.size));
 export function settle(memory, ownerId) {
   const g = memory.grudges;
   if (ownerId == null || !g || !g[ownerId]) return;
@@ -288,7 +327,7 @@ export function settle(memory, ownerId) {
 // out the way a player would — the send fails, and the next action still runs.
 export function decide({ view, memory, now, rng }) {
   const mem = remember(view, memory);
-  const seen = { ...view, grudges: mem.grudges }; // what the instincts reason from
+  const seen = { ...view, grudges: mem.grudges, screens: mem.screens }; // what the instincts reason from
   const actions = [];
   actions.push(...homeFront(seen, rng));
   actions.push(...scout(seen, rng, now));
