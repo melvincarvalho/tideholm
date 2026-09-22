@@ -8,7 +8,7 @@
 // migration shim that reached into the world while the old instincts moved
 // onto the view one by one (brain seam, steps 5–8); the golden log in
 // tests.js did not move a byte at any point.
-import { MAX_BOT_ISLANDS, TUNING as T } from '../bots.js';
+import { MAX_BOT_ISLANDS, TUNING as T, garrisonCap } from '../bots.js';
 import {
   unitPower, PROTECTED_POINTS, RESOURCES, UNITS, QUEUE_MAX, TRAIN_QUEUE_MAX,
   pendingLevel, upgradeCost, canAfford, storageCapacity, popUsed, popCap, islandPoints, trainCostAt,
@@ -64,10 +64,9 @@ export function trainOrder(view, isle, persona, rng) {
   if (rng() > 0.5) return null;
   if (seafarer && isle.units.scout < T.SCOUTS_KEEP && rng() < 0.35) return { key: 'scout', count: 3 };
   const unit = pickFromMix(persona.trainMix, rng);
-  // the same cap bots.js applies, per temperament (settlers and warlords are
-  // armed for season 6; barbarians keep their effective 6, so wells stay soft)
-  const ratio = T.BOT_GARRISON_BY_KIND[persona.kind] ?? T.BOT_GARRISON_RATIO;
-  if (unit !== 'raider' && unitPower(isle.units, 'def') > islandPoints(isle) * ratio * (persona.defenseRatio || 1)) return null;
+  // the garrison cap, per temperament (settlers and warlords are armed for
+  // season 6; barbarians keep their effective 6, so wells stay soft)
+  if (unit !== 'raider' && unitPower(isle.units, 'def') > garrisonCap(isle, persona)) return null;
   return { key: unit, count: persona.batch };
 }
 

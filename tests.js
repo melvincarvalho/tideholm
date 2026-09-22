@@ -4104,7 +4104,7 @@ console.log('bot garrison cap, per temperament');
   check('the per-kind table carries what the env set', K.settler === 18 && K.warlord === 18 && K.barbarian === 12, JSON.stringify(K));
   const isle = { buildings: { hall: 5, farm: 5, storehouse: 5 }, units: g.zeroUnits() };
   const pts = g.islandPoints(isle);
-  const cap = (kind, dr) => b2.instincts.garrisonCap(isle, dr === undefined ? { kind } : { kind, defenseRatio: dr });
+  const cap = (kind, dr) => b2.garrisonCap(isle, dr === undefined ? { kind } : { kind, defenseRatio: dr });
   check('a settler is capped at points x 18', cap('settler') === pts * 18, `${cap('settler')} vs ${pts * 18}`);
   check('a warlord too', cap('warlord') === pts * 18);
   check('a barbarian keeps an effective 6 — ratio 12 halved by its persona',

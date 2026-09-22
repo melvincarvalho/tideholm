@@ -8,11 +8,7 @@
 // shape instead of marching in lockstep. Doctrine in one line: most bots
 // are landscape; provoked bots are vengeance; a few bots are wolves.
 
-import { BUILDINGS, UNITS, RESOURCES, QUEUE_MAX, resolveIsland, resolveWorld, tryBuild,
-        tryTrain, pendingLevel, upgradeCost, canAfford, storageCapacity,
-        popUsed, popCap, unitPower, sendAttack, sendColonize, sendScout,
-        createPlayer, playerIsland, playerIslands, playerPoints, islandPoints,
-        isProtected, PROTECTED_POINTS } from './game.js';
+import { resolveIsland, resolveWorld, createPlayer, playerIslands, islandPoints } from './game.js';
 import { botView, applyActions } from './brain.js';
 import { brainFor } from './brains/index.js';
 
@@ -58,14 +54,6 @@ const GRUDGE_EDGE = 1.0;          // so does vengeance
 const BOT_TEMPO = Number(process.env.BOT_TEMPO ?? 1);
 // Archetype mix for a fresh world, e.g. "settler:15,warlord:2,barbarian:3".
 const BOT_PERSONAS = String(process.env.BOT_PERSONAS || 'settler:15,warlord:2,barbarian:3');
-
-// Expected morale factor if this bot attacks that owner (mirrors the engine).
-function moraleEst(world, bot, ownerId) {
-  const mine = playerPoints(world, bot.id);
-  const theirs = playerPoints(world, ownerId);
-  if (mine > theirs && theirs > 0) return Math.max(0.3, Math.sqrt(theirs / mine));
-  return 1;
-}
 
 const BOT_NAMES = [
   'Barnacle Bill', 'Coral Kate', 'Driftwood Dan', 'Kelpie', 'Old Wrack',
@@ -176,18 +164,6 @@ function isAsleep(persona, now) {
   return ((hour - persona.sleepStart + 24) % 24) < persona.sleepLen;
 }
 
-function pickFromMix(mix) {
-  const entries = Object.entries(mix).filter(([, w]) => w > 0);
-  const total = entries.reduce((s, [, w]) => s + w, 0);
-  if (!total) return 'sentinel';
-  let roll = RNG() * total;
-  for (const [unit, w] of entries) {
-    roll -= w;
-    if (roll <= 0) return unit;
-  }
-  return entries[entries.length - 1][0];
-}
-
 function spawnBots(world, count, rng) {
   return withRng(rng, () => spawnBotsNow(world, count));
 }
@@ -205,267 +181,12 @@ function spawnBotsNow(world, count) {
   return spawned;
 }
 
-// ---------------------------------------------------------------- economy
-
-// Pick what a bot wants to upgrade next, using pending levels so the
-// queue is taken into account. Temperament shapes every threshold.
-function chooseUpgrade(island, persona = NEUTRAL) {
-  const lvl = (k) => pendingLevel(island, k);
-  const cap = storageCapacity(lvl('storehouse'));
-
-  // Nearly full storage? Expand it (hoarders act early, hand-to-mouth late).
-  if (RESOURCES.some((r) => island.resources[r] >= cap * persona.storeThresh)) return 'storehouse';
-
-  // Room to breathe: expand the farm before the population pinches.
-  if (popUsed(island) >= popCap(lvl('farm')) * 0.85) return 'farm';
-
-  // Keep the hall within reach of the economy.
-  const minProd = Math.min(lvl('lumberyard'), lvl('quarry'), lvl('goldmine'));
-  if (lvl('hall') < minProd - persona.hallLag) return 'hall';
-
-  const barbarian = persona.kind === 'barbarian';
-
-  // Once the economy is rolling, get a barracks and grow it slowly.
-  // Barbarians keep a token barracks at most — they are farmland, not threats.
-  if (lvl('barracks') === 0 && minProd >= 4) return 'barracks';
-  if (!barbarian && lvl('barracks') >= 1 && lvl('barracks') < 3 && minProd >= lvl('barracks') + 5) return 'barracks';
-
-  // A wall to taste: some bots fortify, some barely bother.
-  if (lvl('barracks') >= 1 && lvl('wall') < persona.wallTarget && minProd >= lvl('wall') + 4) return 'wall';
-
-  // A harbor opens the way to expansion — and level 2 to conquest.
-  // Barbarians never take to the sea.
-  if (!barbarian && lvl('harbor') === 0 && lvl('barracks') >= 2 && minProd >= 6) return 'harbor';
-  if (!barbarian && lvl('harbor') === 1 && lvl('barracks') >= 3 && minProd >= 8) return 'harbor';
-
-  // Otherwise raise the weakest producer, weighted by temperament: a bot
-  // with a timber bias runs its lumberyard hot and its quarry lean.
-  const producers = ['lumberyard', 'quarry', 'goldmine'];
-  producers.sort((a, b) => lvl(a) / persona.prodBias[a] - lvl(b) / persona.prodBias[b]);
-  return producers[0];
-}
-
-// Bots keep a standing garrison shaped by temperament — and the seafaring
-// kinds save for ships when there is room to grow.
-function maybeTrain(world, bot, island, now) {
-  const persona = personaOf(bot);
-  if (island.trainQueue.length) return;
-  const seafarer = persona.kind !== 'barbarian';
-  if (seafarer && island.buildings.harbor >= 1 &&
-      island.units.colonyship === 0 &&
-      playerIslands(world, bot.id).length < MAX_BOT_ISLANDS &&
-      RNG() < 0.25) {
-    tryTrain(world, island, 'colonyship', 1, now);
-    return; // whether or not it could afford one, it's saving up
-  }
-  if (island.buildings.barracks < 1) return;
-  // A capable bot saves for a flagship and dreams of conquest.
-  if (seafarer && island.buildings.harbor >= 2 && island.buildings.barracks >= 3 &&
-      island.units.flagship === 0 &&
-      playerIslands(world, bot.id).length < MAX_BOT_ISLANDS &&
-      RNG() < (persona.kind === 'warlord' ? 0.15 : 0.1)) {
-    tryTrain(world, island, 'flagship', 1, now);
-    return;
-  }
-  if (RNG() > 0.5) return;
-  // A standing scout pool for counter-espionage and reconnaissance.
-  // Barbarians keep none: they are meant to be scouted and farmed.
-  if (seafarer && island.units.scout < SCOUTS_KEEP && RNG() < 0.35) {
-    tryTrain(world, island, 'scout', 3, now);
-    return;
-  }
-  const unit = pickFromMix(persona.trainMix);
-  // Garrison cap: don't add defensive units (sentinel/spearman) once this
-  // island is already well-defended for its size. Raiders (offensive) are
-  // exempt, so a capped bot shifts toward attacking rather than turtling.
-  if (unit !== 'raider' && unitPower(island.units, 'def') > garrisonCap(island, persona)) {
-    return;
-  }
-  tryTrain(world, island, unit, persona.batch, now); // silently skips if unaffordable
-}
-
-// ---------------------------------------------------------------- war
-
-// The raiding party an island can field: raiders and half the spearmen.
-// Sentinels always stay home.
-function raidArmy(island) {
-  return {
-    raider: island.units.raider,
-    spearman: Math.floor(island.units.spearman / 2),
-  };
-}
-
-// mode 'raid': targets the army can beat. mode 'scout': targets we lack
-// fresh intel on. The bully band paces UNPROVOKED aggression only — three
-// sanctioned exceptions pierce it (#22):
-//   - warlords ignore the band entirely (wolves),
-//   - a grudge ignores the band AND the intel requirement (vengeance is
-//     rash: you hit me, I hit back, whoever you are),
-//   - fresh intel showing a beatable island overrides the band (a soft
-//     colony is fair game no matter how big its owner).
-function pickRaidTarget(world, bot, from, myPower, now, mode) {
-  const persona = personaOf(bot);
-  const wolf = persona.kind === 'warlord';
-  const myPoints = playerPoints(world, bot.id);
-  const grudges = bot.grudges || {};
-  const intel = bot.intel || {};
-  let best = null;
-  let bestScore = -Infinity;
-  for (const island of world.islands) {
-    if (island.ownerId == null || island.ownerId === bot.id) continue;
-    const dist = Math.hypot(island.x - from.x, island.y - from.y);
-    if (dist > RAID_RANGE) continue;
-    const owner = world.players.find((p) => p.id === island.ownerId);
-    if (isProtected(world, owner, now)) continue;       // beginners + fresh humans
-    const ownerPoints = playerPoints(world, island.ownerId);
-    const grudge = grudges[island.ownerId] || 0;
-    const known = intel[island.id];
-    const fresh = known && now - known.time < INTEL_MAX_AGE;
-    const edge = wolf ? WARLORD_EDGE : grudge > 0 ? GRUDGE_EDGE : RAID_EDGE;
-    const beatable = fresh && myPower
-      && known.def * edge < myPower * moraleEst(world, bot, island.ownerId);
-    // The exceptions open the band UPWARD only — wolves hunt above their
-    // weight and soft colonies of giants are fair game. Downward, the
-    // "don't stomp the small" guard yields to nothing but vengeance.
-    const upExempt = wolf || grudge > 0 || (mode === 'raid' && beatable);
-    if (!upExempt && ownerPoints > myPoints * BULLY_RATIO) continue; // don't poke giants
-    if (grudge <= 0 && ownerPoints * BULLY_RATIO < myPoints) continue; // don't stomp the small
-    if (mode === 'raid') {
-      // Measured targets must be beatable; unmeasured ones only fall to vengeance.
-      if (fresh && !beatable) continue;
-      if (!fresh && !grudge) continue;
-    } else if (mode === 'scout' && fresh) {
-      continue; // already know this one
-    }
-    // Prefer whoever wronged us, then close and weak.
-    let score = grudge * 50 - dist * 2 - ownerPoints / 20;
-    if (mode === 'raid' && fresh) score -= known.def / 10; // softest known target
-    if (score > bestScore) {
-      bestScore = score;
-      best = island;
-    }
-  }
-  return best;
-}
-
-function maybeRaid(world, bot, now) {
-  const persona = personaOf(bot);
-  if (persona.kind === 'barbarian') return; // never attacks, never retaliates
-  const chance = RAID_CHANCE * (persona.kind === 'warlord' ? 2 : 1);
-  if (RNG() > chance) return;
-  const islands = playerIslands(world, bot.id);
-  if (!islands.length) return;
-  // Stage from the island with the strongest raiding party.
-  const from = islands.reduce((a, b) =>
-    unitPower(raidArmy(a), 'atk') >= unitPower(raidArmy(b), 'atk') ? a : b);
-  const army = raidArmy(from);
-  const power = unitPower(army, 'atk');
-  if (power < MIN_RAID_POWER) return; // still mustering
-  const target = pickRaidTarget(world, bot, from, power, now, 'raid');
-  if (!target) return;
-  const result = sendAttack(world, bot, from, target, army, now);
-  if (!result.error && bot.grudges && bot.grudges[target.ownerId]) {
-    bot.grudges[target.ownerId] -= 1; // one raid settles one score
-    if (bot.grudges[target.ownerId] <= 0) delete bot.grudges[target.ownerId];
-  }
-}
-
-// Reconnaissance: send a few scouts at raid-worthy targets to build intel.
-function maybeScout(world, bot, now) {
-  if (personaOf(bot).kind === 'barbarian') return;
-  if (RNG() > SCOUT_CHANCE) return;
-  const islands = playerIslands(world, bot.id);
-  const from = islands.find((i) => i.units.scout >= 3);
-  if (!from) return;
-  const target = pickRaidTarget(world, bot, from, 0, now, 'scout');
-  if (!target) return;
-  sendScout(world, bot, from, target, Math.min(from.units.scout, SCOUT_PARTY), now);
-}
-
-// Conquest campaigns: a flagship, a real escort, and a target it can bully —
-// but never a small human's home. The loyalty engine does the rest; repeated
-// campaigns wear a target down to capture. Warlords hunt above their weight.
-function maybeConquer(world, bot, now) {
-  const persona = personaOf(bot);
-  if (persona.kind === 'barbarian') return;
-  const wolf = persona.kind === 'warlord';
-  if (RNG() > CONQUER_CHANCE * (wolf ? 2 : 1)) return;
-  if (playerIslands(world, bot.id).length >= MAX_BOT_ISLANDS) return;
-  const from = playerIslands(world, bot.id).find((i) => i.units.flagship >= 1);
-  if (!from) return;
-  const army = raidArmy(from);
-  army.flagship = 1;
-  if (unitPower(army, 'atk') < MIN_CONQUER_POWER) return;
-  const myPoints = playerPoints(world, bot.id);
-  const power = unitPower(army, 'atk');
-  const intel = bot.intel || {};
-  const edge = wolf ? WARLORD_EDGE : RAID_EDGE;
-  let best = null;
-  let bestDist = Infinity;
-  for (const island of world.islands) {
-    if (island.ownerId == null || island.ownerId === bot.id) continue;
-    const dist = Math.hypot(island.x - from.x, island.y - from.y);
-    if (dist > RAID_RANGE) continue;
-    const owner = world.players.find((p) => p.id === island.ownerId);
-    if (isProtected(world, owner, now)) continue;        // beginners + fresh humans
-    const ownerPoints = playerPoints(world, island.ownerId);
-    if (ownerPoints < PROTECTED_POINTS * 2) continue;    // no stomping the small
-    if (owner && !owner.isBot && ownerPoints < HUMAN_CONQUER_FLOOR) continue;
-    if (!wolf && ownerPoints > myPoints) continue;       // settlers fight downhill
-    // Conquest fleets sail only against scouted, beatable defenses.
-    const known = intel[island.id];
-    if (!known || now - known.time >= INTEL_MAX_AGE) continue;
-    if (known.def * edge >= power * moraleEst(world, bot, island.ownerId)) continue;
-    if (dist < bestDist) { bestDist = dist; best = island; }
-  }
-  if (best) sendAttack(world, bot, from, best, army, now);
-}
-
-function maybeColonize(world, bot, now) {
-  if (personaOf(bot).kind === 'barbarian') return;
-  if (playerIslands(world, bot.id).length >= MAX_BOT_ISLANDS) return;
-  for (const island of playerIslands(world, bot.id)) {
-    if (island.units.colonyship < 1) continue;
-    let best = null;
-    let bestDist = Infinity;
-    for (const target of world.islands) {
-      if (target.ownerId != null) continue;
-      const dist = Math.hypot(target.x - island.x, target.y - island.y);
-      if (dist < bestDist) { bestDist = dist; best = target; }
-    }
-    if (best) sendColonize(world, bot, island, best, now);
-    return;
-  }
-}
-
 // One decision pass for every bot. Tempo and sleep phase are per-persona,
 // so the pack no longer moves in lockstep.
 function botTick(world, now, rng) {
   return withRng(rng, () => botTickNow(world, now));
 }
-// The old path, verbatim: every instinct acting on the world directly, in
-// the order it always has. Called by the classic brain through its migration
-// escape until each instinct has moved onto the view (see brains/classic.js).
-function legacyTick(world, player, now, moved = new Set(), hooks = {}) {
-  const persona = personaOf(player);
-  if (moved.has('isles')) hooks.isles();
-  else for (const island of playerIslands(world, player.id)) {
-    resolveIsland(island, now);
-    maybeTrain(world, player, island, now);
-    if (island.queue.length >= QUEUE_MAX) continue;
-    const key = chooseUpgrade(island, persona);
-    const cost = upgradeCost(key, pendingLevel(island, key) + 1);
-    if (!canAfford(island, cost)) continue; // save up
-    tryBuild(world, island, key, now);
-  }
-  if (moved.has('scout')) hooks.scout(); else maybeScout(world, player, now);
-  if (moved.has('raid')) hooks.raid(); else maybeRaid(world, player, now);
-  if (moved.has('conquer')) hooks.conquer(); else maybeConquer(world, player, now);
-  if (!moved.has('colonize')) maybeColonize(world, player, now);
-}
-const instincts = { legacyTick, maybeTrain, chooseUpgrade, maybeScout, maybeRaid, maybeConquer, maybeColonize, garrisonCap };
-// The numbers the instincts are tuned with. Read by the classic brain while
-// the instincts migrate; they move with the last of them.
+// The numbers the classic brain is tuned with; the env knobs live here.
 const TUNING = Object.freeze({ RAID_CHANCE, RAID_RANGE, MIN_RAID_POWER, BULLY_RATIO, SCOUT_CHANCE, SCOUTS_KEEP, SCOUT_PARTY,
   CONQUER_CHANCE, MIN_CONQUER_POWER, HUMAN_CONQUER_FLOOR, INTEL_MAX_AGE, RAID_EDGE, WARLORD_EDGE, GRUDGE_EDGE, MAX_BOT_ISLANDS,
   BOT_GARRISON_RATIO, BOT_GARRISON_BY_KIND, NEUTRAL });
@@ -497,4 +218,4 @@ function botTickNow(world, now) {
   }
 }
 
-export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, instincts, MAX_BOT_ISLANDS, TUNING };
+export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, garrisonCap, MAX_BOT_ISLANDS, TUNING };
