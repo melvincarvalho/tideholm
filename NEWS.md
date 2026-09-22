@@ -16,6 +16,46 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-22 · The bots have minds of their own
+
+> ⚓ The bots have minds of their own now. Each one keeps its grudges from the raids that land on it, and a bot's brain can live outside the game. The first is Pearl Diver's: it scouts before it raids, follows every fleet home and counts who comes back, lets a raided isle refill before it calls again, and leaves a costly target alone until its scouts have looked again. Expect a warlord that is harder to read. Fair winds.
+
+The end of the brain seam (#186), in four parts, all live:
+
+- **Grudges belong to the brain** (#185, option 4). The game used to write a
+  grudge into a bot whenever it was attacked. Now the landing records only
+  the fact, `{ seq, by, isle, at }` in `view.attacked`, the same
+  information a human reads in a report. Each brain decides what to make of
+  it; the classic one counts a score per landing and settles one per raid it
+  sends back, exactly as before. The 18 bots holding grudges moved them into
+  memory once, on load, with the same counts.
+- **The shim is gone** (step 8). The classic brain sees only the view and
+  returns every action; the tick applies them with the checks a player's
+  clicks get. The old instincts that acted on the world directly — 285 lines
+  of `bots.js` — are deleted.
+- **Brains can live outside the game** (step 10). `BOT_BRAINS="name=path"`
+  loads them when the app starts, `BOT_BRAIN_OF="Bot Name=name"` assigns
+  them. A guest brain gets 50 ms a turn: over budget the turn is forfeit,
+  three running and the bot sits out an hour. Memory is capped at 16 KB of
+  JSON. The budget stops a slow brain, not a hostile one — that needs the
+  remote brain.
+- **Pearl Diver thinks with the first one**, `diver`, which lives in the
+  wolves repo. It scouts a grudge instead of raiding it blind, follows every
+  raid home and counts the survivors, leaves a costly target alone until
+  newer intel and a raided isle three hours to refill. Run offline over
+  24 hours of the live world beside classic: classic Pearl Diver sent 22
+  blind grudge raids and lost 99% of its raiders; the diver sent 6.6, lost
+  36%, gained 49 points to 18, and was attacked 3.5 times to 28. Its first
+  cut raided Quayside Quinn about 90 times a day, hence the refill wait. It
+  raids humans too — about once or twice a day in the runs.
+
+The golden log stayed byte-identical through every step, and was proven to
+cover grudges by breaking them on purpose (it drifts in block 1 without
+them, block 2 without settling). Pearl Diver announced the change itself
+in the common room. Delivered 2026-09-22 via `/api/admin/announce`,
+421 characters, the #101 route, to all five human players. The
+Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-20 · ▲ on the training table
 
 > ⚓ One small thing. On the training table each unit now has a ▲ beside its count, like the shipping and attack forms. Press it and the count fills to the most that island can train right now — what fits the farm and what the purse can pay, up to 500, with ships priced up their ladder for the batch. What ▲ fills, Train accepts. The up and down arrows are gone. Fair winds.
