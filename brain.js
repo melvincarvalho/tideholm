@@ -20,7 +20,7 @@
 // tested, before any instinct moves behind it. See the golden log in tests.js.
 
 import {
-  playerIslands, playerPoints, islandPoints, isProtected, colonyPosition, popAbroad,
+  playerIslands, playerPoints, islandPoints, isProtected, colonyPosition, popAbroad, maxBuildingLevel,
   tryBuild, tryTrain, sendAttack, sendScout, sendColonize, sendSupport, withdrawSupport,
 } from './game.js';
 
@@ -60,6 +60,8 @@ export function botView(world, bot, now = Date.now()) {
   return {
     now,
     hourUTC: new Date(now).getUTCHours(),
+    // the rules a player is told: past this level the game refuses an upgrade
+    rules: { maxBuildingLevel: maxBuildingLevel(world) },
     me: {
       id: bot.id, name: bot.name, points: pointsOf(bot.id), persona: clone(bot.persona || {}), islands: mine.length,
       // the buyer's rung on each ship ladder (#173): isles held plus ships paid for

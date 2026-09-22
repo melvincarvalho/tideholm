@@ -623,6 +623,7 @@ console.log('beginner protection');
   check('view: memory (grudges and all) and persona ride along', view.memory.grudges[a.id] === 2 && view.memory.note === 'kept' && view.me.persona && view.me.id === bot.id);
   check('view: the game keeps no grudges of its own to show (#185)', !('grudges' in view));
   check('view: the public rankings are public', view.rankings.some((r) => r.name === 'B' && typeof r.points === 'number' && !('resources' in r)));
+  check('view: the rules a player is told ride along — the building cap', view.rules && view.rules.maxBuildingLevel === g.maxBuildingLevel(w));
   check('view: it is plain JSON (a round trip loses nothing)', JSON.stringify(JSON.parse(text)) === text);
   view.isles[0].resources.wood = 1e9; view.intel[ib.id].def = 0;
   check('view: a copy, not a window — editing it touches nothing', bi.resources.wood !== 1e9 && bot.intel[ib.id].def === 1500);
