@@ -1,31 +1,20 @@
 // The classic brain — the instincts Tideholm's bots have had since #22,
 // behind the brain contract:
 //
-//     decide({ view, memory, now, rng }, escape) → { actions, memory }
+//     decide({ view, memory, now, rng }) → { actions, memory }
 //
-// MIGRATION SHIM. Today every instinct still reads the world directly, so the
-// tick hands this brain an `escape` — { world, bot } — for exactly as long as
-// it takes to move the instincts onto the view one at a time (colonize first,
-// then scout, train, build, raid, conquer). An instinct that has moved uses
-// only `view` and returns actions; one that has not is called through the
-// escape and acts on the world itself, returning nothing. The golden log in
-// tests.js must not move a byte at any point. When the last instinct has
-// moved, `escape` goes, and this file is a brain like any other.
-import { instincts, MAX_BOT_ISLANDS, TUNING as T } from '../bots.js';
-import { applyActions } from '../brain.js';
+// A brain like any other: it sees only the view and returns actions, which
+// the tick applies with the same checks a player's clicks get. It began as a
+// migration shim that reached into the world while the old instincts moved
+// onto the view one by one (brain seam, steps 5–8); the golden log in
+// tests.js did not move a byte at any point.
+import { MAX_BOT_ISLANDS, TUNING as T } from '../bots.js';
 import {
   unitPower, PROTECTED_POINTS, RESOURCES, UNITS, QUEUE_MAX, TRAIN_QUEUE_MAX,
   pendingLevel, upgradeCost, canAfford, storageCapacity, popUsed, popCap, islandPoints, trainCostAt,
 } from '../game.js';
 
 export const name = 'classic';
-
-// Instincts that have moved onto the view. Each is a pure function of the
-// view (and the dice) returning actions. During migration the old tick calls
-// a moved instinct through a hook at its old slot, so every die is rolled in
-// the old order and every action lands where it used to; colonize, always
-// last, is simply appended after.
-const MOVED = new Set(['colonize', 'scout', 'raid', 'conquer', 'isles']);
 
 // A bot without a rolled persona (old saves, tests) thinks like the neutral one.
 const personaOf = (view) => (view.me.persona && Object.keys(view.me.persona).length ? view.me.persona : T.NEUTRAL);
@@ -277,24 +266,21 @@ export function settle(memory, ownerId) {
   if (g[ownerId] <= 0) delete g[ownerId];
 }
 
-export function decide({ view, memory, now, rng }, escape) {
-  const actions = [];
+// One turn. Every instinct reasons from the same view, taken before any of
+// them acts, and the dice are rolled in a fixed order: the home front, then
+// scouting, raiding, conquest and colonising. The tick applies the actions in
+// that order too, so a raid that takes the raiders leaves conquest to find
+// out the way a player would — the send fails, and the next action still runs.
+export function decide({ view, memory, now, rng }) {
   const mem = remember(view, memory);
   const seen = { ...view, grudges: mem.grudges }; // what the instincts reason from
-  if (escape && escape.world && escape.bot) {
-    // — not yet moved: the old path, verbatim, in the old order, minus what has moved —
-    const hooks = {
-      isles: () => applyActions(escape.world, escape.bot, homeFront(seen, rng), now),
-      scout: () => applyActions(escape.world, escape.bot, scout(seen, rng, now), now),
-      conquer: () => applyActions(escape.world, escape.bot, conquer(seen, rng, now), now),
-      raid: () => {
-        const acts = raid(seen, rng, now);
-        if (acts[0]) settle(mem, acts[0].grudgeOn);
-        applyActions(escape.world, escape.bot, acts, now);
-      },
-    };
-    instincts.legacyTick(escape.world, escape.bot, now, MOVED, hooks);
-  }
+  const actions = [];
+  actions.push(...homeFront(seen, rng));
+  actions.push(...scout(seen, rng, now));
+  const raids = raid(seen, rng, now);
+  if (raids[0]) settle(mem, raids[0].grudgeOn);
+  actions.push(...raids);
+  actions.push(...conquer(seen, rng, now));
   actions.push(...colonize(seen));
   return { actions, memory: mem };
 }

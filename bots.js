@@ -488,7 +488,7 @@ function botTickNow(world, now) {
     const view = botView(world, player, now);
     let out;
     try {
-      out = brain.decide({ view, memory: player.memory || {}, now, rng: RNG }, { world, bot: player });
+      out = brain.decide({ view, memory: player.memory || {}, now, rng: RNG });
     } catch (err) {
       continue; // a brain's fault is its own; the tick goes on
     }
