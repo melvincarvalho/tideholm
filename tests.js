@@ -982,6 +982,15 @@ console.log('beginner protection');
   check('home: farm before the population pinches', chooseUpgrade(isle({ units: { ...g.zeroUnits(), sentinel: 70 } }), N) === 'farm');
   check('home: hall kept within reach of the economy', chooseUpgrade(isle({ buildings: { ...isle().buildings, hall: 1 } }), N) === 'hall');
   check('home: a barbarian never wants a harbour', chooseUpgrade(isle({ buildings: { ...isle().buildings, barracks: 2, harbor: 0, lumberyard: 6, quarry: 6, goldmine: 6, hall: 6, wall: 4 } }), { ...N, kind: 'barbarian', wallTarget: 1 }) !== 'harbor');
+  // the season cap (view.rules.maxBuildingLevel)
+  const maxed = isle({ resources: { wood: 116000, stone: 0, gold: 0 }, buildings: { ...isle().buildings, storehouse: 14, lumberyard: 14, quarry: 14, goldmine: 14 } });
+  check('home: without a cap a full maxed store still asks for another level (the stall)', chooseUpgrade(maxed, N) === 'storehouse');
+  check('home: with the cap, a maxed storehouse falls through to the next rule', chooseUpgrade(maxed, N, 14) !== 'storehouse' && chooseUpgrade(maxed, N, 14) !== null);
+  check('home: below the cap every choice is as before', chooseUpgrade(isle({ resources: { wood: 1340, stone: 0, gold: 0 } }), N, 14) === 'storehouse');
+  const all14 = isle({ buildings: Object.fromEntries(Object.keys(isle().buildings).map((k) => [k, 14])) });
+  check('home: nothing left under the cap means no build at all', chooseUpgrade(all14, N, 14) === null);
+  const onlyWall = isle({ resources: { wood: 116000, stone: 0, gold: 0 }, buildings: { ...Object.fromEntries(Object.keys(isle().buildings).map((k) => [k, 14])), wall: 2 } });
+  check('home: a maxed isle never raises its wall past its temperament', chooseUpgrade(onlyWall, { ...N, wallTarget: 1 }, 14) === null);
   check('home: otherwise the weakest producer by temperament', chooseUpgrade(isle({ buildings: { ...isle().buildings, quarry: 3, hall: 5, wall: 4 } }), { ...N, wallTarget: 1 }) === 'quarry');
   // trainOrder branches, dice pinned
   check('train: a seafarer with a harbour and room saves for a ship', JSON.stringify(trainOrder(view(), isle(), N, () => 0.1)) === JSON.stringify({ key: 'colonyship', count: 1 }));
@@ -2837,14 +2846,24 @@ console.log('bot personalities');
   };
   const gold = mkBot('Goldie', { lumberyard: 0.7, quarry: 1, goldmine: 1.3 });
   const timber = mkBot('Timber Tim', { lumberyard: 1.3, quarry: 1, goldmine: 0.7 });
+  // Both climb to the season's cap in the end, so the bias shows on the way:
+  // when the favoured producer first reaches the cap, the other lags behind.
+  // (It used to be read after 200 hours, and passed only because a maxed
+  // producer froze the builder — the stall fixed in chooseUpgrade.)
+  const cap = g.maxBuildingLevel(w);
+  const atCap = {};
   for (let i = 0; i < 200; i++) {
     for (const b of [gold, timber]) b.isl.resources = { wood: 900000, stone: 900000, gold: 900000 };
     botTick(w, t0 + i * 3600e3); // hourly, so queued builds complete
+    if (!atCap.gold && gold.isl.buildings.goldmine >= cap) atCap.gold = { ...gold.isl.buildings };
+    if (!atCap.timber && timber.isl.buildings.lumberyard >= cap) atCap.timber = { ...timber.isl.buildings };
   }
   check('gold-biased bot runs its mine ahead of its lumberyard',
-    gold.isl.buildings.goldmine > gold.isl.buildings.lumberyard);
+    atCap.gold && atCap.gold.lumberyard < cap, JSON.stringify(atCap.gold));
   check('timber-biased bot does the opposite',
-    timber.isl.buildings.lumberyard > timber.isl.buildings.goldmine);
+    atCap.timber && atCap.timber.goldmine < cap, JSON.stringify(atCap.timber));
+  check('a maxed economy no longer freezes the builder: both end with every producer at the cap',
+    ['lumberyard', 'quarry', 'goldmine'].every((k) => gold.isl.buildings[k] === cap && timber.isl.buildings[k] === cap));
 }
 
 // ---------------------------------------------------------------- wonder & hall of fame

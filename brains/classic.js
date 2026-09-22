@@ -23,22 +23,37 @@ const personaOf = (view) => (view.me.persona && Object.keys(view.me.persona).len
 // What to raise next on an isle: storage before it overflows, farm before the
 // population pinches, hall within reach of the economy, then barracks, wall,
 // harbour, and otherwise the weakest producer weighted by temperament.
-export function chooseUpgrade(isle, persona = T.NEUTRAL) {
+// Never past the season's building cap (`maxLevel`, from view.rules): a pick
+// at the cap falls through to the next rule, where it used to be returned and
+// refused every turn — a maxed storehouse froze the whole isle (five live bot
+// isles found stuck so, 2026-09-22). Below the cap every choice is as before.
+// An isle whose economy is maxed raises the farm, the hall, the barracks and,
+// for seafarers, the harbour; never the wall past its temperament's target,
+// so no bot hardens and the barbarians' wells stay soft. Nothing left: null.
+export function chooseUpgrade(isle, persona = T.NEUTRAL, maxLevel = Infinity) {
   const lvl = (k) => pendingLevel(isle, k);
-  const cap = storageCapacity(lvl('storehouse'));
-  if (RESOURCES.some((r) => isle.resources[r] >= cap * persona.storeThresh)) return 'storehouse';
-  if (popUsed(isle) >= popCap(lvl('farm')) * 0.85) return 'farm';
-  const minProd = Math.min(lvl('lumberyard'), lvl('quarry'), lvl('goldmine'));
-  if (lvl('hall') < minProd - persona.hallLag) return 'hall';
+  const open = (k) => lvl(k) < maxLevel;
+  const pick = (k) => (open(k) ? k : null);
   const barbarian = persona.kind === 'barbarian';
-  if (lvl('barracks') === 0 && minProd >= 4) return 'barracks';
-  if (!barbarian && lvl('barracks') >= 1 && lvl('barracks') < 3 && minProd >= lvl('barracks') + 5) return 'barracks';
-  if (lvl('barracks') >= 1 && lvl('wall') < persona.wallTarget && minProd >= lvl('wall') + 4) return 'wall';
-  if (!barbarian && lvl('harbor') === 0 && lvl('barracks') >= 2 && minProd >= 6) return 'harbor';
-  if (!barbarian && lvl('harbor') === 1 && lvl('barracks') >= 3 && minProd >= 8) return 'harbor';
-  const producers = ['lumberyard', 'quarry', 'goldmine'];
+  const rules = [
+    () => RESOURCES.some((r) => isle.resources[r] >= storageCapacity(lvl('storehouse')) * persona.storeThresh) && 'storehouse',
+    () => popUsed(isle) >= popCap(lvl('farm')) * 0.85 && 'farm',
+  ];
+  const minProd = Math.min(lvl('lumberyard'), lvl('quarry'), lvl('goldmine'));
+  rules.push(
+    () => lvl('hall') < minProd - persona.hallLag && 'hall',
+    () => lvl('barracks') === 0 && minProd >= 4 && 'barracks',
+    () => !barbarian && lvl('barracks') >= 1 && lvl('barracks') < 3 && minProd >= lvl('barracks') + 5 && 'barracks',
+    () => lvl('barracks') >= 1 && lvl('wall') < persona.wallTarget && minProd >= lvl('wall') + 4 && 'wall',
+    () => !barbarian && lvl('harbor') === 0 && lvl('barracks') >= 2 && minProd >= 6 && 'harbor',
+    () => !barbarian && lvl('harbor') === 1 && lvl('barracks') >= 3 && minProd >= 8 && 'harbor',
+  );
+  for (const rule of rules) { const k = rule(); if (k && pick(k)) return k; }
+  const producers = ['lumberyard', 'quarry', 'goldmine'].filter(open);
   producers.sort((a, b) => lvl(a) / persona.prodBias[a] - lvl(b) / persona.prodBias[b]);
-  return producers[0];
+  if (producers.length) return producers[0];
+  const rest = ['farm', 'hall', 'barracks', ...(barbarian ? [] : ['harbor'])];
+  return rest.find(open) || null;
 }
 
 function pickFromMix(mix, rng) {
@@ -100,7 +115,8 @@ export function homeFront(view, rng) {
       if (cost) { for (const r of RESOURCES) isle.resources[r] -= cost[r]; isle.trainQueue.push({ unit: order.key, count: order.count }); }
     }
     if (isle.queue.length >= QUEUE_MAX) continue;
-    const key = chooseUpgrade(isle, persona);
+    const key = chooseUpgrade(isle, persona, (view.rules && view.rules.maxBuildingLevel) || Infinity);
+    if (!key) continue; // everything worth raising is at the cap
     const cost = upgradeCost(key, pendingLevel(isle, key) + 1);
     if (!canAfford(isle, cost)) continue; // save up
     actions.push({ verb: 'build', from: isle.id, key });
