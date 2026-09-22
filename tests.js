@@ -628,6 +628,46 @@ console.log('beginner protection');
   check('view: a copy, not a window — editing it touches nothing', bi.resources.wood !== 1e9 && bot.intel[ib.id].def === 1500);
 }
 {
+  // #185, option 4 (a): a bot is told when it is attacked. The game records
+  // the fact a human reads in a report — who, which isle, when — numbered and
+  // capped, and the view carries it. Grudges are still written as before;
+  // nothing reads the facts yet, so the bots behave exactly as they did.
+  const { botView } = await import('./brain.js');
+  const { w, a, b, ia, ib } = freshWorld();
+  const bot = g.createPlayer(w, 'Told', null, true).player;
+  const bi = g.playerIsland(w, bot.id);
+  bi.x = 0; bi.y = 2;
+  ia.units.raider = 20;
+  const hit = (n) => {
+    const r = g.sendAttack(w, a, ia, bi, { ...g.zeroUnits(), raider: n }, t0);
+    const mv = w.movements.find((m) => m.ownerId === a.id && m.toId === bi.id && m.type === 'attack');
+    g.resolveWorld(w, mv.arrive + 1000);
+    return { r, arrive: mv.arrive };
+  };
+  const first = hit(5);
+  check('attacked: the send was legal (a bot is fair game)', !first.r.error);
+  check('attacked: the landing is recorded — who, which isle, when',
+    bot.attacked && bot.attacked.length === 1 && bot.attacked[0].by === a.id && bot.attacked[0].isle === bi.id && bot.attacked[0].at === first.arrive);
+  check('attacked: the grudge is still written as before', bot.grudges[a.id] === 1);
+  hit(5);
+  check('attacked: facts are numbered so a brain can tell the new from the seen', bot.attacked.map((f) => f.seq).join(',') === '1,2' && bot.attackSeq === 2);
+  const view = botView(w, bot, t0);
+  check('attacked: the view carries the facts', view.attacked.length === 2 && view.attacked[1].by === a.id);
+  view.attacked[0].by = -1;
+  check('attacked: a copy in the view, not a window', bot.attacked[0].by === a.id);
+  // a human learns this from the report, not from a log on the player
+  const ih = g.playerIsland(w, b.id);
+  ib.units.raider = 0; ia.units.raider = 20;
+  const r2 = g.sendAttack(w, a, ia, ih, { ...g.zeroUnits(), raider: 5 }, t0);
+  const mv2 = w.movements.find((m) => m.ownerId === a.id && m.toId === ih.id && m.type === 'attack');
+  if (mv2) g.resolveWorld(w, mv2.arrive + 1000);
+  check('attacked: humans keep no such log (they read reports)', !r2.error && !b.attacked);
+  // capped: the newest BOT_ATTACK_LOG facts survive, the numbering carries on
+  for (let k = 0; k < g.BOT_ATTACK_LOG + 5; k++) g.noteAttack(bot, a.id, bi.id, t0 + k);
+  check(`attacked: capped at ${g.BOT_ATTACK_LOG}, newest kept, numbering unbroken`,
+    bot.attacked.length === g.BOT_ATTACK_LOG && bot.attacked[bot.attacked.length - 1].seq === g.BOT_ATTACK_LOG + 7 && bot.attacked[0].seq === 8);
+}
+{
   // ---------------------------------------------- the verbs (brain seam, step 4)
   // A brain's actions reach the same game functions a human's clicks do, with
   // the same refusals. Nothing calls applyActions yet.

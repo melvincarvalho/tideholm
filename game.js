@@ -1710,6 +1710,18 @@ function sendMessage(world, from, toName, body, now) {
   return { ok: true };
 }
 
+// What a bot is told when it is attacked (#185): the fact a human reads in a
+// report — who, which isle, when — kept structured because bots don't read
+// their mail. Numbered so a brain can tell the new from the already seen, and
+// capped so a much-raided bot's entry in the world stays small.
+const BOT_ATTACK_LOG = 50;
+function noteAttack(bot, by, isle, at) {
+  bot.attackSeq = (bot.attackSeq || 0) + 1;
+  bot.attacked = bot.attacked || [];
+  bot.attacked.push({ seq: bot.attackSeq, by, isle, at });
+  if (bot.attacked.length > BOT_ATTACK_LOG) bot.attacked.splice(0, bot.attacked.length - BOT_ATTACK_LOG);
+}
+
 function addReport(world, ownerId, time, title, lines) {
   const player = world.players.find((p) => p.id === ownerId);
   if (!player || player.isBot) return; // bots don't read their mail
@@ -1963,6 +1975,8 @@ function applyMovement(world, m) {
   if (defOwner && defOwner.isBot && attacker) {
     defOwner.grudges = defOwner.grudges || {};
     defOwner.grudges[attacker.id] = (defOwner.grudges[attacker.id] || 0) + 1;
+    // ...and are told it happened (#185), so a brain can one day keep its own.
+    noteAttack(defOwner, attacker.id, dest.id, m.arrive);
   }
 
   // Morale: bullying much smaller players blunts the attack.
@@ -3017,6 +3031,7 @@ function saveWorld(world) {
 }
 
 export {
+  BOT_ATTACK_LOG, noteAttack,
   SPEED, MAP_SIZE, QUEUE_MAX, TRAIN_QUEUE_MAX, PROTECTED_POINTS, PROTECT_GRACE_MS, isProtected, RESOURCES, BUILDINGS, UNITS,
   LANGS, langOf,
   upgradeCost, upgradeTime, productionPerHour, storageCapacity,

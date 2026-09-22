@@ -76,6 +76,7 @@ export function botView(world, bot, now = Date.now()) {
     })),
     intel: clone(bot.intel || {}),
     grudges: clone(bot.grudges || {}),
+    attacked: clone(bot.attacked || []), // what landed on me, numbered (#185)
     memory: clone(bot.memory || {}),
   };
 }
