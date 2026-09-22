@@ -564,7 +564,7 @@ console.log('beginner protection');
   const WARM = 8000, WARM_STEP = 120000, LIVE = 4000, LIVE_STEP = 15000, BLOCK = 500;
   let t = Date.UTC(2026, 0, 1);
   const seenMoves = new Set();
-  const orders = () => w.islands.map((i) => [i.id, i.queue.map((q) => q.building + ':' + q.level).join(','), i.trainQueue.map((q) => q.key + 'x' + q.count).join(',')]);
+  const orders = () => w.islands.map((i) => [i.id, i.queue.map((q) => q.building + ':' + q.level).join(','), i.trainQueue.map((q) => q.unit + 'x' + q.count).join(',')]);
   let prevOrders = JSON.stringify(orders());
   const tally = {}; const blocks = []; let h = createHash('sha256'); let firstInBlock = null;
   for (let i = 0; i < WARM + LIVE; i++) {
