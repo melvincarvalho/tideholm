@@ -10,7 +10,7 @@
 
 import { resolveIsland, resolveWorld, createPlayer, playerIslands, islandPoints } from './game.js';
 import { botView, applyActions } from './brain.js';
-import { brainFor } from './brains/index.js';
+import { brainFor, isBuiltIn } from './brains/index.js';
 
 // Tuning knobs for bot aggression.
 const RAID_CHANCE = 0.12;        // per bot per tick, once armed (warlords: 2x)
@@ -194,6 +194,25 @@ const TUNING = Object.freeze({ RAID_CHANCE, RAID_RANGE, MIN_RAID_POWER, BULLY_RA
 // One decision pass for every bot: awake → tempo roll → view → decide → apply.
 // The brain sees the view; what it returns goes through the same verbs a
 // human has. Persona (who the bot is) stays here; thinking lives in brains/.
+// Guests keep to a budget (brain seam, step 10). An external brain's turn is
+// timed; one that runs over forfeits that turn's actions and memory, and one
+// that runs over BRAIN_STRIKES turns running is benched — its bot idles for
+// BRAIN_BENCH_MS, then gets another chance. The clock cannot stop a brain
+// mid-turn (decide is synchronous, in this process), so the budget checks
+// a slow guest, not a hostile one; that needs the remote brain. A brain must
+// answer at once: a promise is a forfeit too. Every brain's memory is capped
+// at BOT_MEMORY_MAX bytes of JSON, since it is saved with the world; memory
+// over the cap, or that is not JSON at all, is refused and the old kept.
+const BRAIN_BUDGET_MS = Number(process.env.BOT_BRAIN_BUDGET_MS ?? 50);
+const BRAIN_STRIKES = 3;
+const BRAIN_BENCH_MS = 3600 * 1000;
+const BOT_MEMORY_MAX = Number(process.env.BOT_MEMORY_MAX ?? 16384);
+const benched = new WeakMap(); // bot → { strikes, until }
+
+function memoryFits(memory) {
+  try { return JSON.stringify(memory).length <= BOT_MEMORY_MAX; } catch { return false; }
+}
+
 function botTickNow(world, now) {
   resolveWorld(world, now);
   for (const player of world.players) {
@@ -202,20 +221,57 @@ function botTickNow(world, now) {
     if (isAsleep(persona, now)) continue;
     if (RNG() > 0.4 * BOT_TEMPO * persona.tempo) continue;
     const brain = brainFor(persona);
+    const guest = !isBuiltIn(brain);
+    const bench = guest ? benched.get(player) : null;
+    if (bench && bench.until > now) continue; // sitting it out
     // Settle the bot's own isles first — production accrued, orders that have
     // finished delivered — so the view is as fresh as the old instincts' own
     // resolveIsland made it (a ship completing this very tick sails this tick).
     for (const island of playerIslands(world, player.id)) resolveIsland(island, now);
     const view = botView(world, player, now);
     let out;
+    const started = performance.now();
     try {
       out = brain.decide({ view, memory: player.memory || {}, now, rng: RNG });
     } catch (err) {
       continue; // a brain's fault is its own; the tick goes on
     }
+    if (guest) {
+      const took = performance.now() - started;
+      const state = benched.get(player) || { strikes: 0, until: 0 };
+      const promised = out && typeof out.then === 'function';
+      if (promised) out.then(null, () => {}); // a rejected answer must not take the process down
+      if (took > BRAIN_BUDGET_MS || promised) {
+        state.strikes += 1;
+        if (state.strikes >= BRAIN_STRIKES) {
+          state.until = now + BRAIN_BENCH_MS; state.strikes = 0;
+          console.warn(`bot ${player.name}: brain "${persona.brain}" over its ${BRAIN_BUDGET_MS} ms budget ${BRAIN_STRIKES} turns running — benched for an hour`);
+        }
+        benched.set(player, state);
+        continue; // the turn is forfeit
+      }
+      if (state.strikes) { state.strikes = 0; benched.set(player, state); }
+    }
     if (out && Array.isArray(out.actions) && out.actions.length) applyActions(world, player, out.actions, now);
-    if (out && out.memory && typeof out.memory === 'object') player.memory = out.memory;
+    if (out && out.memory && typeof out.memory === 'object' && memoryFits(out.memory)) player.memory = out.memory;
   }
 }
 
-export { spawnBots, botTick, BOT_NAMES, personaOf, rollPersona, isAsleep, garrisonCap, MAX_BOT_ISLANDS, TUNING };
+// Which bot thinks with which brain: BOT_BRAIN_OF="Pearl Diver=wolf,Kelpie=wolf".
+// It only ever sets — to hand a bot back, name it with classic. Names that
+// match no bot are reported, so a typo is seen rather than silently ignored.
+function assignBrains(world, spec) {
+  const assigned = [], unknown = [];
+  for (const entry of String(spec || '').split(',').map((s) => s.trim()).filter(Boolean)) {
+    const eq = entry.lastIndexOf('=');
+    const who = eq > 0 ? entry.slice(0, eq).trim() : '';
+    const brain = eq > 0 ? entry.slice(eq + 1).trim() : '';
+    const bot = who && brain && world.players.find((p) => p.isBot && p.name === who);
+    if (!bot) { unknown.push(entry); continue; }
+    bot.persona = { ...(bot.persona || NEUTRAL), brain };
+    assigned.push(`${who}=${brain}`);
+  }
+  return { assigned, unknown };
+}
+
+export { spawnBots, botTick, assignBrains, BOT_NAMES, personaOf, rollPersona, isAsleep, garrisonCap, MAX_BOT_ISLANDS, TUNING };

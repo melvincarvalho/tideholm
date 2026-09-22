@@ -7,6 +7,8 @@
 //
 // Options (all optional):
 //   botCount, freeIsles   world creation knobs (default: env BOTS/FREE_ISLES)
+//   botBrains, botBrainOf external bot brains and who uses them (default: env
+//                         BOT_BRAINS "name=path,…" and BOT_BRAIN_OF "Bot Name=name,…")
 //   adminToken            admin API token (default: env ADMIN_TOKEN; '' = off)
 //   trustProxy            honor x-forwarded-for + Secure cookies (env TRUST_PROXY)
 //   basePath              mount prefix, e.g. '/tideholm' (default: '')
@@ -31,7 +33,8 @@ import {
   rollFromHash as regattaRoll, winnerIndex as regattaWinner, quote as regattaQuote,
   WEIGHT_SPACE as REGATTA_SPACE,
 } from './regatta.js';
-import { spawnBots, botTick } from './bots.js';
+import { spawnBots, botTick, assignBrains } from './bots.js';
+import { loadBrains } from './brains/index.js';
 import { daoBuy, daoRemaining, daoView, DAO_PRICE, DAO_MAX_BUY } from './dao.js';
 
 // Is this 64-hex an x-coordinate on secp256k1 — a possible nostr pubkey?
@@ -118,6 +121,16 @@ export function createApp(opts = {}) {
   const log = opts.log || console;
   const tideChain = opts.tideChain || defaultTideChain();
   const botCount = opts.botCount ?? Number(process.env.BOTS || 20);
+  // External brains (brain seam, step 10): which modules to load, and which
+  // bot thinks with which. Both unset means every bot runs the classic brain.
+  const botBrains = opts.botBrains ?? process.env.BOT_BRAINS ?? '';
+  const botBrainOf = opts.botBrainOf ?? process.env.BOT_BRAIN_OF ?? '';
+  function applyBrainAssignments() {
+    if (!botBrainOf) return;
+    const { assigned, unknown } = assignBrains(world, botBrainOf);
+    if (assigned.length) log.log(`Bot brains assigned: ${assigned.join(', ')}.`);
+    if (unknown.length) (log.warn || log.log).call(log, `BOT_BRAIN_OF names no such bot: ${unknown.join(', ')}.`);
+  }
   const freeIsles = opts.freeIsles ?? Number(process.env.FREE_ISLES || 30);
   const trustProxy = opts.trustProxy ?? !!process.env.TRUST_PROXY;
   const adminToken = opts.adminToken ?? (process.env.ADMIN_TOKEN || '');
@@ -172,6 +185,7 @@ export function createApp(opts = {}) {
     game.migrateWorld(world);
     log.log(`World loaded: ${world.players.length} players, ${world.islands.length} islands.`);
   }
+  applyBrainAssignments();
 
   // Rolling world backups: every 15 minutes, keep the last BACKUP_KEEP.
   function backupWorld() {
@@ -205,6 +219,7 @@ export function createApp(opts = {}) {
     world = game.createWorld();
     if (nextStartAt != null) world.startAt = nextStartAt;
     spawnBots(world, botCount);
+    applyBrainAssignments();
     for (let i = 0; i < freeIsles; i++) game.newUnchartedIsland(world);
     game.saveWorld(world);
     return stamp;
@@ -221,12 +236,22 @@ export function createApp(opts = {}) {
   // ---------------------------------------------------------------- lifecycle
 
   let timers = [];
+  // Bots wait for their brains: a bot assigned an external brain must not
+  // spend a turn on classic because its module was still loading.
+  let brainsReady = !botBrains;
   function start() {
     if (timers.length) return; // already running
     if (botIdentity) sweepBotIdentities();
+    if (!brainsReady) {
+      loadBrains(botBrains, __dirname).then(({ loaded, failed }) => {
+        if (loaded.length) log.log(`Bot brains loaded: ${loaded.join(', ')}.`);
+        for (const f of failed) (log.warn || log.log).call(log, `Bot brain not loaded (${f.entry}): ${f.error}`);
+      }).catch((err) => (log.warn || log.log).call(log, `Bot brains not loaded: ${err.message}`))
+        .finally(() => { brainsReady = true; });
+    }
     timers = [
       setInterval(() => {
-        if (game.worldPhase(world, Date.now()) === 'live') botTick(world, Date.now());
+        if (brainsReady && game.worldPhase(world, Date.now()) === 'live') botTick(world, Date.now());
       }, 15000),
       setInterval(() => game.resolveWorld(world, Date.now()), 5000), // battles land on time
       setInterval(() => game.checkVictory(world, Date.now()), 60000),

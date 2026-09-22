@@ -770,6 +770,96 @@ console.log('beginner protection');
   check('registry: a faulty brain does not stop the others', g.playerIsland(w, p3.id).queue.length + Object.values(g.playerIsland(w, p3.id).buildings).reduce((a, b) => a + b, 0) > Object.values(g.playerIsland(w, p1.id).buildings).reduce((a, b) => a + b, 0));
 }
 {
+  // ---------------------------------------------- external brains (brain seam, step 10)
+  // BOT_BRAINS loads brains from files at boot; BOT_BRAIN_OF says which bot
+  // thinks with which; a guest keeps to a time budget and every brain's
+  // memory to a size cap.
+  const { loadBrains, registerBrain, brainNames } = await import('./brains/index.js');
+  const { botTick: tick, spawnBots, assignBrains } = await import('./bots.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tideholm-brains-'));
+  fs.writeFileSync(path.join(dir, 'good.mjs'), "export const name = 'good';\nexport function decide() { return { actions: [], memory: { ran: true } }; }\n");
+  fs.writeFileSync(path.join(dir, 'dflt.mjs'), "export default { decide: () => ({ actions: [], memory: {} }) };\n");
+  fs.writeFileSync(path.join(dir, 'broken.mjs'), "throw new Error('cannot think');\n");
+  const res = await loadBrains('good=good.mjs, dflt=dflt.mjs, broken=broken.mjs, gone=missing.mjs, noequals, classic=good.mjs', dir);
+  check('brains: files load and register under their names', res.loaded.join(',') === 'good,dflt' && brainNames().includes('good') && brainNames().includes('dflt'));
+  check('brains: a broken, missing or malformed entry is reported, not fatal', res.failed.length === 4
+    && res.failed.some((f) => f.entry.startsWith('broken') && /cannot think/.test(f.error))
+    && res.failed.some((f) => f.entry === 'noequals'));
+  check('brains: no guest may take the classic name', res.failed.some((f) => f.entry.startsWith('classic=')));
+  check('brains: nothing to load is fine', (await loadBrains('', dir)).loaded.length === 0);
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  const one = (brain) => {
+    const w = g.createWorld();
+    spawnBots(w, 1, () => 0.5);
+    const bot = w.players[0];
+    bot.persona = { ...bot.persona, sleepLen: 0, tempo: 1, brain };
+    const isle = g.playerIsland(w, bot.id);
+    Object.assign(isle.resources, { wood: 5000, stone: 5000, gold: 5000 });
+    return { w, bot, isle };
+  };
+  {
+    const { w, bot } = one('classic');
+    const r = assignBrains(w, `${bot.name}=good, Nobody At All=good, junk`);
+    check('assign: a named bot gets the brain', bot.persona.brain === 'good' && r.assigned.length === 1);
+    check('assign: names that match no bot are reported', r.unknown.length === 2);
+    assignBrains(w, `${bot.name}=classic`);
+    check('assign: naming classic hands a bot back', bot.persona.brain === 'classic');
+  }
+  // the budget: a guest that runs over forfeits its turn; three running, it sits out an hour
+  let calls = 0;
+  const wait = (ms) => { const end = performance.now() + ms; while (performance.now() < end) { /* thinking */ } };
+  const build = (isle) => [{ verb: 'build', from: isle.id, key: 'lumberyard' }];
+  {
+    const { w, bot, isle } = one('slow');
+    registerBrain('slow', { decide: ({ view }) => { calls++; wait(70); return { actions: build(view.isles[0]), memory: { slow: true } }; } });
+    for (let i = 0; i < 3; i++) tick(w, t0 + i * 15000, () => 0.01);
+    check('budget: an over-budget turn is forfeit — no actions, no memory', calls === 3 && isle.queue.length === 0 && !(bot.memory && bot.memory.slow));
+    tick(w, t0 + 4 * 15000, () => 0.01);
+    check('budget: three over-budget turns running bench the bot', calls === 3);
+    tick(w, t0 + 3600e3 + 4 * 15000, () => 0.01);
+    check('budget: after an hour on the bench it thinks again', calls === 4);
+  }
+  {
+    const { w, isle } = one('eager');
+    registerBrain('eager', { decide: async ({ view }) => ({ actions: build(view.isles[0]), memory: {} }) });
+    tick(w, t0, () => 0.01);
+    check('budget: a brain that answers with a promise forfeits the turn', isle.queue.length === 0);
+  }
+  {
+    const { w } = one('sulky');
+    registerBrain('sulky', { decide: async () => { throw new Error('will not'); } });
+    let crashed = false;
+    const onRej = () => { crashed = true; };
+    process.on('unhandledRejection', onRej);
+    tick(w, t0, () => 0.01);
+    await new Promise((r) => setTimeout(r, 20));
+    process.off('unhandledRejection', onRej);
+    check('budget: an async brain that throws cannot take the game down', !crashed);
+  }
+  {
+    const { w, bot, isle } = one('quick');
+    registerBrain('quick', { decide: ({ view }) => ({ actions: build(view.isles[0]), memory: { quick: 1 } }) });
+    tick(w, t0, () => 0.01);
+    check('budget: a brain within budget acts and remembers', isle.queue.length === 1 && bot.memory.quick === 1);
+  }
+  // the memory cap: saved with the world, so bounded and JSON
+  {
+    const { w, bot, isle } = one('hoarder');
+    bot.memory = { kept: true };
+    registerBrain('hoarder', { decide: ({ view }) => ({ actions: build(view.isles[0]), memory: { blob: 'x'.repeat(20000) } }) });
+    tick(w, t0, () => 0.01);
+    check('memory: over the cap is refused and the old memory kept (the turn still counts)', bot.memory.kept === true && !bot.memory.blob && isle.queue.length === 1);
+  }
+  {
+    const { w, bot } = one('odd');
+    bot.memory = { kept: true };
+    registerBrain('odd', { decide: () => ({ actions: [], memory: { n: 1n } }) });
+    tick(w, t0, () => 0.01);
+    check('memory: memory that is not JSON is refused', bot.memory.kept === true && !('n' in bot.memory));
+  }
+}
+{
   // ---------------------------------------------- colonize, on the view (brain seam, step 6)
   const { colonize } = await import('./brains/classic.js');
   const view = (over) => ({

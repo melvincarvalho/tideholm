@@ -1824,6 +1824,26 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     srv.close(); armyApp.stop();
   }
 
+  // ---------------------------------------------- external brains at boot (brain seam, step 10)
+  {
+    const saved = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'world.json'), 'utf8'));
+    const botName = saved.players.find((p) => p.isBot).name;
+    const brainFile = path.join(process.env.DATA_DIR, 'probe-brain.mjs');
+    fs.writeFileSync(brainFile, "export function decide() { return { actions: [], memory: { probe: true } }; }\n");
+    const lines = [];
+    const capture = { log: (m) => lines.push(String(m)), warn: (m) => lines.push('WARN ' + m), error: () => {} };
+    const brainApp = createApp({ botCount: 2, freeIsles: 2, log: capture,
+      botBrains: `probe=${brainFile}, missing=${path.join(process.env.DATA_DIR, 'nope.mjs')}`,
+      botBrainOf: `${botName}=probe, No Such Bot=probe` });
+    brainApp.start(); // the host starts the app; brains load then
+    for (let i = 0; i < 50 && !lines.some((l) => l.startsWith('Bot brains loaded')); i++) await new Promise((r) => setTimeout(r, 20));
+    check('brains at boot: BOT_BRAIN_OF assigns a bot when the world loads', lines.some((l) => l === `Bot brains assigned: ${botName}=probe.`), lines.join(' | '));
+    check('brains at boot: a name matching no bot is warned about', lines.some((l) => l.startsWith('WARN BOT_BRAIN_OF names no such bot: No Such Bot=probe')));
+    check('brains at boot: BOT_BRAINS loads the module when the app starts', lines.some((l) => l === 'Bot brains loaded: probe.'));
+    check('brains at boot: a brain that fails to load is warned about, the app runs on', lines.some((l) => l.startsWith('WARN Bot brain not loaded (missing=')));
+    brainApp.stop();
+  }
+
   console.log(failures ? `\n${failures} FAILURE(S)` : '\nall tests pass');
   process.exit(failures ? 1 : 0);
 })().catch((err) => {
