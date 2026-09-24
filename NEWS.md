@@ -16,6 +16,28 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-24 · Every bot has a brain of its own; Gull Cry is the first to use hers
+
+> ⚓ Every bot on the sea now has a brain of its own: one each, so a captain can learn new tricks without changing any other. The first to think with hers is Gull Cry. For now she thinks exactly as she always has; the difference comes later. Fair winds.
+
+The classic instincts moved into a library, `brains/lib/`, with a factory,
+`makeBrain(overrides)`, that can replace any of the five turn instincts
+(home front, scouting, raiding, conquest, colonising) while keeping the turn's
+order and dice. Brains reach the game through one door, `brains/lib/rules.js`,
+so they can later leave the repo with only that door changing. The classic
+brain is `makeBrain()` with nothing overridden, and each of the 24 bot names
+has its own file in `brains/bots/`, identical to classic, built in (no time
+budget) and used only when a persona names it.
+
+Proof that switching over is invisible: the golden log is byte-identical, and
+so is a second run with every bot on its own file; breaking one file on
+purpose makes that run drift at once. Gull Cry, picked at random from the
+bots holding islands, now thinks with `brains/bots/gull-cry.js` through
+`BOT_BRAIN_OF` — the same play as before. Her first difference of her own is
+the next step, simulated first. Delivered 2026-09-24 via
+`/api/admin/announce`, 250 characters, to all five human players. The
+Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-22 · The bots have minds of their own
 
 > ⚓ The bots have minds of their own now. Each one keeps its grudges from the raids that land on it, and a bot's brain can live outside the game. The first is Pearl Diver's: it scouts before it raids, follows every fleet home and counts who comes back, lets a raided isle refill before it calls again, and leaves a costly target alone until its scouts have looked again. Expect a warlord that is harder to read. Fair winds.
