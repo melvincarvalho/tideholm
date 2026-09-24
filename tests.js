@@ -551,36 +551,44 @@ console.log('beginner protection');
   const fs = await import('node:fs');
   const { createHash } = await import('node:crypto');
   const GOLDEN = new URL('./fixtures/golden-bots.json', import.meta.url);
-  const w = g.createWorld();
-  spawnBots(w, 20, mulberry(101));
-  for (let k = 0; k < 12; k++) g.newIsland(w, null, 'Uncharted Isle'); // room to colonise
-  for (const p of w.players) if (p.isBot) p.persona.sleepLen = 0;
-  // Island placement uses crypto.randomInt, so lay the map out by hand: a
-  // fixed 6x6 grid, 7 fields apart — neighbours inside raid range, the far
-  // corners outside it. Same map every run, whatever the OS dice say.
-  w.islands.forEach((isl, k) => { isl.x = 2 + (k % 6) * 7; isl.y = 2 + Math.floor(k / 6) * 7; });
-  g.setRng(mulberry(102));
-  const dice = mulberry(103);
   const WARM = 8000, WARM_STEP = 120000, LIVE = 4000, LIVE_STEP = 15000, BLOCK = 500;
-  let t = Date.UTC(2026, 0, 1);
-  const seenMoves = new Set();
-  const orders = () => w.islands.map((i) => [i.id, i.queue.map((q) => q.building + ':' + q.level).join(','), i.trainQueue.map((q) => q.unit + 'x' + q.count).join(',')]);
-  let prevOrders = JSON.stringify(orders());
-  const tally = {}; const blocks = []; let h = createHash('sha256'); let firstInBlock = null;
-  for (let i = 0; i < WARM + LIVE; i++) {
-    t += i < WARM ? WARM_STEP : LIVE_STEP;
-    tick(w, t, dice);
-    for (const m of w.movements) if (!seenMoves.has(m.id)) {
-      seenMoves.add(m.id);
-      const line = [i, 'move', m.type, m.ownerId, m.fromId, m.toId, Object.entries(m.units).filter(([, n]) => n > 0).map(([k, n]) => k + n).join('+')].join('|');
-      h.update(line + '\n'); if (firstInBlock === null) firstInBlock = line;
-      const k = m.type + (m.units.flagship > 0 ? '+flagship' : ''); tally[k] = (tally[k] || 0) + 1;
+  const { BOT_BRAINS } = await import('./brains/bots/index.js');
+  // ownBrains: every bot thinks with its own file in brains/bots/ instead of
+  // classic. Those files start identical, so the log must not move a byte.
+  const goldenRun = (ownBrains) => {
+    const w = g.createWorld();
+    spawnBots(w, 20, mulberry(101));
+    for (let k = 0; k < 12; k++) g.newIsland(w, null, 'Uncharted Isle'); // room to colonise
+    for (const p of w.players) if (p.isBot) p.persona.sleepLen = 0;
+    if (ownBrains) for (const p of w.players) if (p.isBot) p.persona.brain = BOT_BRAINS[p.name].name;
+    // Island placement uses crypto.randomInt, so lay the map out by hand: a
+    // fixed 6x6 grid, 7 fields apart — neighbours inside raid range, the far
+    // corners outside it. Same map every run, whatever the OS dice say.
+    w.islands.forEach((isl, k) => { isl.x = 2 + (k % 6) * 7; isl.y = 2 + Math.floor(k / 6) * 7; });
+    g.setRng(mulberry(102));
+    const dice = mulberry(103);
+    let t = Date.UTC(2026, 0, 1);
+    const seenMoves = new Set();
+    const orders = () => w.islands.map((i) => [i.id, i.queue.map((q) => q.building + ':' + q.level).join(','), i.trainQueue.map((q) => q.unit + 'x' + q.count).join(',')]);
+    let prevOrders = JSON.stringify(orders());
+    const tally = {}; const blocks = []; let h = createHash('sha256'); let firstInBlock = null;
+    for (let i = 0; i < WARM + LIVE; i++) {
+      t += i < WARM ? WARM_STEP : LIVE_STEP;
+      tick(w, t, dice);
+      for (const m of w.movements) if (!seenMoves.has(m.id)) {
+        seenMoves.add(m.id);
+        const line = [i, 'move', m.type, m.ownerId, m.fromId, m.toId, Object.entries(m.units).filter(([, n]) => n > 0).map(([k, n]) => k + n).join('+')].join('|');
+        h.update(line + '\n'); if (firstInBlock === null) firstInBlock = line;
+        const k = m.type + (m.units.flagship > 0 ? '+flagship' : ''); tally[k] = (tally[k] || 0) + 1;
+      }
+      const o = JSON.stringify(orders());
+      if (o !== prevOrders) { h.update(i + '|orders|' + o + '\n'); prevOrders = o; tally.orders = (tally.orders || 0) + 1; if (firstInBlock === null) firstInBlock = i + '|orders'; }
+      if ((i + 1) % BLOCK === 0) { blocks.push({ hash: h.digest('hex').slice(0, 16), first: firstInBlock }); h = createHash('sha256'); firstInBlock = null; }
     }
-    const o = JSON.stringify(orders());
-    if (o !== prevOrders) { h.update(i + '|orders|' + o + '\n'); prevOrders = o; tally.orders = (tally.orders || 0) + 1; if (firstInBlock === null) firstInBlock = i + '|orders'; }
-    if ((i + 1) % BLOCK === 0) { blocks.push({ hash: h.digest('hex').slice(0, 16), first: firstInBlock }); h = createHash('sha256'); firstInBlock = null; }
-  }
-  g.setRng(null);
+    g.setRng(null);
+    return { blocks, tally };
+  };
+  const { blocks, tally } = goldenRun(false);
   const record = { ticks: WARM + LIVE, blocks, tally };
   if (process.argv.includes('--record-golden')) {
     fs.mkdirSync(new URL('./fixtures/', import.meta.url), { recursive: true });
@@ -595,7 +603,28 @@ console.log('beginner protection');
     if (drift >= 0) console.log(`  golden log drifts in block ${drift} (ticks ${drift * BLOCK}-${(drift + 1) * BLOCK - 1}); expected first line ${golden.blocks[drift].first} got ${blocks[drift] && blocks[drift].first}`);
     check(`golden log: ${golden.blocks.length} blocks of ${BLOCK} ticks match the fixture (${Object.entries(golden.tally).map(([k, v]) => k + ' ' + v).join(', ')})`, drift < 0 && blocks.length === golden.blocks.length);
     check('golden log: colonising is in the fixture', (golden.tally.colonize || 0) > 0);
+    const own = goldenRun(true);
+    const ownDrift = golden.blocks.findIndex((b, k) => !own.blocks[k] || own.blocks[k].hash !== b.hash);
+    check('golden log: with every bot on its own brain file the log is byte-identical', ownDrift < 0 && own.blocks.length === golden.blocks.length,
+      ownDrift >= 0 ? `drifts in block ${ownDrift}` : '');
   }
+}
+{
+  // ---------------------------------------------- every bot's own brain (brains/bots, step 1)
+  const { BOT_BRAINS } = await import('./brains/bots/index.js');
+  const { BOT_NAMES } = await import('./bots.js');
+  const { brainFor, isBuiltIn, ownBrainOf } = await import('./brains/index.js');
+  const { makeBrain } = await import('./brains/lib/instincts.js');
+  check('own brains: one file for every bot name', BOT_NAMES.every((n) => BOT_BRAINS[n] && typeof BOT_BRAINS[n].decide === 'function') && Object.keys(BOT_BRAINS).length === BOT_NAMES.length);
+  check('own brains: registered by name, built in (no time budget)', BOT_NAMES.every((n) => brainFor({ brain: BOT_BRAINS[n].name }) === BOT_BRAINS[n] && isBuiltIn(BOT_BRAINS[n])));
+  check('own brains: names are unique', new Set(Object.values(BOT_BRAINS).map((b) => b.name)).size === BOT_NAMES.length);
+  check('own brains: a bot uses its own only when its persona names it', brainFor({}).name === 'classic' && ownBrainOf('Coral Kate') === BOT_BRAINS['Coral Kate'] && ownBrainOf('Nobody') === null);
+  let threw = false; try { makeBrain({ raidd: () => [] }); } catch { threw = true; }
+  check('makeBrain: an override with no such instinct is refused', threw);
+  const fs2 = await import('node:fs');
+  const leaks = fs2.readdirSync(new URL('./brains/bots/', import.meta.url)).concat(['../lib/instincts.js'])
+    .filter((f) => /\.js$/.test(f)).filter((f) => /from '\.\.\/\.\.\/(game|bots)\.js'|from '\.\.\/(game|bots)\.js'/.test(fs2.readFileSync(new URL('./brains/bots/' + f, import.meta.url), 'utf8')));
+  check('own brains: they reach the game only through brains/lib/rules.js', leaks.length === 0, leaks.join(', '));
 }
 {
   // ---------------------------------------------- the view (brain seam, step 3)
