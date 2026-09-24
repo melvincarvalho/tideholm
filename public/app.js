@@ -204,8 +204,9 @@ function showTab(which) {
 // Sorted by defence ascending, because the question it exists to answer is
 // "which of mine is undefended" — that answer belongs at the top.
 const ISLANDS_SORT_KEY = 'tideholm.islandsSort';
-function islandsSortKey() { try { return localStorage.getItem(ISLANDS_SORT_KEY) === 'def' ? 'def' : 'points'; } catch { return 'points'; } }
-for (const key of ['def', 'points']) {
+const ISLANDS_SORTS = ['name', 'def', 'points'];
+function islandsSortKey() { try { const k = localStorage.getItem(ISLANDS_SORT_KEY); return ISLANDS_SORTS.includes(k) ? k : 'points'; } catch { return 'points'; } }
+for (const key of ISLANDS_SORTS) {
   const th = $('isl-sort-' + key);
   if (th) th.addEventListener('click', () => { try { localStorage.setItem(ISLANDS_SORT_KEY, key); } catch { /* private mode */ } renderIslands(); });
 }
@@ -240,14 +241,16 @@ function renderIslands() {
   tbody.innerHTML = '';
   if (!state) return;
   // Sort by points (lowest first, the default) or by defence (weakest first):
-  // either way the isle that needs attention is on top. Remembered in this browser.
+  // either way the isle that needs attention is on top. Or by name, A to Z
+  // with numbers in order (N2 before N10), to find one. Remembered in this browser.
   const sortKey = islandsSortKey();
-  const rows = [...state.islands].sort(sortKey === 'def'
-    ? (a, b) => a.defence - b.defence || a.points - b.points || String(a.name).localeCompare(String(b.name))
-    : (a, b) => a.points - b.points || a.defence - b.defence || String(a.name).localeCompare(String(b.name)));
+  const byName = (a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' });
+  const rows = [...state.islands].sort(sortKey === 'name' ? byName
+    : sortKey === 'def' ? (a, b) => a.defence - b.defence || a.points - b.points || byName(a, b)
+      : (a, b) => a.points - b.points || a.defence - b.defence || byName(a, b));
   const hint = document.querySelector('[data-i18n="ui.islands.hint"]');
-  if (hint) hint.textContent = T(sortKey === 'def' ? 'ui.islands.hintDef' : 'ui.islands.hintPoints');
-  for (const id of ['isl-sort-def', 'isl-sort-points']) { const th = $(id); if (th) th.classList.toggle('active', id === 'isl-sort-' + sortKey); }
+  if (hint) hint.textContent = T({ name: 'ui.islands.hintName', def: 'ui.islands.hintDef', points: 'ui.islands.hintPoints' }[sortKey]);
+  for (const key of ISLANDS_SORTS) { const th = $('isl-sort-' + key); if (th) th.classList.toggle('active', key === sortKey); }
   for (const i of rows) {
     const tr = document.createElement('tr');
     tr.className = 'clickable' + (i.id === state.island.id ? ' active' : '');
