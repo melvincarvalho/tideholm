@@ -1005,6 +1005,16 @@ Shipped in #60.
 
 ## Shipped without an announcement
 
+- **The den has two tables** (2026-09-25): the fleet lobby's Den card now
+  offers Play for 100 (blinds 5/10) and Play for 1,000 (blinds 50/100, the
+  same ten-big-blind dash at ten times the gold); a seal from the Tidegate
+  rides through to either. The first live 1,000 win was refused at redeem —
+  the server's till cap `DEN_MAX_STAKE` was still at its default 100, so a
+  1,000 loss would have verified while a win could not. The cap went to
+  1,000 live the same morning (recorded in `deploy/next-season.env`, and
+  `TRAIL.md` now says the cap must cover every stake a door offers). No
+  announcement: a lobby button.
+
 - **The settlers and warlords get a bigger garrison** (2026-09-20): the bot
   defence cap is now set per temperament. Settlers and warlords hold up to
   `island points × 18` instead of `× 12`; barbarians stay on 12, which their

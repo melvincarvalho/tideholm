@@ -105,7 +105,9 @@ so the win is exactly `2 x stake` and there is no maths to vendor — but
 also **no chain seed to re-derive**: den hands are client-dealt, the claim
 is player-attested (the §8/T7-class caveat applies in full), and the
 house's entire defence is arithmetic plus the till cap (`DEN_MAX_STAKE`,
-default 100). Provably-dealt hands are the den's own future work. An
+default 100; 1,000 live since 2026-09-25, for the lobby's 1,000 table).
+The cap must be at least the largest stake any door offers: a loss above
+it still verifies (a negative move), a win above it is refused. Provably-dealt hands are the den's own future work. An
 unknown venue is refused outright: no venue, no credit. Each new
 seal-ready game adds one dispatch arm and its vendored maths (or, for
 attested venues, its declared arithmetic and cap) — this list is the
