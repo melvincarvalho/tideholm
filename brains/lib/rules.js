@@ -7,5 +7,6 @@
 export {
   unitPower, PROTECTED_POINTS, RESOURCES, UNITS, QUEUE_MAX, TRAIN_QUEUE_MAX,
   pendingLevel, upgradeCost, canAfford, storageCapacity, popUsed, popCap, islandPoints, trainCostAt,
+  tradeCapacity,
 } from '../../game.js';
 export { MAX_BOT_ISLANDS, TUNING, garrisonCap } from '../../bots.js';

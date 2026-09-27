@@ -21,7 +21,7 @@
 
 import {
   playerIslands, playerPoints, islandPoints, isProtected, colonyPosition, popAbroad, maxBuildingLevel,
-  tryBuild, tryTrain, sendAttack, sendScout, sendColonize, sendSupport, withdrawSupport,
+  tryBuild, tryTrain, sendAttack, sendScout, sendColonize, sendSupport, withdrawSupport, sendPoolSwap,
 } from './game.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -78,20 +78,26 @@ export function botView(world, bot, now = Date.now()) {
     })),
     intel: clone(bot.intel || {}),
     attacked: clone(bot.attacked || []), // what landed on me, numbered; grudges are the brain's own (#185)
+    // the Tidepool as the Market tab shows it: open or not, and its reserves
+    pool: world.pool && world.pool.open
+      ? { open: true, reserves: clone(world.pool.reserves), feeBps: world.pool.feeBps, maxOutFrac: world.pool.maxOutFrac }
+      : { open: false },
     memory: clone(bot.memory || {}),
   };
 }
 
 // ---------------------------------------------------------------- the verbs
 //
-// An action is a request: { verb, from, to, key, count, units }. Every verb
+// An action is a request: { verb, from, to, key, count, units }; a swap is
+// { verb: 'swap', from, give, get, amount, minOut } against the Tidepool,
+// delivered home to `from`. Every verb
 // routes to the SAME game function a human's request reaches, with the same
 // validation, so a brain can do nothing a player cannot. `from` must be one
 // of the bot's own isles; `to` any isle id. Results come back one per action,
 // in order — { ok } or { error } — and a failure never stops the next action.
 // Unknown verbs and malformed requests are errors, not exceptions: a brain is
 // a guest, and a guest's mistake must not take the tick down with it.
-export const VERBS = ['build', 'train', 'attack', 'scout', 'colonize', 'support', 'withdraw'];
+export const VERBS = ['build', 'train', 'attack', 'scout', 'colonize', 'support', 'withdraw', 'swap'];
 
 export function applyActions(world, bot, actions, now = Date.now()) {
   const results = [];
@@ -115,6 +121,7 @@ export function applyActions(world, bot, actions, now = Date.now()) {
         case 'scout': { const t = isle(a.to); results.push(t ? sendScout(world, bot, from, t, a.count, now) : { error: 'err.noIsland' }); break; }
         case 'colonize': { const t = isle(a.to); results.push(t ? sendColonize(world, bot, from, t, now) : { error: 'err.noIsland' }); break; }
         case 'support': { const t = isle(a.to); results.push(t ? sendSupport(world, bot, from, t, a.units || {}, now) : { error: 'err.noIsland' }); break; }
+        case 'swap': results.push(sendPoolSwap(world, bot, from, String(a.give || ''), String(a.get || ''), a.amount, now, a.minOut)); break;
         default: results.push({ error: 'err.unknownVerb' });
       }
     } catch (err) {

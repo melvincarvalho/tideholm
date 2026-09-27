@@ -15,6 +15,7 @@ import {
   MAX_BOT_ISLANDS, TUNING as T, garrisonCap,
   unitPower, PROTECTED_POINTS, RESOURCES, UNITS, QUEUE_MAX, TRAIN_QUEUE_MAX,
   pendingLevel, upgradeCost, canAfford, storageCapacity, popUsed, popCap, islandPoints, trainCostAt,
+  tradeCapacity,
 } from './rules.js';
 
 // A bot without a rolled persona (old saves, tests) thinks like the neutral one.
@@ -287,6 +288,50 @@ export function colonize(view) {
   return [];
 }
 
+// ------------------------------------------------------------ the Tidepool
+// Trading, infrequent and guarded. Once per SWAP_EVERY a bot may sell
+// overflow — a store at SWAP_OVERFLOW of its storehouse — for whatever its
+// isle holds least of, a small bite (SWAP_SHARE of the pool's reserve), and
+// never at worse than SWAP_MAX_PRICE of what it sells per unit it gets. It
+// also sells a store only half full (BARGAIN_FILL) when the pool pays a
+// bargain for it (BARGAIN_PRICE or better), which is what keeps the pool
+// moving both ways: when gold turns dear, bots holding gold sell some. No
+// dice: the pace comes from time, each bot's window offset by its id, so the
+// turn's rolls (and every other bot's) are exactly what they were. A closed
+// pool, a barbarian (no harbour) or a delivery still at sea: no trade.
+export const SWAP_EVERY = 6 * 3600e3;
+export const SWAP_OVERFLOW = 0.9;
+export const SWAP_SHARE = 0.05;
+export const SWAP_MAX_PRICE = 1.5;
+export const BARGAIN_FILL = 0.5;
+export const BARGAIN_PRICE = 1 / 1.2;
+export const swapWindow = (botId, now) => Math.floor((now + ((Number(botId) * 2654435761) % 997) / 997 * SWAP_EVERY) / SWAP_EVERY);
+export function trade(view, rng, now) {
+  const pool = view.pool;
+  if (!pool || !pool.open) return [];
+  if (view.swapWindow === swapWindow(view.me.id, now)) return []; // already traded this window
+  const R = pool.reserves;
+  let best = null;
+  for (const isle of view.isles) {
+    if (!(isle.buildings.harbor >= 1)) continue;
+    if ((view.moves || []).some((m) => m.type === 'trade' && m.fromId === isle.id && m.toId === isle.id)) continue; // a delivery is at sea
+    const cap = storageCapacity(isle.buildings.storehouse);
+    const fill = (r) => isle.resources[r] / cap;
+    for (const give of RESOURCES) {
+      const get = RESOURCES.filter((r) => r !== give).sort((a, b) => fill(a) - fill(b))[0];
+      if (!(R[give] > 0 && R[get] > 0) || fill(get) >= fill(give)) continue;
+      const price = R[give] / R[get]; // what we pay per unit we get
+      const limit = fill(give) >= SWAP_OVERFLOW ? SWAP_MAX_PRICE : fill(give) >= BARGAIN_FILL ? BARGAIN_PRICE : 0;
+      if (price > limit) continue; // too dear, or not worth it at this fill
+      const amount = Math.floor(Math.min(R[give] * SWAP_SHARE, tradeCapacity(isle.buildings.harbor), isle.resources[give] - cap * 0.4));
+      if (amount < 1) continue;
+      const score = fill(give) / price;
+      if (!best || score > best.score) best = { score, action: { verb: 'swap', from: isle.id, give, get, amount, minOut: Math.floor(amount / limit) } };
+    }
+  }
+  return best ? [best.action] : [];
+}
+
 // ------------------------------------------------------------ grudges
 // A grudge is this brain's own memory (#185). The view says who attacked us,
 // each landing numbered; every one not yet seen is a score against the
@@ -346,13 +391,14 @@ export function settle(memory, ownerId) {
 
 // One turn. Every instinct reasons from the same view, taken before any of
 // them acts, and the dice are rolled in a fixed order: the home front, then
-// scouting, raiding, conquest and colonising. The tick applies the actions in
+// scouting, raiding, conquest and colonising; trading comes last and rolls
+// none. The tick applies the actions in
 // that order too, so a raid that takes the raiders leaves conquest to find
 // out the way a player would — the send fails, and the next action still runs.
-// A brain from the instincts. `overrides` replaces any of the five turn
-// instincts — homeFront, scout, raid, conquer, colonize — each with the same
+// A brain from the instincts. `overrides` replaces any of the six turn
+// instincts — homeFront, scout, raid, conquer, colonize, trade — each with the same
 // signature; the turn keeps its order, so the dice fall as they always have.
-const TURN = { homeFront, scout, raid, conquer, colonize };
+const TURN = { homeFront, scout, raid, conquer, colonize, trade };
 export function makeBrain(overrides = {}) {
   for (const k of Object.keys(overrides)) {
     if (!(k in TURN)) throw new Error(`makeBrain: no instinct called "${k}"`);
@@ -361,7 +407,7 @@ export function makeBrain(overrides = {}) {
   return {
     decide({ view, memory, now, rng }) {
       const mem = remember(view, memory);
-      const seen = { ...view, grudges: mem.grudges, screens: mem.screens }; // what the instincts reason from
+      const seen = { ...view, grudges: mem.grudges, screens: mem.screens, swapWindow: mem.swapWindow }; // what the instincts reason from
       const actions = [];
       actions.push(...I.homeFront(seen, rng));
       actions.push(...I.scout(seen, rng, now));
@@ -370,6 +416,9 @@ export function makeBrain(overrides = {}) {
       actions.push(...raids);
       actions.push(...I.conquer(seen, rng, now));
       actions.push(...I.colonize(seen));
+      const swaps = I.trade(seen, rng, now); // last, and rolls no dice
+      if (swaps.length) mem.swapWindow = swapWindow(view.me.id, now);
+      actions.push(...swaps);
       return { actions, memory: mem };
     },
   };

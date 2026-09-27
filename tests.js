@@ -698,6 +698,61 @@ console.log('beginner protection');
   check('mangrove mo: stale intel counts as none', raid(mo.seenOnly(mv, now), always, now).length === 0);
 }
 {
+  // ---------------------------------------------- bots at the Tidepool
+  const { botView, applyActions } = await import('./brain.js');
+  const L = await import('./brains/lib/instincts.js');
+  const { w } = freshWorld();
+  const now = Date.UTC(2026, 8, 27, 12);
+  const bot = g.createPlayer(w, 'Trader', null, true).player;
+  const isle = g.playerIsland(w, bot.id);
+  Object.assign(isle.buildings, { harbor: 3, storehouse: 10 });
+  const cap = g.storageCapacity(10);
+  Object.assign(isle.resources, { wood: Math.floor(cap * 0.95), stone: Math.floor(cap * 0.5), gold: 100 });
+  let n = 0; const counting = () => { n++; return 0.5; };
+  check('bot trading: a closed pool, no trade', L.trade(botView(w, bot, now), counting, now).length === 0);
+  g.openPool(w, { wood: 5000, stone: 5000, gold: 5000 }, now);
+  let view = botView(w, bot, now);
+  check('bot trading: the view shows the pool as the Market tab does', view.pool.open === true && view.pool.reserves.gold === 5000);
+  const acts = L.trade(view, counting, now);
+  const a = acts[0] || {};
+  check('bot trading: overflow wood is sold for what the isle holds least of', acts.length === 1 && a.verb === 'swap' && a.give === 'wood' && a.get === 'gold', JSON.stringify(acts));
+  check('bot trading: a small bite, within the harbour, with a price floor', a.amount === 250 && a.amount <= g.tradeCapacity(3) && a.minOut === Math.floor(250 / L.SWAP_MAX_PRICE));
+  check('bot trading: it rolls no dice', n === 0);
+  const rs = applyActions(w, bot, acts, now);
+  check('bot trading: the swap goes through the players\' own pool swap', rs[0] && rs[0].ok !== false && !rs[0].error && w.pool.reserves.wood === 5250 && w.pool.reserves.gold < 5000, JSON.stringify(rs[0]));
+  check('bot trading: not again while the delivery is at sea', L.trade(botView(w, bot, now + 1000), counting, now + 1000).length === 0);
+
+  // once a window, by memory; windows are staggered by id and roll no dice
+  const brain = L.makeBrain();
+  const w2 = freshWorld().w;
+  const b2 = g.createPlayer(w2, 'Trader', null, true).player;
+  const i2 = g.playerIsland(w2, b2.id);
+  Object.assign(i2.buildings, { harbor: 3, storehouse: 10 });
+  Object.assign(i2.resources, { wood: Math.floor(cap * 0.95), stone: Math.floor(cap * 0.5), gold: 100 });
+  g.openPool(w2, { wood: 5000, stone: 5000, gold: 5000 }, now);
+  const first = brain.decide({ view: botView(w2, b2, now), memory: {}, now, rng: () => 0.99 });
+  const again = brain.decide({ view: botView(w2, b2, now), memory: first.memory, now, rng: () => 0.99 });
+  const later = brain.decide({ view: botView(w2, b2, now + L.SWAP_EVERY), memory: first.memory, now: now + L.SWAP_EVERY, rng: () => 0.99 });
+  const swaps = (d) => d.actions.filter((q) => q.verb === 'swap').length;
+  check('bot trading: at most one swap a window', swaps(first) === 1 && swaps(again) === 0 && swaps(later) === 1);
+
+  // the guards
+  w2.pool.reserves = { wood: 8000, stone: 5000, gold: 5000 };
+  check('bot trading: never at worse than SWAP_MAX_PRICE', L.trade(botView(w2, b2, now), counting, now).length === 0);
+  w2.pool.reserves = { wood: 5000, stone: 5000, gold: 5000 };
+  i2.resources.wood = Math.floor(cap * 0.8);
+  check('bot trading: only real overflow is sold', L.trade(botView(w2, b2, now), counting, now).length === 0);
+  // a store only half full is sold when the pool pays a bargain for it: gold turned dear, so gold is sold
+  Object.assign(i2.resources, { wood: Math.floor(cap * 0.3), stone: Math.floor(cap * 0.2), gold: Math.floor(cap * 0.6) });
+  w2.pool.reserves = { wood: 5000, stone: 5000, gold: 3000 };
+  const bargain = L.trade(botView(w2, b2, now), counting, now)[0] || {};
+  check('bot trading: a half-full store is sold when the pool pays a bargain', bargain.give === 'gold' && bargain.get === 'stone', JSON.stringify(bargain));
+  w2.pool.reserves = { wood: 5000, stone: 5000, gold: 5000 };
+  check('bot trading: but not at a fair price', L.trade(botView(w2, b2, now), counting, now).length === 0);
+  i2.resources.wood = Math.floor(cap * 0.95); i2.buildings.harbor = 0;
+  check('bot trading: no harbour, no trade', L.trade(botView(w2, b2, now), counting, now).length === 0);
+}
+{
   // ---------------------------------------------- the view (brain seam, step 3)
   // What a bot may know. The test is the boundary: nothing in the view that a
   // scout would not have brought home. Nothing calls botView yet.
