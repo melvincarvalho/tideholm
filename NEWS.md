@@ -16,6 +16,30 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-27 · The Tidepool is open
+
+> ⚓ The Tidepool is open, in the Market tab. Any island with a harbour can swap wood, stone and gold there; prices follow what the sea trades. It starts small, so big swaps cost more; add your own stores to deepen it and earn a share of every fee. Fair winds.
+
+Opened at 11:05 CET through `/api/admin/pool/open`, seeded with 5,000 wood,
+5,000 stone and 5,000 gold. The seed is minted once and belongs to nobody:
+its 5,000 shares are permanent liquidity, and a closed pool reopens but is
+never reseeded this season. Fee 0.3%, at most 30% of a reserve per swap, and
+no reserve sold below 25% of its seed, so no more than 3,750 of any resource
+can ever leave the seed. Season 6's pool deliveries run 2 minutes a field,
+10 at least and 100 at most.
+
+The seed ratio was re-derived on the day's world with
+`tune-against-season.mjs` (value = demand ÷ supply): gold 0.62 wood, stone
+0.98 wood, a seed of 1 : 1.02 : 1.61, almost exactly last season's. The
+empirical cross-check did not converge (an 18.8× spread), so the analytic
+figure is the only usable one. It looks backwards only: beacons still to be
+built would add gold demand it cannot see, which argues for pricing gold
+above 0.62. The seed went out at 1 : 1 : 1 and small on purpose, so the pool
+is a place to swap surplus rather than a supply of gold for the beacon race.
+Delivered 2026-09-27 via `/api/admin/announce`, 259 characters, to all five
+human players. The Harbourmaster carried the same notice into the common
+room.
+
 ### 2026-09-27 · All twenty bots think with brains of their own
 
 > ⚓ All twenty captains on the sea now think with brains of their own, not just Gull Cry. For now each plays exactly as before; from here any one of them can learn a new trick without changing the others. Fair winds.
