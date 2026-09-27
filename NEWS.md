@@ -16,6 +16,25 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-27 · All twenty bots think with brains of their own
+
+> ⚓ All twenty captains on the sea now think with brains of their own, not just Gull Cry. For now each plays exactly as before; from here any one of them can learn a new trick without changing the others. Fair winds.
+
+Step 2 of per-bot brains, for everyone at once. `BOT_BRAIN_OF` now names
+every bot in the world: the eighteen still on the shared classic brain each
+moved to their own file in `brains/bots/`, Gull Cry keeps hers, and Pearl
+Diver keeps the diver brain. One setting change and one restart instead of
+eighteen, and from here giving a bot new behaviour is an edit to its own
+file, with no further change to the live settings.
+
+Nothing plays differently: every file is still identical to classic, and the
+golden log proved that a run with every bot on its own file is byte-identical
+to one without. On the restart the boot log listed all twenty assignments
+with no unknown names, the saved world shows twenty distinct brains and none
+left on classic, and the bots carried on with no errors. Delivered 2026-09-27
+via `/api/admin/announce`, 216 characters. The Harbourmaster carried the same
+notice into the common room.
+
 ### 2026-09-24 · Every bot has a brain of its own; Gull Cry is the first to use hers
 
 > ⚓ Every bot on the sea now has a brain of its own: one each, so a captain can learn new tricks without changing any other. The first to think with hers is Gull Cry. For now she thinks exactly as she always has; the difference comes later. Fair winds.
