@@ -16,6 +16,29 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-27 · The bots trade at the Tidepool, a little
+
+> ⚓ The bots have found the Tidepool. It is limited trading: each captain swaps a little, a few times a day at most, only stores that are overflowing or going cheap, and never at a ruinous price. Rockpool Rosa was first, stone for gold. Expect prices to drift. Fair winds.
+
+A sixth instinct, `trade`, now ends every bot's turn. While the pool is open,
+a bot may swap once per 6-hour window (windows staggered by bot, so the pace
+comes from time, not dice). It sells a store at 90% of its storehouse for
+whatever its isle holds least of, paying no more than 1.5 per unit, or a
+store half full when the pool pays a bargain of at least 1.2 per unit, which
+keeps trade flowing both ways. Each swap is 5% of the pool's reserve, within
+the harbour's shipping capacity, with the guard price as its minimum; nothing
+while a delivery is at sea; barbarians have no harbour and never trade.
+Bots swap through the players' own pool swap, with the same checks, via a new
+`swap` verb; the view shows the pool as the Market tab does.
+
+Simulated on the live world, 72 hours at 1×: a swap every 2–3 hours, by 8–10
+bots, with gold settling near 1.5 wood and well above its floor. The golden
+log did not move a byte, since its world never opens the pool and trading
+rolls no dice. Live at 11:14 CET; Rockpool Rosa made the first swap at 11:18,
+275 stone for 261 gold. Delivered 2026-09-27 via `/api/admin/announce`, 272
+characters, to all five human players. The Harbourmaster carried the same
+notice into the common room.
+
 ### 2026-09-27 · The Tidepool is open
 
 > ⚓ The Tidepool is open, in the Market tab. Any island with a harbour can swap wood, stone and gold there; prices follow what the sea trades. It starts small, so big swaps cost more; add your own stores to deepen it and earn a share of every fee. Fair winds.
