@@ -103,10 +103,13 @@ export function trainable(view, isle, key, count) {
 // One pass over the bot's isles, in order: train, then build with what is
 // left. Works on a copy of each isle so the build sees the training order's
 // bill, exactly as the old instincts saw the world after tryTrain.
-export function homeFront(view, rng) {
-  const persona = personaOf(view);
+// `personaFor(isle, persona)` lets a brain change temperament isle by isle;
+// kind and dice stay the same, so the turn rolls exactly as classic does.
+export function homeFront(view, rng, personaFor = null) {
+  const base = personaOf(view);
   const actions = [];
   for (const orig of view.isles) {
+    const persona = personaFor ? personaFor(orig, base) : base;
     const isle = JSON.parse(JSON.stringify(orig));
     const order = trainOrder(view, isle, persona, rng);
     if (order) {

@@ -554,13 +554,14 @@ console.log('beginner protection');
   const WARM = 8000, WARM_STEP = 120000, LIVE = 4000, LIVE_STEP = 15000, BLOCK = 500;
   const { BOT_BRAINS } = await import('./brains/bots/index.js');
   // ownBrains: every bot thinks with its own file in brains/bots/ instead of
-  // classic. Those files start identical, so the log must not move a byte.
+  // classic. Files still identical to classic must not move the log a byte;
+  // a file marked `diverged` is a bot with tactics of its own and sits out.
   const goldenRun = (ownBrains) => {
     const w = g.createWorld();
     spawnBots(w, 20, mulberry(101));
     for (let k = 0; k < 12; k++) g.newIsland(w, null, 'Uncharted Isle'); // room to colonise
     for (const p of w.players) if (p.isBot) p.persona.sleepLen = 0;
-    if (ownBrains) for (const p of w.players) if (p.isBot) p.persona.brain = BOT_BRAINS[p.name].name;
+    if (ownBrains) for (const p of w.players) if (p.isBot && !BOT_BRAINS[p.name].diverged) p.persona.brain = BOT_BRAINS[p.name].name;
     // Island placement uses crypto.randomInt, so lay the map out by hand: a
     // fixed 6x6 grid, 7 fields apart — neighbours inside raid range, the far
     // corners outside it. Same map every run, whatever the OS dice say.
@@ -605,7 +606,7 @@ console.log('beginner protection');
     check('golden log: colonising is in the fixture', (golden.tally.colonize || 0) > 0);
     const own = goldenRun(true);
     const ownDrift = golden.blocks.findIndex((b, k) => !own.blocks[k] || own.blocks[k].hash !== b.hash);
-    check('golden log: with every bot on its own brain file the log is byte-identical', ownDrift < 0 && own.blocks.length === golden.blocks.length,
+    check('golden log: with every undiverged bot on its own brain file the log is byte-identical', ownDrift < 0 && own.blocks.length === golden.blocks.length,
       ownDrift >= 0 ? `drifts in block ${ownDrift}` : '');
   }
 }
@@ -625,6 +626,80 @@ console.log('beginner protection');
   const leaks = fs2.readdirSync(new URL('./brains/bots/', import.meta.url)).concat(['../lib/instincts.js'])
     .filter((f) => /\.js$/.test(f)).filter((f) => /from '\.\.\/\.\.\/(game|bots)\.js'|from '\.\.\/(game|bots)\.js'/.test(fs2.readFileSync(new URL('./brains/bots/' + f, import.meta.url), 'utf8')));
   check('own brains: they reach the game only through brains/lib/rules.js', leaks.length === 0, leaks.join(', '));
+  check('own brains: only Gull Cry and Mangrove Mo have diverged from classic',
+    Object.entries(BOT_BRAINS).filter(([, b]) => b.diverged).map(([n]) => n).sort().join(',') === 'Gull Cry,Mangrove Mo');
+}
+{
+  // ---------------------------------------------- bots with tactics of their own
+  const { botView } = await import('./brain.js');
+  const { homeFront, raid } = await import('./brains/lib/instincts.js');
+  const gull = await import('./brains/bots/gull-cry.js');
+  const mo = await import('./brains/bots/mangrove-mo.js');
+  const seeded = (seed) => { let n = 0; let s = seed; const r = () => { n++; s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; r.calls = () => n; return r; };
+  const now = Date.UTC(2026, 8, 27, 12);
+  const { w } = freshWorld();
+  const bot = g.createPlayer(w, 'Gull Cry', null, true).player;
+  const isle = g.playerIsland(w, bot.id);
+  Object.assign(isle.buildings, { barracks: 5, wall: 1, harbor: 0, farm: 10, lumberyard: 8, quarry: 8, goldmine: 8, storehouse: 10 });
+  Object.assign(isle.resources, { wood: 20000, stone: 20000, gold: 20000 });
+  bot.persona = { ...bot.persona, kind: 'settler', trainMix: { spearman: 1 }, batch: 3, wallTarget: 1, storeThresh: 0.99, hallLag: 9, prodBias: { lumberyard: 1, quarry: 1, goldmine: 1 } };
+  const hits = (k, ago) => Array.from({ length: k }, (_, j) => ({ seq: j + 1, by: 99, isle: isle.id, at: now - ago }));
+
+  bot.attacked = hits(3, 3600e3);
+  let view = botView(w, bot, now);
+  check('gull cry: three landings on an isle in a day is a siege', gull.underSiege(view, isle.id));
+  bot.attacked = hits(2, 3600e3);
+  check('gull cry: two landings is not', !gull.underSiege(botView(w, bot, now), isle.id));
+  bot.attacked = hits(3, 25 * 3600e3);
+  check('gull cry: landings older than a day are forgotten', !gull.underSiege(botView(w, bot, now), isle.id));
+
+  // left alone she is classic, action for action and die for die
+  bot.attacked = [];
+  view = botView(w, bot, now);
+  let same = true;
+  for (let s = 1; s <= 40 && same; s++) {
+    const a = seeded(s), b = seeded(s);
+    const x = homeFront(view, a), y = gull.decide({ view, memory: {}, now, rng: b }).actions.filter((q) => q.verb === 'train' || q.verb === 'build');
+    same = JSON.stringify(x) === JSON.stringify(y);
+  }
+  check('gull cry: left alone she plays exactly as classic', same);
+
+  // under siege: sentinels in double batches, the wall past her target, same dice
+  bot.attacked = hits(3, 3600e3);
+  view = botView(w, bot, now);
+  let dice = true, sentinels = 0, other = 0, walls = 0;
+  for (let s = 1; s <= 200; s++) {
+    const a = seeded(s), b = seeded(s);
+    homeFront(view, a);
+    const acts = homeFront(view, b, (i, p) => (gull.underSiege(view, i.id) ? gull.dugIn(p) : p));
+    if (a.calls() !== b.calls()) dice = false;
+    for (const q of acts) {
+      if (q.verb === 'train' && q.key !== 'scout' && q.key !== 'colonyship' && q.key !== 'flagship') { if (q.key === 'sentinel' && q.count === 6) sentinels++; else other++; }
+      if (q.verb === 'build' && q.key === 'wall') walls++;
+    }
+  }
+  check('gull cry: under siege she rolls the same dice as classic', dice);
+  check('gull cry: under siege she trains only sentinels, in double batches', sentinels > 0 && other === 0, `${sentinels} sentinel orders, ${other} other`);
+  check('gull cry: under siege she raises the wall past her usual target', walls > 0);
+
+  // Mangrove Mo: no raid without fresh intel, grudge or not
+  const mob = g.createPlayer(w, 'Mangrove Mo', null, true).player;
+  const mi = g.playerIsland(w, mob.id);
+  const foe = g.createPlayer(w, 'Foe', null, true).player;
+  const fi = g.playerIsland(w, foe.id);
+  mi.x = 10; mi.y = 10; fi.x = 13; fi.y = 10;
+  Object.assign(mi.units, { raider: 400 });
+  mob.persona = { ...mob.persona, kind: 'settler' };
+  const always = () => 0;
+  let mv = { ...botView(w, mob, now), grudges: { [foe.id]: 2 } };
+  mv.intel = {};
+  check('mangrove mo: classic would raid a grudge blind', raid(mv, always, now).length === 1);
+  check('mangrove mo: he does not', raid(mo.seenOnly(mv, now), always, now).length === 0);
+  mv = { ...mv, intel: { [fi.id]: { time: now - 3600e3, def: 100 } } };
+  const cl = raid(mv, always, now), his = raid(mo.seenOnly(mv, now), always, now);
+  check('mangrove mo: with fresh intel of a beatable isle he raids as classic does', his.length === 1 && JSON.stringify(his) === JSON.stringify(cl));
+  mv = { ...mv, intel: { [fi.id]: { time: now - 13 * 3600e3, def: 100 } } };
+  check('mangrove mo: stale intel counts as none', raid(mo.seenOnly(mv, now), always, now).length === 0);
 }
 {
   // ---------------------------------------------- the view (brain seam, step 3)
