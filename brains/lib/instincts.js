@@ -8,8 +8,9 @@
 // bot different. Brains see only the view and return actions, which the tick
 // applies with the same checks a player's clicks get. Everything here comes
 // through ./rules.js, the one door into the game, so the library can leave
-// the repo with the brains. The golden log has not moved a byte since the
-// instincts first went behind the brain seam.
+// the repo with the brains. The golden log did not move a byte when the
+// instincts went behind the brain seam; it moves only for a deliberate change
+// of behaviour (digging in, 2026-09-27), re-recorded in that commit.
 import {
   MAX_BOT_ISLANDS, TUNING as T, garrisonCap,
   unitPower, PROTECTED_POINTS, RESOURCES, UNITS, QUEUE_MAX, TRAIN_QUEUE_MAX,
@@ -28,8 +29,8 @@ const personaOf = (view) => (view.me.persona && Object.keys(view.me.persona).len
 // refused every turn — a maxed storehouse froze the whole isle (five live bot
 // isles found stuck so, 2026-09-22). Below the cap every choice is as before.
 // An isle whose economy is maxed raises the farm, the hall, the barracks and,
-// for seafarers, the harbour; never the wall past its temperament's target,
-// so no bot hardens and the barbarians' wells stay soft. Nothing left: null.
+// for seafarers, the harbour; never the wall past its temperament's target
+// (which only a siege raises — see digging in, below). Nothing left: null.
 export function chooseUpgrade(isle, persona = T.NEUTRAL, maxLevel = Infinity) {
   const lvl = (k) => pendingLevel(isle, k);
   const open = (k) => lvl(k) < maxLevel;
@@ -100,16 +101,36 @@ export function trainable(view, isle, key, count) {
   return canAfford(isle, cost) ? cost : null;
 }
 
+// Digging in (Gull Cry's first, every bot's since 2026-09-27). An isle that
+// has taken SIEGE_HITS landings in the last day is being farmed: it trains
+// only sentinels, in double batches, and raises its wall SIEGE_WALL levels
+// past the temperament's target — still under the garrison cap and the
+// building cap. A quiet day returns it to the usual mix. Same dice.
+export const SIEGE_HITS = 3;
+export const SIEGE_WINDOW = 24 * 3600e3;
+export const SIEGE_WALL = 3;
+export function underSiege(view, isleId) {
+  return (view.attacked || []).filter((f) => f.isle === isleId && view.now - f.at < SIEGE_WINDOW).length >= SIEGE_HITS;
+}
+export const dugIn = (persona) => ({
+  ...persona,
+  trainMix: { sentinel: 1 },
+  batch: (persona.batch || 1) * 2,
+  wallTarget: (persona.wallTarget || 0) + SIEGE_WALL,
+});
+export const digIn = (view) => (isle, persona) => (underSiege(view, isle.id) ? dugIn(persona) : persona);
+
 // One pass over the bot's isles, in order: train, then build with what is
 // left. Works on a copy of each isle so the build sees the training order's
 // bill, exactly as the old instincts saw the world after tryTrain.
-// `personaFor(isle, persona)` lets a brain change temperament isle by isle;
-// kind and dice stay the same, so the turn rolls exactly as classic does.
-export function homeFront(view, rng, personaFor = null) {
+// `personaFor(isle, persona)` sets the temperament isle by isle (by default,
+// digging in under siege); kind and dice never change, so every turn rolls
+// the same dice whatever the temperament.
+export function homeFront(view, rng, personaFor = digIn(view)) {
   const base = personaOf(view);
   const actions = [];
   for (const orig of view.isles) {
-    const persona = personaFor ? personaFor(orig, base) : base;
+    const persona = personaFor(orig, base);
     const isle = JSON.parse(JSON.stringify(orig));
     const order = trainOrder(view, isle, persona, rng);
     if (order) {

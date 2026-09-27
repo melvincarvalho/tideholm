@@ -626,14 +626,13 @@ console.log('beginner protection');
   const leaks = fs2.readdirSync(new URL('./brains/bots/', import.meta.url)).concat(['../lib/instincts.js'])
     .filter((f) => /\.js$/.test(f)).filter((f) => /from '\.\.\/\.\.\/(game|bots)\.js'|from '\.\.\/(game|bots)\.js'/.test(fs2.readFileSync(new URL('./brains/bots/' + f, import.meta.url), 'utf8')));
   check('own brains: they reach the game only through brains/lib/rules.js', leaks.length === 0, leaks.join(', '));
-  check('own brains: only Gull Cry and Mangrove Mo have diverged from classic',
-    Object.entries(BOT_BRAINS).filter(([, b]) => b.diverged).map(([n]) => n).sort().join(',') === 'Gull Cry,Mangrove Mo');
+  check('own brains: only Mangrove Mo has diverged from classic',
+    Object.entries(BOT_BRAINS).filter(([, b]) => b.diverged).map(([n]) => n).join(',') === 'Mangrove Mo');
 }
 {
   // ---------------------------------------------- bots with tactics of their own
   const { botView } = await import('./brain.js');
-  const { homeFront, raid } = await import('./brains/lib/instincts.js');
-  const gull = await import('./brains/bots/gull-cry.js');
+  const { homeFront, raid, underSiege, dugIn } = await import('./brains/lib/instincts.js');
   const mo = await import('./brains/bots/mangrove-mo.js');
   const seeded = (seed) => { let n = 0; let s = seed; const r = () => { n++; s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; r.calls = () => n; return r; };
   const now = Date.UTC(2026, 8, 27, 12);
@@ -647,40 +646,37 @@ console.log('beginner protection');
 
   bot.attacked = hits(3, 3600e3);
   let view = botView(w, bot, now);
-  check('gull cry: three landings on an isle in a day is a siege', gull.underSiege(view, isle.id));
+  check('digging in: three landings on an isle in a day is a siege', underSiege(view, isle.id));
   bot.attacked = hits(2, 3600e3);
-  check('gull cry: two landings is not', !gull.underSiege(botView(w, bot, now), isle.id));
+  check('digging in: two landings is not', !underSiege(botView(w, bot, now), isle.id));
   bot.attacked = hits(3, 25 * 3600e3);
-  check('gull cry: landings older than a day are forgotten', !gull.underSiege(botView(w, bot, now), isle.id));
+  check('digging in: landings older than a day are forgotten', !underSiege(botView(w, bot, now), isle.id));
 
-  // left alone she is classic, action for action and die for die
+  // left alone, the turn is the old classic one, action for action
   bot.attacked = [];
   view = botView(w, bot, now);
   let same = true;
-  for (let s = 1; s <= 40 && same; s++) {
-    const a = seeded(s), b = seeded(s);
-    const x = homeFront(view, a), y = gull.decide({ view, memory: {}, now, rng: b }).actions.filter((q) => q.verb === 'train' || q.verb === 'build');
-    same = JSON.stringify(x) === JSON.stringify(y);
-  }
-  check('gull cry: left alone she plays exactly as classic', same);
+  for (let s = 1; s <= 40 && same; s++) same = JSON.stringify(homeFront(view, seeded(s))) === JSON.stringify(homeFront(view, seeded(s), (i, p) => p));
+  check('digging in: an isle left alone plays as before', same);
 
-  // under siege: sentinels in double batches, the wall past her target, same dice
+  // under siege: sentinels in double batches, the wall past the target, same dice
   bot.attacked = hits(3, 3600e3);
   view = botView(w, bot, now);
   let dice = true, sentinels = 0, other = 0, walls = 0;
   for (let s = 1; s <= 200; s++) {
     const a = seeded(s), b = seeded(s);
-    homeFront(view, a);
-    const acts = homeFront(view, b, (i, p) => (gull.underSiege(view, i.id) ? gull.dugIn(p) : p));
+    homeFront(view, a, (i, p) => p);
+    const acts = homeFront(view, b);
     if (a.calls() !== b.calls()) dice = false;
     for (const q of acts) {
       if (q.verb === 'train' && q.key !== 'scout' && q.key !== 'colonyship' && q.key !== 'flagship') { if (q.key === 'sentinel' && q.count === 6) sentinels++; else other++; }
       if (q.verb === 'build' && q.key === 'wall') walls++;
     }
   }
-  check('gull cry: under siege she rolls the same dice as classic', dice);
-  check('gull cry: under siege she trains only sentinels, in double batches', sentinels > 0 && other === 0, `${sentinels} sentinel orders, ${other} other`);
-  check('gull cry: under siege she raises the wall past her usual target', walls > 0);
+  check('digging in: under siege the dice fall as they would have', dice);
+  check('digging in: under siege an isle trains only sentinels, in double batches', sentinels > 0 && other === 0, `${sentinels} sentinel orders, ${other} other`);
+  check('digging in: under siege the wall rises past the usual target', walls > 0);
+  check('digging in: the dug-in temperament keeps the kind', dugIn(bot.persona).kind === 'settler' && dugIn(bot.persona).wallTarget === 4);
 
   // Mangrove Mo: no raid without fresh intel, grudge or not
   const mob = g.createPlayer(w, 'Mangrove Mo', null, true).player;
