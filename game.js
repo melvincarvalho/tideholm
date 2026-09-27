@@ -255,6 +255,14 @@ const WIN_SHARE = Number(process.env.WIN_SHARE || 0.6);
 // the crown tracks the living world: cheap-ish while the world is young,
 // rising as every colony lands — a conqueror must outpace the settlers.
 const WIN_BASIS = /^populated$/i.test(process.env.WIN_BASIS || '') ? 'populated' : 'all';
+// #192: the founding map. When set, dominance divides by this fixed count of
+// islands instead of WIN_BASIS, so joins, refuges and mints later in the
+// season can never move the crown. 0 (default) keeps WIN_BASIS.
+const WIN_BASE = Math.max(0, Math.floor(Number(process.env.WIN_BASE) || 0));
+// #192: the share an ALLIANCE needs, apart from a single captain's. Default:
+// WIN_SHARE, the old rule. Allies pooling their islands cross a shared line
+// long before either could alone, so a season can set the bar higher.
+const ALLIANCE_WIN_SHARE = Number(process.env.ALLIANCE_WIN_SHARE || WIN_SHARE);
 
 // Uncharted islands added when the map runs out of them. 0 = off (default).
 // See the note in migrateWorld and #36 before turning this on.
@@ -2686,8 +2694,9 @@ function checkVictory(world, now) {
     }
   }
   if (world.winner) return null;
-  // #177: the dominance denominator follows WIN_BASIS.
-  const total = WIN_BASIS === 'populated'
+  // #177: the dominance denominator follows WIN_BASIS — unless #192 fixed
+  // it at the founding map.
+  const total = WIN_BASE > 0 ? WIN_BASE : WIN_BASIS === 'populated'
     ? world.islands.filter((i) => i.ownerId != null).length
     : world.islands.length;
 
@@ -2732,7 +2741,7 @@ function checkVictory(world, now) {
     }
   }
   for (const [aid, n] of byAlliance) {
-    if (n / total >= WIN_SHARE && (!winner || n > winner.islands)) {
+    if (n / total >= ALLIANCE_WIN_SHARE && (!winner || n > winner.islands)) {
       const a = world.alliances.find((x) => x.id === aid);
       winner = { name: a ? `[${a.tag}] ${a.name}` : '?', islands: n };
     }
@@ -3063,7 +3072,7 @@ export {
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,
   allianceChatSecret, setRng,
-  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, saveIdentityFor, recallIdentity, loadIdentityStore,
+  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, WIN_BASE, WIN_SHARE, ALLIANCE_WIN_SHARE, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

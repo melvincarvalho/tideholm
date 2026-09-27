@@ -4292,6 +4292,43 @@ console.log('WIN_BASIS (#177)');
   check('#177 junk falls back to all', at({ WIN_BASIS: 'everything' }).basis === 'all');
 }
 
+// ------------------------------ the founding map, and the allies' bar (#192)
+
+console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
+{
+  // 12 captains with an isle each plus 8 uncharted: 20 islands. P0 alone, P1
+  // and P2 allied; SPEC says how many isles each side ends up holding.
+  const probe = `
+    import * as g from './game.js';
+    const spec = JSON.parse(process.env.SPEC);
+    const w = g.createWorld();
+    const ps = []; for (let i = 0; i < 12; i++) ps.push(g.createPlayer(w, 'P' + i, 'pw123456', false).player);
+    for (let i = 0; i < 8; i++) g.newUnchartedIsland(w);
+    g.createAlliance(w, ps[1], "Allies", "ALY");
+    ps[2].allianceId = ps[1].allianceId; w.alliances[0].members.push(ps[2].id);
+    const free = w.islands.filter((i) => ![ps[0].id, ps[1].id, ps[2].id].includes(i.ownerId));
+    let k = 0;
+    for (let n = 1; n < spec.solo; n++) free[k++].ownerId = ps[0].id;
+    for (let n = 2; n < spec.allied; n++) free[k++].ownerId = ps[1 + (n % 2)].id; // split evenly between the allies
+    g.checkVictory(w, Date.now());
+    console.log(JSON.stringify({ base: g.WIN_BASE, ally: g.ALLIANCE_WIN_SHARE, islands: w.islands.length,
+      winner: w.winner ? w.winner.name : null, total: w.winner ? w.winner.total : null }));
+  `;
+  const at = (env, spec) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, WIN_SHARE: '0.5', SPEC: JSON.stringify(spec), ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  // A founding map of 16 on a map grown to 20: a captain needs 8, allies 90% = 15 (14.4 rounded up).
+  const S = { WIN_BASE: '16', ALLIANCE_WIN_SHARE: '0.9' };
+  check('#192 unset: 8 of 20 islands crowns nobody (the old rule)', at({}, { solo: 8, allied: 2 }).winner === null);
+  const solo = at(S, { solo: 8, allied: 2 });
+  check('#192 a captain holding half the founding map is crowned, however big the map grew', solo.base === 16 && solo.islands === 20 && solo.winner === 'P0' && solo.total === 16);
+  check('#192 one short is not', at(S, { solo: 7, allied: 2 }).winner === null);
+  check('#192 allies at 14 of 16 (87.5%) are not crowned', at(S, { solo: 1, allied: 14 }).winner === null);
+  check('#192 allies at 15 of 16 (93.75%) are', /ALY|Allies/.test(at(S, { solo: 1, allied: 15 }).winner || ''));
+  check('#192 unset, the allies\' bar is the captain\'s (the old rule)', /ALY|Allies/.test(at({ WIN_BASE: '16' }, { solo: 1, allied: 8 }).winner || ''));
+  check('#192 junk base falls back to WIN_BASIS', at({ WIN_BASE: 'lots' }, { solo: 8, allied: 2 }).base === 0);
+}
+
 // ---------------------------------------- two beacons crown one (#178)
 
 console.log('WONDER_WIN_COUNT (#178)');
