@@ -766,6 +766,12 @@ function renderTroops() {
   const active = document.activeElement;
   const keepId = active && active.id && active.id.startsWith('train-n-') ? active.id : null;
   const keepSel = keepId ? [active.selectionStart, active.selectionEnd] : null;
+  // …except that a number input has no cursor to restore: selectionStart is
+  // null and setSelectionRange throws, so a rebuild mid-type dropped the caret
+  // at one end and the next digit landed wrong ("50" became "05" or "450").
+  // While someone is typing a count, leave the table alone; the next poll
+  // after they leave the field brings it up to date.
+  if (keepId && ubody.contains(active)) { renderTrainQueue(isl); return; }
   ubody.innerHTML = '';
   for (const [key, u] of Object.entries(state.unitTypes)) {
     const tr = document.createElement('tr');
@@ -817,6 +823,10 @@ function renderTroops() {
     }
   }
 
+  renderTrainQueue(isl);
+}
+
+function renderTrainQueue(isl) {
   const tbody = $('train-queue').querySelector('tbody');
   tbody.innerHTML = '';
   for (const item of isl.trainQueue) {
