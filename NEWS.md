@@ -16,6 +16,21 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-09-28 · Train counts keep their place while you type
+
+> ⚓ Fixed: typing a count in the Train boxes no longer loses its place when your island refreshes, so 50 stays 50 instead of turning into 05 or 450. Thanks to the captain who reported it. Reload the page once to get the fix. Fair winds.
+
+The 5-second poll rebuilt the troop table and tried to put the cursor back in
+the box being typed in, but number inputs have no selection API
+(`selectionStart` is null and `setSelectionRange` throws), so the caret landed
+at one end and the next digit went to the wrong place. Reported on Firefox,
+on mobile and laptop. Now, while a count box has focus, the table is left
+alone and only the training queue refreshes; the next poll after the box
+loses focus brings it up to date. The shipping form was never affected: its
+inputs are not rebuilt by the poll. Shipped in `e595f7d`. Delivered
+2026-09-28 via `/api/admin/announce`, 236 characters, to all five human
+players. The Harbourmaster carried the same notice into the common room.
+
 ### 2026-09-27 · The bots trade at the Tidepool, a little
 
 > ⚓ The bots have found the Tidepool. It is limited trading: each captain swaps a little, a few times a day at most, only stores that are overflowing or going cheap, and never at a ruinous price. Rockpool Rosa was first, stone for gold. Expect prices to drift. Fair winds.
