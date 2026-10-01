@@ -1670,6 +1670,9 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     const row = rank.data.rankings.find((r) => r.name === 'Banner Bearer');
     check('#86 rankings row carries the recalled did', row && row.nostrDid === DID,
       JSON.stringify(row));
+    const cr = rank.data.crown;
+    check('#192 rankings carry the crown line, in islands', cr && cr.solo.target >= 1 && cr.alliance.target >= 1
+      && cr.solo.leader && cr.over === false, JSON.stringify(cr));
     srv2.close();
     delete process.env.IDENTITY_FILE;
   }

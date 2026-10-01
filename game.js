@@ -2755,6 +2755,40 @@ function checkVictory(world, now) {
   }, now);
 }
 
+// Where the dominance race stands, for the Rankings crown line (#192): the
+// solo and alliance bars in islands, the leading captain and alliance, and
+// the viewer's own count when they lead neither. Same counting as
+// checkVictory — every island held, against the same denominator.
+function crownRace(world, viewerId) {
+  const total = WIN_BASE > 0 ? WIN_BASE : WIN_BASIS === 'populated'
+    ? world.islands.filter((i) => i.ownerId != null).length
+    : world.islands.length;
+  const bar = (share) => Math.max(1, Math.ceil(share * total - 1e-9));
+  const byPlayer = new Map();
+  for (const island of world.islands) {
+    if (island.ownerId == null) continue;
+    byPlayer.set(island.ownerId, (byPlayer.get(island.ownerId) || 0) + 1);
+  }
+  const byAlliance = new Map();
+  for (const [pid, n] of byPlayer) {
+    const p = world.players.find((x) => x.id === pid);
+    if (p && p.allianceId) byAlliance.set(p.allianceId, (byAlliance.get(p.allianceId) || 0) + n);
+  }
+  const top = (m) => [...m].sort((a, b) => b[1] - a[1])[0] || null;
+  const tp = top(byPlayer), ta = top(byAlliance);
+  const pName = (id) => { const p = world.players.find((x) => x.id === id); return p ? p.name : '?'; };
+  const aTag = (id) => { const a = world.alliances.find((x) => x.id === id); return a ? a.tag : '?'; };
+  const viewer = world.players.find((x) => x.id === viewerId);
+  const you = viewer && (!tp || tp[0] !== viewer.id) ? { name: viewer.name, islands: byPlayer.get(viewer.id) || 0 } : null;
+  return {
+    total,
+    solo: { share: WIN_SHARE, target: bar(WIN_SHARE), leader: tp ? { name: pName(tp[0]), islands: tp[1] } : null, you },
+    alliance: { share: ALLIANCE_WIN_SHARE, target: bar(ALLIANCE_WIN_SHARE), leader: ta ? { tag: aTag(ta[0]), islands: ta[1] } : null },
+    founding: WIN_BASE > 0,
+    over: !!world.winner,
+  };
+}
+
 // ---------------------------------------------------------------- world
 
 function randomFreeSpot(world) {
@@ -3072,7 +3106,7 @@ export {
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,
   allianceChatSecret, setRng,
-  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, WIN_BASE, WIN_SHARE, ALLIANCE_WIN_SHARE, saveIdentityFor, recallIdentity, loadIdentityStore,
+  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, WIN_BASE, WIN_SHARE, ALLIANCE_WIN_SHARE, crownRace, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,

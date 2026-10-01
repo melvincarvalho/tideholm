@@ -337,6 +337,17 @@ th { background: #eadfc4; }
   background: var(--sand);
 }
 
+/* ---------- crown line (#192) ---------- */
+
+#crown-box { margin: 6px 0 12px; padding: 8px 12px; border: 1px solid #d8cbaa;
+  border-radius: 3px; background: #f3ecd9; }
+.crown-head { font-size: .9em; margin-bottom: 4px; }
+.crown-row { display: flex; align-items: center; gap: 10px; margin: 3px 0; }
+.crown-name { flex: 0 0 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.crown-meter { flex: 1 1 auto; height: 8px; background: #e7dcc0; border-radius: 4px; overflow: hidden; }
+.crown-meter > i { display: block; height: 100%; background: var(--accent); }
+.crown-count { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
 /* ---------- movements ---------- */
 
 .movement {

@@ -1091,10 +1091,13 @@ export function createApp(opts = {}) {
           };
         })
         .sort((a, b) => b.level - a.level);
+      // The crown line (#192): how far the leading captain and alliance are
+      // from the dominance bar, counted exactly as checkVictory counts.
+      const crown = game.crownRace(world, player.id);
       // The Season DAO (#189) rides along as a footnote under the live table.
       const daoSeason = game.loadHall().length + 1;
       const dv = daoView(daoSeason, { ledgerTail: 0 });
-      return sendJson(res, 200, { rankings: rows, wonders, hallOfFame: game.loadHall(),
+      return sendJson(res, 200, { rankings: rows, wonders, crown, hallOfFame: game.loadHall(),
         dao: { season: dv.season, supply: dv.supply, sold: dv.sold, holders: dv.holders.map((h) => ({ name: h.name, shares: h.shares, pct: h.pct })) } });
     }
 

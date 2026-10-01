@@ -1635,8 +1635,41 @@ async function loadReports() {
 
 // ---------------------------------------------------------------- rankings
 
+// The crown line (#192): the dominance bars, solo and alliance, each with
+// whoever leads toward it. Islands, not percentages — "22 / 25" reads at once.
+function renderCrown(crown) {
+  const box = $('crown-box');
+  if (!box) return;
+  box.classList.toggle('hidden', !crown || crown.over);
+  if (!crown || crown.over) return;
+  box.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'crown-head';
+  head.textContent = T(crown.founding ? 'ui.crown.headFounding' : 'ui.crown.head', {
+    solo: crown.solo.target, alliance: crown.alliance.target, total: crown.total,
+    soloPct: Math.round(crown.solo.share * 100), alliancePct: Math.round(crown.alliance.share * 100),
+  });
+  box.appendChild(head);
+  const line = (label, n, target) => {
+    const row = document.createElement('div');
+    row.className = 'crown-row';
+    const name = document.createElement('span'); name.className = 'crown-name'; name.textContent = label;
+    const meter = document.createElement('span'); meter.className = 'crown-meter';
+    const fill = document.createElement('i'); fill.style.width = Math.min(100, (100 * n) / target) + '%';
+    meter.appendChild(fill);
+    const count = document.createElement('span'); count.className = 'crown-count'; count.textContent = `${n} / ${target}`;
+    row.append(name, meter, count);
+    box.appendChild(row);
+  };
+  if (crown.solo.leader) line(crown.solo.leader.name, crown.solo.leader.islands, crown.solo.target);
+  if (crown.alliance.leader) line(`[${crown.alliance.leader.tag}]`, crown.alliance.leader.islands, crown.alliance.target);
+  if (crown.solo.you) line(T('ui.crown.you', { name: crown.solo.you.name }), crown.solo.you.islands, crown.solo.target);
+}
+
 async function loadRankings() {
   const data = await api('/api/rankings');
+
+  renderCrown(data.crown);
 
   // Great Beacons in progress
   $('wonders-box').classList.toggle('hidden', !data.wonders.length);

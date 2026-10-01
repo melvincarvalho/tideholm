@@ -4310,9 +4310,11 @@ console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
     let k = 0;
     for (let n = 1; n < spec.solo; n++) free[k++].ownerId = ps[0].id;
     for (let n = 2; n < spec.allied; n++) free[k++].ownerId = ps[1 + (n % 2)].id; // split evenly between the allies
+    const crown = g.crownRace(w, ps[2].id);
     g.checkVictory(w, Date.now());
     console.log(JSON.stringify({ base: g.WIN_BASE, ally: g.ALLIANCE_WIN_SHARE, islands: w.islands.length,
-      winner: w.winner ? w.winner.name : null, total: w.winner ? w.winner.total : null }));
+      winner: w.winner ? w.winner.name : null, total: w.winner ? w.winner.total : null, crown,
+      after: g.crownRace(w, ps[2].id).over }));
   `;
   const at = (env, spec) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
     env: { ...process.env, WIN_SHARE: '0.5', SPEC: JSON.stringify(spec), ...env }, encoding: 'utf8', cwd: HERE,
@@ -4326,6 +4328,12 @@ console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
   check('#192 allies at 14 of 16 (87.5%) are not crowned', at(S, { solo: 1, allied: 14 }).winner === null);
   check('#192 allies at 15 of 16 (93.75%) are', /ALY|Allies/.test(at(S, { solo: 1, allied: 15 }).winner || ''));
   check('#192 unset, the allies\' bar is the captain\'s (the old rule)', /ALY|Allies/.test(at({ WIN_BASE: '16' }, { solo: 1, allied: 8 }).winner || ''));
+  // The Rankings crown line reads the same bars checkVictory crowns at.
+  const near = at(S, { solo: 7, allied: 12 }).crown;
+  check('#192 crown line: bars in islands, 8 alone and 15 allied of the 16 founding', near.total === 16 && near.founding && near.solo.target === 8 && near.alliance.target === 15);
+  check('#192 crown line: the leaders and their counts', near.solo.leader.name === 'P0' && near.solo.leader.islands === 7 && near.alliance.leader.tag === 'ALY' && near.alliance.leader.islands === 12);
+  check('#192 crown line: a viewer who leads neither sees their own count', near.solo.you && near.solo.you.name === 'P2' && near.solo.you.islands === 6);
+  check('#192 crown line: hidden once someone is crowned', solo.after === true && near.over === false);
   check('#192 junk base falls back to WIN_BASIS', at({ WIN_BASE: 'lots' }, { solo: 8, allied: 2 }).base === 0);
 }
 
