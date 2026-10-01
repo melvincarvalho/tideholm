@@ -16,6 +16,22 @@ who never heard about the keyboard shortcuts will never find them.
 
 ## Season 6
 
+### 2026-10-01 · Season 6 is won
+
+> 👑 Season 6 is won. melvin holds 25 of the 50 founding isles and was crowned tonight at 23:09. philloster finished second on 16, after taking all three of Gull Cry's isles in a single evening. Thank you to every captain who sailed this season. The world stays open while the next season is prepared; the date will follow. Fair winds.
+
+The crown fell by dominance under the #192 rule: 25 of the 50 founding isles
+alone (50%), against 45 for an alliance. LEON held 41 between its two
+captains, short of the allied bar, so the crown is a solo one. melvin went
+from 22 to 25 in one evening (Old Wrack's colony at 19:1, Tide Turner's
+Isle, then Old Wrack's last colony at 22:3), while philloster took
+Gull Cry's isle and both its colonies. No Great Beacon was begun this
+season. The game's own crown report went out at 23:09; this note followed.
+The same day the Rankings gained a crown line (`46c488b`): the solo and
+alliance bars in islands, with who leads toward each; it hides once a crown
+is won. Delivered 2026-10-01 via `/api/admin/announce`, 333 characters, to
+all five human players.
+
 ### 2026-09-28 · Train counts keep their place while you type
 
 > ⚓ Fixed: typing a count in the Train boxes no longer loses its place when your island refreshes, so 50 stays 50 instead of turning into 05 or 450. Thanks to the captain who reported it. Reload the page once to get the fix. Fair winds.
