@@ -4371,6 +4371,23 @@ console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
   check('#192 junk base falls back to WIN_BASIS', at({ WIN_BASE: 'lots' }, { solo: 8, allied: 2 }).base === 0);
 }
 
+// ---------------------------------------- the beacon takes longer (WONDER_TIME_FACTOR)
+
+console.log('WONDER_TIME_FACTOR');
+{
+  const probe = `
+    import * as g from './game.js';
+    console.log(JSON.stringify({ f: g.WONDER_TIME_FACTOR, wonder: g.upgradeTime('wonder', 5, 10), farm: g.upgradeTime('farm', 5, 10) }));
+  `;
+  const at = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const base = at({ WONDER_TIME_FACTOR: '' }), dbl = at({ WONDER_TIME_FACTOR: '2' });
+  check('WONDER_TIME_FACTOR unset leaves the beacon at its table time', base.f === 1);
+  check('WONDER_TIME_FACTOR=2 doubles every beacon level, and nothing else', Math.abs(dbl.wonder - 2 * base.wonder) <= 1 && dbl.farm === base.farm);
+  check('WONDER_TIME_FACTOR junk or out of range reads as 1', at({ WONDER_TIME_FACTOR: 'slow' }).f === 1 && at({ WONDER_TIME_FACTOR: '9' }).f === 1 && at({ WONDER_TIME_FACTOR: '0.5' }).f === 1);
+}
+
 // ---------------------------------------- two beacons crown one (#178)
 
 console.log('WONDER_WIN_COUNT (#178)');

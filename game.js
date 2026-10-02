@@ -140,6 +140,14 @@ const BUILDINGS = {
 // each level costs 1.55x more and takes 1.5x longer, and every completed
 // level is announced world-wide — a longer window to march on the builder.
 const WONDER_WIN_LEVEL = Math.max(1, Number(process.env.WONDER_WIN_LEVEL || 5));
+// How much longer than its table time each Beacon level takes. 2 doubles the
+// tower's build, so a world-wide announcement gives everyone twice as long to
+// answer it. Clamped to [1, 5]; anything else reads as 1.
+const WONDER_TIME_FACTOR = (() => {
+  const f = Number(process.env.WONDER_TIME_FACTOR);
+  return Number.isFinite(f) && f >= 1 && f <= 5 ? f : 1;
+})();
+
 // #178: how many winning-level beacons ONE captain must hold at once.
 // Default 1 (the old rule). At 2, build both — the pacifist premium — or
 // build one and capture a rival's: conquest carries buildings intact, so
@@ -356,6 +364,7 @@ function upgradeTime(key, level, hallLevel) {
   const b = BUILDINGS[key];
   let t = (b.time * Math.pow(TIME_GROWTH, level - 1)) / SPEED;
   t *= Math.pow(HALL_DISCOUNT, Math.max(0, hallLevel - 1));
+  if (key === 'wonder') t *= WONDER_TIME_FACTOR;
   return Math.max(5, Math.round(t));
 }
 
@@ -3121,7 +3130,7 @@ export {
   tradeSlotsPerHarbor, tradeSlotsTotal, tradeSlotsBusy, tradeSlotsFree,
   COLONY_COST_GROWTH, COLONY_COST_GROWTH_MAX, FLAGSHIP_COST_GROWTH, FLAGSHIP_STORAGE_CLAMP, BOT_RESPAWN, claimIsland,
   allianceChatSecret, setRng,
-  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, WIN_BASE, WIN_SHARE, ALLIANCE_WIN_SHARE, crownRace, saveIdentityFor, recallIdentity, loadIdentityStore,
+  loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WONDER_TIME_FACTOR, WIN_BASIS, WIN_BASE, WIN_SHARE, ALLIANCE_WIN_SHARE, crownRace, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
   newIsland, newUnchartedIsland, mapFull, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
