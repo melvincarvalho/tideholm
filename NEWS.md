@@ -14,6 +14,40 @@ who never heard about the keyboard shortcuts will never find them.
 
 ---
 
+## Season 7
+
+### 2026-10-02 · Season 7 opens, and its laws
+
+> 🌊 Season 7 opens today at 17:00 CET. The laws: the crown is 25 of the 50 isles alone, or 45 for an alliance. The map is capped at 50: once every isle is taken, new captains wait for next season, and a captain whose last isle falls is out until then. Great Beacons take twice as long to build, and you need five. Spearmen and Sentinels now eat 2 population, like Raiders. Fair winds.
+
+The world was reset at 15:14 with a pregame countdown and launches at 17:00
+CET: 50 islands, 20 bots each on its own brain file, and 30 free isles.
+The laws, all set in the environment and listed in `deploy/next-season.env`:
+
+- **The crown** stays as season 6 ended it (#192): `WIN_BASE=50`,
+  `WIN_SHARE=0.5`, `ALLIANCE_WIN_SHARE=0.9`, so 25 isles alone or 45 allied.
+  The Rankings show the race as a crown line (`46c488b`).
+- **The map stops at 50** (`24dbee5`). `WIN_BASE` is now also the map's
+  hard cap: when the world holds 50 isles and none is free, a join is
+  refused with "the map is full", and a captain whose last isle falls gets
+  no refuge and is out for the season, still able to read reports and talk
+  in mail and the alliance room.
+- **Beacons** (`fc74e4e`): `WONDER_WIN_COUNT=5` (was 3) and the new
+  `WONDER_TIME_FACTOR=2`, so levels 1–8 take ~68h at hall 10 instead of
+  ~34h. Five towers to level 8 cost about 1.47M of each resource.
+- **Foot soldiers eat more** (`e51965a`): the new `SPEARMAN_POP=2` and
+  `SENTINEL_POP=2` (were 1), the same as a Raider. A farm feeds half the
+  wall it did, so turtling costs food as well as stone.
+- Unchanged: colony ships still grow at `COLONY_COST_GROWTH=1.6`, flagships
+  at 1.2, beacons win at level 8.
+
+A 21-day playtest of 20 bots under these laws, against season 6's: median
+bot points −17%, troops −15%, defenders lost ×2.2, attackers win 64% (was
+61%), no bot stalled. Delivered 2026-10-02 via `/api/admin/announce`,
+383 characters, to the one human player then registered, and carried into
+the common room by the Harbourmaster (relay.primal.net; relay.damus.io
+refused under a rate-limit ban).
+
 ## Season 6
 
 ### 2026-10-01 · Season 6 is won
