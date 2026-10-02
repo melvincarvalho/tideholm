@@ -2101,12 +2101,17 @@ function applyMovement(world, m) {
           if (oldOwner.isBot && !BOT_RESPAWN) {
             // #172: with the knob off, a wiped bot mints no refuge — its
             // story ends here and the season's bot population is finite.
-            // Humans always respawn regardless: you can lock a bot out of
-            // the world, not a person.
             if (M) M.eliminations = (M.eliminations || 0) + 1;
           } else {
-            if (M) M.respawns++;
             const refuge = claimIsland(world, oldOwner.id, t(defLang, 'name.refuge', { name: oldOwner.name }));
+            if (!refuge) {
+              // A full map has no refuge to give (#192 later): the captain is
+              // out for the season, free to read and talk until the next one.
+              if (M) M.eliminations = (M.eliminations || 0) + 1;
+              addReport(world, oldOwner.id, m.arrive, t(defLang, 'report.out.title'), [t(defLang, 'report.out.l1')]);
+              return;
+            }
+            if (M) M.respawns++;
             // A respawn is a fresh start, so it gets the fresh-start shield
             // (#82): protection until PROTECTED_POINTS, exactly as a new player
             // would. Without this the cheapest island in the game is whichever
@@ -2808,9 +2813,18 @@ function randomFreeSpot(world) {
 // permanently out of reach: an island printer. Claiming applies the same
 // fresh kit newIsland stamps, so a claimed isle is indistinguishable from
 // a minted one except that the map total holds still.
+// #192 later: the map stops at its founding size. With WIN_BASE set, no island
+// is minted once the world holds that many — a join is refused and a captain
+// wiped out gets no refuge. Unset, the map grows as before.
+function mapFull(world) {
+  return WIN_BASE > 0 && world.islands.length >= WIN_BASE;
+}
+
+// A free island for a new or fleeing captain, or null when there is none and
+// the map is full.
 function claimIsland(world, ownerId, name) {
   const free = world.islands.filter((i) => i.ownerId == null);
-  if (free.length === 0) return newIsland(world, ownerId, name);
+  if (free.length === 0) return mapFull(world) ? null : newIsland(world, ownerId, name);
   const isle = free[crypto.randomInt(0, free.length)];
   isle.ownerId = ownerId;
   isle.name = name;
@@ -2886,6 +2900,7 @@ function createPlayer(world, name, password, isBot, lang) {
     return { error: 'err.nameTaken' };
   }
   lang = LANGS.includes(lang) ? lang : 'en';
+  if (mapFull(world) && !world.islands.some((i) => i.ownerId == null)) return { error: 'err.mapFull' };
   // Register during the pregame and your clock starts at launch, not now —
   // so grace and production begin for everyone together (#8).
   const start = Math.max(Date.now(), world.startAt || 0);
@@ -3108,7 +3123,7 @@ export {
   allianceChatSecret, setRng,
   loadHall, WONDER_WIN_LEVEL, WONDER_WIN_COUNT, WIN_BASIS, WIN_BASE, WIN_SHARE, ALLIANCE_WIN_SHARE, crownRace, saveIdentityFor, recallIdentity, loadIdentityStore,
   createWorld, migrateWorld, createPlayer, checkPassword,
-  newIsland, newUnchartedIsland, playerIsland, playerIslands, playerPoints,
+  newIsland, newUnchartedIsland, mapFull, playerIsland, playerIslands, playerPoints,
   allianceOf, createAlliance, inviteToAlliance, acceptInvite, declineInvite,
   leaveAlliance, sendMessage,
   createOffer, cancelOffer, acceptOffer,

@@ -500,7 +500,13 @@ function fmtTime(seconds) {
 
 // Pregame countdown (#8): show time-to-launch while the world is frozen —
 // on both the login screen (from /api/meta) and in-game (from state).
+let outNotice = null; // set when the server says there is no island for you this season
 function updatePregameBanner() {
+  if (outNotice) {
+    const el = $('pregame-banner');
+    if (el) { el.classList.remove('hidden'); el.textContent = outNotice; }
+    return;
+  }
   const phase = (state && state.phase) || META.phase;
   const startAt = (state && state.startAt) || META.startAt;
   const pregame = phase === 'pregame' && !!startAt;
@@ -1052,10 +1058,14 @@ async function refresh() {
   try {
     const next = await api('/api/state' + (activeIslandId ? `?island=${activeIslandId}` : ''));
     if (seq !== refreshSeq) return; // a newer poll/switch superseded this one
+    // Out for the season (#192 later): no island to render, just say so.
+    if (next.out) { outNotice = T('ui.out.banner'); updatePregameBanner(); return; }
+    outNotice = null;
     state = next;
     clockSkew = state.serverNow - Date.now();
     renderState();
   } catch (err) {
+    if (err.status === 403) { outNotice = err.message; updatePregameBanner(); return; } // a full map turned the join away
     if (err.status === 401) {
       clearInterval(pollTimer);
       $('game').classList.add('hidden');

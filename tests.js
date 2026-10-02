@@ -4334,6 +4334,40 @@ console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
   check('#192 crown line: the leaders and their counts', near.solo.leader.name === 'P0' && near.solo.leader.islands === 7 && near.alliance.leader.tag === 'ALY' && near.alliance.leader.islands === 12);
   check('#192 crown line: a viewer who leads neither sees their own count', near.solo.you && near.solo.you.name === 'P2' && near.solo.you.islands === 6);
   check('#192 crown line: hidden once someone is crowned', solo.after === true && near.over === false);
+  // The hard cap: with a founding size set, a full map mints nothing.
+  const capProbe = `
+    import * as g from './game.js';
+    const w = g.createWorld();
+    const ps = []; for (let i = 0; i < 12; i++) ps.push(g.createPlayer(w, 'P' + i, 'pw123456', false).player);
+    for (let i = 0; i < 8; i++) g.newUnchartedIsland(w);
+    const out = { islands: w.islands.length };
+    out.joinWithFree = !!g.createPlayer(w, 'Early', 'pw123456', false).player;
+    for (const i of w.islands.filter((i) => i.ownerId == null)) i.ownerId = ps[0].id;
+    const late = g.createPlayer(w, 'Late', 'pw123456', false);
+    out.joinFull = late.error || null; out.lateListed = w.players.some((p) => p.name === 'Late');
+    out.full = g.mapFull(w); out.islandsAfterJoin = w.islands.length;
+    // Wipe a human out by capture.
+    const a = ps[0], b = ps[1], t0 = Date.now();
+    a.protectionBroken = true; b.protectionBroken = true;
+    const ia = g.playerIsland(w, a.id), isle = g.playerIsland(w, b.id);
+    for (const i of [ia, isle]) g.resolveIsland(i, t0);
+    ia.units.raider = 60; ia.units.flagship = 1;
+    isle.units = g.zeroUnits(); isle.units.sentinel = 1; isle.loyalty = 0;
+    const r = g.sendAttack(w, a, ia, isle, { raider: 40, flagship: 1 }, t0);
+    g.resolveWorld(w, r.arrive + 1);
+    out.victimIslands = g.playerIslands(w, b.id).length; out.islandsAfterWipe = w.islands.length;
+    out.outReport = w.reports.some((x) => x.ownerId === b.id && x.title === 'Out for the season');
+    console.log(JSON.stringify(out));
+  `;
+  const cap = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', capProbe], {
+    env: { ...process.env, SPEED: '1', ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const capped = cap({ WIN_BASE: '16' });
+  check('#192 cap: a join takes a free island while one is left', capped.joinWithFree === true);
+  check('#192 cap: a full map refuses the join and mints nothing', capped.joinFull === 'err.mapFull' && !capped.lateListed && capped.full && capped.islandsAfterJoin === capped.islands);
+  check('#192 cap: a captain wiped out on a full map gets no refuge, and is told so', capped.victimIslands === 0 && capped.islandsAfterWipe === capped.islands && capped.outReport);
+  const open = cap({});
+  check('#192 cap: unset, the map still grows (joins and refuges mint)', open.joinFull === null && open.islandsAfterJoin === open.islands + 1 && open.victimIslands === 1 && open.islandsAfterWipe === open.islands + 2);
   check('#192 junk base falls back to WIN_BASIS', at({ WIN_BASE: 'lots' }, { solo: 8, allied: 2 }).base === 0);
 }
 

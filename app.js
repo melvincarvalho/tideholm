@@ -310,6 +310,10 @@ export function createApp(opts = {}) {
   }
 
   // Error responses: translate a key (from the engine or our own) for the reader.
+  // What a captain with no island may still do: talk, and look after their account.
+  const OUT_OF_SEASON_POSTS = new Set(['/api/logout', '/api/lang', '/api/identity/nostr', '/api/message',
+    '/api/alliance/post', '/api/alliance/stance', '/api/alliance/leave', '/api/alliance/accept', '/api/alliance/decline']);
+
   function sendErr(res, status, lang, key, params) {
     return sendJson(res, status, { error: t(lang, key, params) });
   }
@@ -369,6 +373,7 @@ export function createApp(opts = {}) {
     for (let i = 1; i < 100; i++) {
       const name = i === 1 ? base_ : `${base_} ${i}`;
       const r = game.createPlayer(world, name, crypto.randomBytes(18).toString('hex'), false, lang);
+      if (r.error === 'err.mapFull') return { mapFull: true }; // no name will fit a full map
       if (!r.error) {
         r.player.extId = ident.id;
         game.recallIdentity(r.player); // #86: returning banner flies from day one
@@ -390,6 +395,7 @@ export function createApp(opts = {}) {
       const ident = await identify(req);
       if (ident && ident.id) {
         const player = playerForIdentity(ident);
+        if (player && player.mapFull) { req.mapFull = true; return null; }
         if (player && res) {
           const existing = sessionPlayer(req);
           if (!existing || existing.id !== player.id) startSession(res, player.id);
@@ -896,8 +902,19 @@ export function createApp(opts = {}) {
 
     // Everything below requires a session (or host identity).
     const player = await requestPlayer(req, res);
-    if (!player) return sendErr(res, 401, 'en', 'err.notLoggedIn');
+    if (!player) {
+      return req.mapFull ? sendErr(res, 403, 'en', 'err.mapFull') : sendErr(res, 401, 'en', 'err.notLoggedIn');
+    }
     const lang = player.lang || 'en';
+
+    // A captain wiped out on a full map is out for the season (#192 later):
+    // there is no island to act from, so only reading and talking remain.
+    if (game.playerIslands(world, player.id).length === 0) {
+      if (req.method === 'GET' && pathname === '/api/state') {
+        return sendJson(res, 200, { serverNow: Date.now(), lang, out: true, player: { name: player.name } });
+      }
+      if (req.method === 'POST' && !OUT_OF_SEASON_POSTS.has(pathname)) return sendErr(res, 409, lang, 'err.outForSeason');
+    }
 
     // Generous for a polling client, hostile to scripts hammering actions.
     const limit = req.method === 'POST' ? ['act:', 20, 10_000] : ['read:', 60, 10_000];

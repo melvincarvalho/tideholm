@@ -1827,6 +1827,27 @@ async function req(port, method, p, { body, cookie, headers } = {}) {
     srv.close(); armyApp.stop();
   }
 
+  // ---------------------------------------------- out for the season (#192 later)
+  {
+    fs.rmSync(path.join(process.env.DATA_DIR, 'world.json'), { force: true });
+    const outApp = createApp({ botCount: 2, freeIsles: 2, log: silent });
+    const { srv, port } = await serve(outApp);
+    const reg = await req(port, 'POST', '/api/register', { body: { name: 'Castaway', password: 'castaway-pass', lang: 'en' } });
+    const cookie = (reg.headers.get('set-cookie') || '').split(';')[0];
+    // Strip the captain's islands, as a wipe on a full map leaves them.
+    const me = outApp.world.players.find((p) => p.name === 'Castaway');
+    for (const i of outApp.world.islands) if (i.ownerId === me.id) i.ownerId = null;
+    const st = await req(port, 'GET', '/api/state', { cookie });
+    check('#192 out: state says out for the season instead of failing', st.status === 200 && st.data.out === true && st.data.player.name === 'Castaway', JSON.stringify(st.data));
+    const build = await req(port, 'POST', '/api/build', { cookie, body: { building: 'farm' } });
+    check('#192 out: actions are refused with a clear reason', build.status === 409 && /no island/i.test(build.data.error || ''), JSON.stringify(build.data));
+    const lang = await req(port, 'POST', '/api/lang', { cookie, body: { lang: 'de' } });
+    check('#192 out: talking and account settings still work', lang.status === 200);
+    const rank = await req(port, 'GET', '/api/rankings', { cookie });
+    check('#192 out: the rankings still read', rank.status === 200);
+    srv.close();
+  }
+
   // ---------------------------------------------- external brains at boot (brain seam, step 10)
   {
     const saved = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'world.json'), 'utf8'));
