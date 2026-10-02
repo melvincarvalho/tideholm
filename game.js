@@ -197,6 +197,15 @@ const UNITS = {
   },
 };
 
+// Food per foot soldier, per season. Spearmen and Sentinels cost 1 farm slot
+// unless SPEARMAN_POP / SENTINEL_POP say otherwise (1-10); at 2 a wall of
+// defenders eats like a Raider army. Set once at load: every pop count,
+// the bots' included, reads UNITS[k].pop.
+for (const [k, env] of [['spearman', 'SPEARMAN_POP'], ['sentinel', 'SENTINEL_POP']]) {
+  const n = Number(process.env[env]);
+  if (Number.isInteger(n) && n >= 1 && n <= 10) UNITS[k].pop = n;
+}
+
 const TRAIN_DISCOUNT = 0.95; // per barracks level above 1
 const TRAIN_QUEUE_MAX = 5;
 

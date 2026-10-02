@@ -4371,6 +4371,27 @@ console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
   check('#192 junk base falls back to WIN_BASIS', at({ WIN_BASE: 'lots' }, { solo: 8, allied: 2 }).base === 0);
 }
 
+// ---------------------------------------- foot soldiers eat more (SPEARMAN_POP / SENTINEL_POP)
+
+console.log('SPEARMAN_POP / SENTINEL_POP');
+{
+  const probe = `
+    import * as g from './game.js';
+    const w = g.createWorld();
+    const p = g.createPlayer(w, 'Cook', 'pw123456', false).player;
+    const isle = g.playerIsland(w, p.id);
+    isle.units.sentinel = 10; isle.units.spearman = 5; isle.units.raider = 3;
+    console.log(JSON.stringify({ spear: g.UNITS.spearman.pop, sent: g.UNITS.sentinel.pop, raider: g.UNITS.raider.pop, used: g.popUsed(isle) }));
+  `;
+  const at = (env) => JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, SPEARMAN_POP: '', SENTINEL_POP: '', ...env }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  const base = at({}), two = at({ SPEARMAN_POP: '2', SENTINEL_POP: '2' });
+  check('unset, spearmen and sentinels eat 1 each', base.spear === 1 && base.sent === 1 && base.used === 10 + 5 + 3 * 2);
+  check('at 2, spearmen and sentinels eat 2 each, raiders unchanged', two.spear === 2 && two.sent === 2 && two.raider === 2 && two.used === 20 + 10 + 3 * 2);
+  check('junk or out-of-range pop is ignored', at({ SENTINEL_POP: '0' }).sent === 1 && at({ SENTINEL_POP: '1.5' }).sent === 1 && at({ SENTINEL_POP: '99' }).sent === 1);
+}
+
 // ---------------------------------------- the beacon takes longer (WONDER_TIME_FACTOR)
 
 console.log('WONDER_TIME_FACTOR');
