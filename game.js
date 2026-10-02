@@ -247,7 +247,7 @@ const WALL_DEF_BONUS = 0.08;
 
 // Morale: attacking a much smaller defender blunts your force. Configurable
 // so a world can be gentler or harsher. BOT_MORALE_FLOOR is a separate floor
-// used when the DEFENDER is a bot — set it to 1 to remove the penalty against
+// used when a HUMAN attacks a bot (bot against bot pays MORALE_FLOOR) — set it to 1 to remove the penalty against
 // bots entirely, so a dominant player has real PvE to fight while human
 // newcomers stay protected by the normal floor. Defaults preserve prior
 // behavior (bots penalized the same as humans).
@@ -2007,7 +2007,9 @@ function applyMovement(world, m) {
     const ap = playerPoints(world, attacker.id);
     const dp = playerPoints(world, defOwner.id);
     if (ap > dp && dp > 0) {
-      const floor = defOwner.isBot ? BOT_MORALE_FLOOR : MORALE_FLOOR;
+      // The bot floor is a tax on PEOPLE farming bots; bots fighting each
+      // other pay the ordinary floor, or a warlord can never win a war.
+      const floor = defOwner.isBot && !attacker.isBot ? BOT_MORALE_FLOOR : MORALE_FLOOR;
       morale = Math.max(floor, Math.sqrt(dp / ap));
     }
   }

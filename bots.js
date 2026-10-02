@@ -40,6 +40,12 @@ function garrisonCap(island, persona) {
   return islandPoints(island) * ratio * ((persona && persona.defenseRatio) || 1);
 }
 const MAX_BOT_ISLANDS = 3;
+// Warlords may keep growing past MAX_BOT_ISLANDS, but only by conquest: their
+// colonies still stop at 3, so they eat the map's owners, not its free isles.
+const WARLORD_MAX_ISLANDS = 6;
+// A warlord's siege: once it lands on a target it keeps sending every flagship
+// that is home until the isle falls, for at most this long.
+const SIEGE_MS = 24 * 3600 * 1000;
 const SCOUT_CHANCE = 0.25;        // per bot per tick — intel drives everything
 const SCOUTS_KEEP = 12;           // standing scout pool per island
 const SCOUT_PARTY = 6;            // scouts per mission
@@ -189,7 +195,7 @@ function botTick(world, now, rng) {
 // The numbers the classic brain is tuned with; the env knobs live here.
 const TUNING = Object.freeze({ RAID_CHANCE, RAID_RANGE, MIN_RAID_POWER, BULLY_RATIO, SCOUT_CHANCE, SCOUTS_KEEP, SCOUT_PARTY,
   CONQUER_CHANCE, MIN_CONQUER_POWER, HUMAN_CONQUER_FLOOR, INTEL_MAX_AGE, RAID_EDGE, WARLORD_EDGE, GRUDGE_EDGE, MAX_BOT_ISLANDS,
-  BOT_GARRISON_RATIO, BOT_GARRISON_BY_KIND, NEUTRAL });
+  WARLORD_MAX_ISLANDS, SIEGE_MS, BOT_GARRISON_RATIO, BOT_GARRISON_BY_KIND, NEUTRAL });
 
 // One decision pass for every bot: awake → tempo roll → view → decide → apply.
 // The brain sees the view; what it returns goes through the same verbs a

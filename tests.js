@@ -4371,6 +4371,36 @@ console.log('WIN_BASE / ALLIANCE_WIN_SHARE (#192)');
   check('#192 junk base falls back to WIN_BASIS', at({ WIN_BASE: 'lots' }, { solo: 8, allied: 2 }).base === 0);
 }
 
+// ---------------------------------------- the bot floor taxes people, not bots (season 7)
+
+console.log('BOT_MORALE_FLOOR: human attackers only');
+{
+  // A giant hits a minnow bot twice, once as a human and once as a bot. With
+  // BOT_MORALE_FLOOR=1 and MORALE_FLOOR=0.3 only the human fights at full power.
+  const probe = `
+    import * as g from './game.js';
+    const run = (attackerIsBot) => {
+      const w = g.createWorld();
+      const a = g.createPlayer(w, 'Giant', attackerIsBot ? null : 'pw123456', attackerIsBot).player;
+      const b = g.createPlayer(w, 'Minnow', null, true).player;
+      a.protectionBroken = true; b.protectionBroken = true;
+      const ia = g.playerIsland(w, a.id), ib = g.playerIsland(w, b.id), t0 = Date.now();
+      for (const i of [ia, ib]) g.resolveIsland(i, t0);
+      Object.assign(ia.buildings, { lumberyard: 12, quarry: 12, goldmine: 12, hall: 8 });
+      ia.units.raider = 10; ib.units.sentinel = 7;
+      const r = g.sendAttack(w, a, ia, ib, { raider: 10 }, t0);
+      g.resolveWorld(w, r.arrive + 1);
+      return ib.units.sentinel;
+    };
+    console.log(JSON.stringify({ human: run(false), bot: run(true) }));
+  `;
+  const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, BOT_MORALE_FLOOR: '1', MORALE_FLOOR: '0.3' }, encoding: 'utf8', cwd: HERE,
+  }).trim().split('\n').pop());
+  check('a human giant hits a bot at the bot floor (1: full power, the garrison falls)', out.human === 0);
+  check('a bot giant hits a bot at the ordinary floor (0.3: it bounces)', out.bot > 0);
+}
+
 // ---------------------------------------- foot soldiers eat more (SPEARMAN_POP / SENTINEL_POP)
 
 console.log('SPEARMAN_POP / SENTINEL_POP');

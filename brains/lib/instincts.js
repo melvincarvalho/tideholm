@@ -74,10 +74,12 @@ export function trainOrder(view, isle, persona, rng) {
   if (isle.trainQueue.length) return null;
   const seafarer = persona.kind !== 'barbarian';
   const room = view.isles.length < T.MAX_BOT_ISLANDS;
+  const wolf = persona.kind === 'warlord';
+  const flagRoom = wolf ? view.isles.length < T.WARLORD_MAX_ISLANDS : room;
   if (seafarer && isle.buildings.harbor >= 1 && isle.units.colonyship === 0 && room && rng() < 0.25) return { key: 'colonyship', count: 1 };
   if (isle.buildings.barracks < 1) return null;
-  if (seafarer && isle.buildings.harbor >= 2 && isle.buildings.barracks >= 3 && isle.units.flagship === 0 && room
-      && rng() < (persona.kind === 'warlord' ? 0.15 : 0.1)) return { key: 'flagship', count: 1 };
+  if (seafarer && isle.buildings.harbor >= 2 && isle.buildings.barracks >= 3 && isle.units.flagship === 0 && flagRoom
+      && (wolf && view.siege ? true : rng() < (wolf ? 0.15 : 0.1))) return { key: 'flagship', count: 1 };
   if (rng() > 0.5) return null;
   if (seafarer && isle.units.scout < scoutsWanted(view) && rng() < 0.35) return { key: 'scout', count: 3 };
   const unit = pickFromMix(persona.trainMix, rng);
@@ -227,8 +229,12 @@ export function conquer(view, rng, now) {
   const persona = view.me.persona || {};
   if (persona.kind === 'barbarian') return [];
   const wolf = persona.kind === 'warlord';
+  if (wolf && view.siege) {
+    const pressed = pressSiege(view, now);
+    if (pressed) return pressed;
+  }
   if (rng() > T.CONQUER_CHANCE * (wolf ? 2 : 1)) return [];
-  if (view.isles.length >= T.MAX_BOT_ISLANDS) return [];
+  if (view.isles.length >= (wolf ? T.WARLORD_MAX_ISLANDS : T.MAX_BOT_ISLANDS)) return [];
   const from = view.isles.find((i) => (i.units.flagship || 0) >= 1);
   if (!from) return [];
   const army = { ...raidArmy(from), flagship: 1 };
@@ -251,7 +257,32 @@ export function conquer(view, rng, now) {
     if (known.def * edge >= power * moraleEst(view, ownerPoints)) continue;
     if (dist < bestDist) { bestDist = dist; best = island; }
   }
-  return best ? [{ verb: 'attack', from: from.id, to: best.id, units: army }] : [];
+  return best ? [{ verb: 'attack', from: from.id, to: best.id, units: army, ...(wolf ? { siegeOn: best.id } : {}) }] : [];
+}
+
+// A warlord's siege (season 7): a capture takes three or four landings close
+// together, and loyalty regrows between them, so a dice roll per landing
+// never finished one. Once a warlord has landed on an isle it sends every
+// flagship that is home straight back, with its raiders as the clearing force,
+// no dice — until the isle falls or the siege runs out (decide ends it).
+// Null when there is nothing to press with this turn.
+function pressSiege(view, now) {
+  const target = view.map.find((i) => i.id === view.siege.target);
+  if (!target || target.ownerId === view.me.id || target.protected) return null;
+  if (view.isles.length >= T.WARLORD_MAX_ISLANDS) return null;
+  let from = null, fromDist = Infinity;
+  for (const isle of view.isles) {
+    if (!((isle.units.flagship || 0) >= 1)) continue;
+    const d = Math.hypot(isle.x - target.x, isle.y - target.y);
+    if (d < fromDist) { fromDist = d; from = isle; }
+  }
+  if (!from) return null;
+  const army = { ...raidArmy(from), flagship: 1 };
+  const power = unitPower(army, 'atk');
+  if (power < T.MIN_CONQUER_POWER) return null;
+  const known = view.intel[target.id];
+  if (known && known.def * T.WARLORD_EDGE >= power * moraleEst(view, target.ownerPoints)) return null;
+  return [{ verb: 'attack', from: from.id, to: target.id, units: army, siegeOn: target.id }];
 }
 
 // Reconnaissance: a few scouts at a raid-worthy isle the book is blank on.
@@ -407,14 +438,23 @@ export function makeBrain(overrides = {}) {
   return {
     decide({ view, memory, now, rng }) {
       const mem = remember(view, memory);
-      const seen = { ...view, grudges: mem.grudges, screens: mem.screens, swapWindow: mem.swapWindow }; // what the instincts reason from
+      // A siege ends when the isle is ours, when it slips out of reach, or when its time is up.
+      if (mem.siege) {
+        const t = view.map.find((i) => i.id === mem.siege.target);
+        if (!t || t.ownerId === view.me.id || now - mem.siege.since > T.SIEGE_MS) delete mem.siege;
+      }
+      const seen = { ...view, grudges: mem.grudges, screens: mem.screens, swapWindow: mem.swapWindow, siege: mem.siege }; // what the instincts reason from
       const actions = [];
       actions.push(...I.homeFront(seen, rng));
       actions.push(...I.scout(seen, rng, now));
       const raids = I.raid(seen, rng, now);
       if (raids[0]) settle(mem, raids[0].grudgeOn);
       actions.push(...raids);
-      actions.push(...I.conquer(seen, rng, now));
+      const conquests = I.conquer(seen, rng, now);
+      if (conquests[0] && conquests[0].siegeOn && !(mem.siege && mem.siege.target === conquests[0].siegeOn)) {
+        mem.siege = { target: conquests[0].siegeOn, since: now };
+      }
+      actions.push(...conquests);
       actions.push(...I.colonize(seen));
       const swaps = I.trade(seen, rng, now); // last, and rolls no dice
       if (swaps.length) mem.swapWindow = swapWindow(view.me.id, now);
