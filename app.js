@@ -143,6 +143,9 @@ export function createApp(opts = {}) {
   // without — no key, no banner.
   const botIdentity = opts.botIdentity || null;
   const podLoginUrl = opts.podLoginUrl || '/idp/credentials';
+  // Where the host creates an account (#195): the game's own sign-up form
+  // posts there, then signs in, so a newcomer never leaves the page.
+  const podRegisterUrl = opts.podRegisterUrl || '/idp/register';
   const base = (opts.basePath || '').replace(/\/+$/, '');
   const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
   const lockFile = path.join(dataDir, 'server.lock');
@@ -721,6 +724,7 @@ export function createApp(opts = {}) {
       return sendJson(res, 200, {
         mode: identify ? 'pod' : 'password',
         podLoginUrl: identify ? podLoginUrl : null,
+        podRegisterUrl: identify ? podRegisterUrl : null,
         speed: game.SPEED,
         phase: game.worldPhase(world, Date.now()),
         startAt: world.startAt,

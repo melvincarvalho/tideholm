@@ -93,6 +93,8 @@
       <form id="auth-form">
         <input id="auth-name" data-i18n-ph="ui.auth.name.ph" autocomplete="username" maxlength="24" required>
         <input id="auth-pass" type="password" data-i18n-ph="ui.auth.pass.ph" autocomplete="current-password" required>
+        <input id="auth-pass2" type="password" class="hidden" data-i18n-ph="ui.auth.pass2.ph" autocomplete="new-password">
+        <p id="auth-rules" class="hint hidden" data-i18n="ui.auth.podRules"></p>
         <div class="auth-buttons">
           <button type="submit" data-mode="login" data-i18n="ui.auth.login"></button>
           <button type="submit" data-mode="register" data-i18n="ui.auth.register"></button>

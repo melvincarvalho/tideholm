@@ -508,10 +508,11 @@
       'ui.auth.login': 'Log in',
       'ui.auth.register': 'New island',
       'ui.auth.howto': 'How to play',
-      'ui.auth.podName.ph': 'Pod username',
-      'ui.auth.podLogin': 'Sign in with your pod',
-      'ui.auth.podCreate': 'Create a pod',
-      'ui.auth.podTagline': 'Your pod identity is your captain.',
+      'ui.auth.podName.ph': 'Name (lowercase)',
+      'ui.auth.podLogin': 'Sign in',
+      'ui.auth.podCreate': 'New captain',
+      'ui.auth.pass2.ph': 'Password again',
+      'ui.auth.podRules': 'Name: lowercase letters, numbers, . _ or -, at least 3. Password: at least 8 characters, entered twice.',
     },
 
     de: {
@@ -1015,10 +1016,11 @@
       'ui.auth.login': 'Anmelden',
       'ui.auth.register': 'Neue Insel',
       'ui.auth.howto': 'Spielanleitung',
-      'ui.auth.podName.ph': 'Pod-Benutzername',
-      'ui.auth.podLogin': 'Mit deinem Pod anmelden',
-      'ui.auth.podCreate': 'Pod erstellen',
-      'ui.auth.podTagline': 'Deine Pod-Identität ist dein Kapitän.',
+      'ui.auth.podName.ph': 'Name (Kleinbuchstaben)',
+      'ui.auth.podLogin': 'Anmelden',
+      'ui.auth.podCreate': 'Neuer Kapitän',
+      'ui.auth.pass2.ph': 'Passwort wiederholen',
+      'ui.auth.podRules': 'Name: Kleinbuchstaben, Ziffern, . _ oder -, mindestens 3. Passwort: mindestens 8 Zeichen, zweimal eingegeben.',
     },
 
     cs: {
@@ -1522,10 +1524,11 @@
       'ui.auth.login': 'Přihlásit',
       'ui.auth.register': 'Nový ostrov',
       'ui.auth.howto': 'Jak hrát',
-      'ui.auth.podName.ph': 'Uživatelské jméno podu',
-      'ui.auth.podLogin': 'Přihlásit se podem',
-      'ui.auth.podCreate': 'Vytvořit pod',
-      'ui.auth.podTagline': 'Tvá pod identita je tvůj kapitán.',
+      'ui.auth.podName.ph': 'Jméno (malá písmena)',
+      'ui.auth.podLogin': 'Přihlásit',
+      'ui.auth.podCreate': 'Nový kapitán',
+      'ui.auth.pass2.ph': 'Heslo znovu',
+      'ui.auth.podRules': 'Jméno: malá písmena, číslice, . _ nebo -, aspoň 3 znaky. Heslo: aspoň 8 znaků, zadané dvakrát.',
     },
   };
 

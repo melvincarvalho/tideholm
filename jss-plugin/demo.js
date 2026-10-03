@@ -97,6 +97,19 @@ check('player has a starting island', state && state.island && typeof state.isla
 check('game world keyed by webid', game.world.players.some((p) => p.extId === cred.webid));
 
 // a real action through the whole stack: queue a building upgrade
+// The game's own sign-up form (#195) posts JSON to the host's register
+// endpoint and reads the host's page only for an error: pin both seams.
+r = await fetch(`${base}/tideholm/api/meta`);
+const meta = await r.json();
+check('meta names the host register endpoint', meta.mode === 'pod' && meta.podRegisterUrl === '/idp/register', JSON.stringify(meta));
+r = await fetch(`${base}/idp/register`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username: 'alice', password: 'sailing-far', confirmPassword: 'sailing-far' }),
+});
+const dup = await r.text();
+check('a taken name comes back as a page with an .error the form can show', /class="error"[^>]*>[^<]*already taken/.test(dup), dup.slice(0, 120));
+
 r = await fetch(`${base}/tideholm/api/build`, {
   method: 'POST',
   headers: { ...auth, 'Content-Type': 'application/json' },

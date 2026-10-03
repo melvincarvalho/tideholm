@@ -127,6 +127,7 @@ export async function tideholmApp(opts = {}) {
     freeIsles: opts.freeIsles,
     adminToken: opts.adminToken,
     podLoginUrl: opts.podLoginUrl, // defaults to /idp/credentials in the app
+    podRegisterUrl: opts.podRegisterUrl, // defaults to /idp/register in the app
     identify: async (rawReq) => {
       const webId = rawReq.__tideholmWebId;
       return webId ? { id: webId, name: nameFromWebId(webId) } : null;

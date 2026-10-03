@@ -133,24 +133,12 @@ for (const btn of document.querySelectorAll('.auth-buttons button')) {
     $('auth-error').textContent = '';
     try {
       if (META.mode === 'pod') {
-        // The host (e.g. a Solid pod server) owns identity: trade pod
-        // credentials for a Bearer token at the host's endpoint (absolute
-        // path — it lives at the host root, not under the game's prefix).
-        const res = await fetch(META.podLoginUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: $('auth-name').value,
-            password: $('auth-pass').value,
-          }),
-        });
-        const cred = await res.json().catch(() => ({}));
-        if (!res.ok || !cred.access_token) {
-          throw new Error(cred.error_description || cred.error || res.statusText);
-        }
-        localStorage.setItem('tideholm-token', cred.access_token);
-        await api('/api/lang', { lang: LANG }).catch(() => {});
-        enterGame();
+        // The host (e.g. a Solid pod server) owns identity. "New captain"
+        // creates the account there and signs in; "Sign in" just signs in.
+        if (mode === 'register') { await podRegister(); return; }
+        const cred = await podSignIn($('auth-name').value, $('auth-pass').value);
+        if (!cred.access_token) throw new Error(cred.error_description || cred.error || cred.statusText);
+        await podEnter(cred.access_token);
         return;
       }
       await api(`/api/${mode}`, {
@@ -163,6 +151,57 @@ for (const btn of document.querySelectorAll('.auth-buttons button')) {
       $('auth-error').textContent = err.message;
     }
   });
+}
+
+// Trade pod credentials for a Bearer token at the host's endpoint (absolute
+// path — it lives at the host root, not under the game's prefix). Resolves to
+// the host's JSON either way; the caller reads access_token or the error.
+async function podSignIn(username, password) {
+  const res = await fetch(META.podLoginUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const cred = await res.json().catch(() => ({}));
+  return res.ok ? cred : { ...cred, statusText: res.statusText };
+}
+
+async function podEnter(token) {
+  localStorage.setItem('tideholm-token', token);
+  await api('/api/lang', { lang: LANG }).catch(() => {});
+  enterGame();
+}
+
+// Sign-up without leaving the game (#195). The first click on "New captain"
+// reveals the confirmation field and the host's rules; the second creates the
+// account at the host (its register endpoint takes JSON) and signs in. The
+// host answers with a page, success or not, so success is judged by the
+// sign-in that follows, and the page is read only for the error to show.
+const POD_NAME = /^[a-z0-9]([a-z0-9._-]{1,30}[a-z0-9])?$/;
+async function podRegister() {
+  const pass2 = $('auth-pass2');
+  if (pass2.classList.contains('hidden')) {
+    pass2.classList.remove('hidden');
+    $('auth-rules').classList.remove('hidden');
+    $('auth-pass').autocomplete = 'new-password';
+    pass2.focus();
+    return;
+  }
+  const username = $('auth-name').value.trim().toLowerCase();
+  const password = $('auth-pass').value;
+  if (!POD_NAME.test(username) || username.includes('..') || password.length < 8 || password !== pass2.value) {
+    throw new Error(T('ui.auth.podRules'));
+  }
+  const res = await fetch(META.podRegisterUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, confirmPassword: pass2.value }),
+  });
+  const page = await res.text();
+  const cred = await podSignIn(username, password);
+  if (cred.access_token) { await podEnter(cred.access_token); return; }
+  const note = new DOMParser().parseFromString(page, 'text/html').querySelector('.error');
+  throw new Error((note && note.textContent.trim()) || cred.error_description || cred.error || res.statusText);
 }
 
 $('logout').addEventListener('click', async () => {
@@ -2990,25 +3029,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function setupPodAuth() {
-  // One button ("sign in with your pod"), pod-username placeholder, and a
-  // link to the host's pod-registration page.
+  // The same two buttons as a password world — "Sign in" and "New captain" —
+  // with the host's name rule as the placeholder. No pod, WebID or IdP on the
+  // first screen (#195): the account is created from here.
   $('auth-name').placeholder = T('ui.auth.podName.ph');
-  const login = document.querySelector('.auth-buttons button[data-mode="login"]');
-  const register = document.querySelector('.auth-buttons button[data-mode="register"]');
-  login.textContent = T('ui.auth.podLogin');
-  register.classList.add('hidden');
-  const tagline = document.querySelector('[data-i18n="ui.auth.tagline"]');
-  if (tagline) tagline.textContent = T('ui.auth.podTagline');
-  const help = $('auth-help');
-  if (help && !$('pod-create')) {
-    const a = document.createElement('a');
-    a.id = 'pod-create';
-    a.href = '/idp/register';
-    a.target = '_blank';
-    a.textContent = T('ui.auth.podCreate');
-    help.parentNode.insertBefore(a, help);
-    help.parentNode.insertBefore(document.createTextNode(' · '), help);
-  }
+  document.querySelector('.auth-buttons button[data-mode="login"]').textContent = T('ui.auth.podLogin');
+  document.querySelector('.auth-buttons button[data-mode="register"]').textContent = T('ui.auth.podCreate');
 }
 
 (async function boot() {
