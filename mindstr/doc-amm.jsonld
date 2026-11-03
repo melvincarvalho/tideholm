@@ -19,242 +19,251 @@
       "bgColor": "#ebc573"
     },
     {
-      "@id": "#v88t4a",
+      "@id": "#hzsqn4",
       "name": "sections 1/2",
-      "x": 233,
-      "y": 76,
+      "x": 209,
+      "y": 82,
       "bgColor": "#acd5ff",
       "parent": "#this"
     },
     {
-      "@id": "#skzt29",
+      "@id": "#dttxwc",
       "name": "What it is, in one paragraph",
-      "x": 389,
-      "y": -268,
+      "x": 329,
+      "y": -229,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#1-what-it-is-in-one-paragraph",
       "bgColor": "#daeeff",
-      "parent": "#v88t4a"
+      "parent": "#hzsqn4"
     },
     {
-      "@id": "#t4pwzt",
+      "@id": "#p8ysyk",
       "name": "Layering",
-      "x": 548,
-      "y": -186,
+      "x": 463,
+      "y": -159,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#2-layering-the-part-that-matters-for-porting",
-      "bgColor": "#daeeff",
-      "parent": "#v88t4a"
+      "bgColor": "#97deef",
+      "parent": "#hzsqn4"
     },
     {
-      "@id": "#jhaa84",
+      "@id": "#9c2qhr",
       "name": "The rule that keeps layer 1 clean",
-      "x": 697,
-      "y": -236,
+      "x": 598,
+      "y": -203,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#the-rule-that-keeps-layer-1-clean",
-      "bgColor": "#daeeff",
-      "parent": "#t4pwzt"
+      "bgColor": "#d2f2fa",
+      "parent": "#p8ysyk"
     },
     {
-      "@id": "#wavvy9",
+      "@id": "#h59t8f",
       "name": "The maths",
-      "x": 499,
-      "y": 31,
+      "x": 429,
+      "y": 22,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#3-the-maths",
-      "bgColor": "#daeeff",
-      "parent": "#v88t4a"
+      "bgColor": "#a3d9fd",
+      "parent": "#hzsqn4"
     },
     {
-      "@id": "#i9w3v4",
+      "@id": "#rfby2g",
       "name": "Why three resources in one pool is safe",
-      "x": 750,
-      "y": -10,
+      "x": 630,
+      "y": -24,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#why-three-resources-in-one-pool-is-safe",
-      "bgColor": "#daeeff",
-      "parent": "#wavvy9"
+      "bgColor": "#d6efff",
+      "parent": "#h59t8f"
     },
     {
-      "@id": "#e9sufn",
+      "@id": "#arxjt8",
       "name": "Reference: poolQuote",
-      "x": 818,
-      "y": 163,
+      "x": 617,
+      "y": 108,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#reference-poolquote",
-      "bgColor": "#daeeff",
-      "parent": "#wavvy9"
+      "bgColor": "#d6efff",
+      "parent": "#h59t8f"
     },
     {
-      "@id": "#g45zx9",
+      "@id": "#jtyjdw",
       "name": "The two protections, and why one of them…",
-      "x": 495,
-      "y": 267,
+      "x": 430,
+      "y": 208,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#4-the-two-protections-and-why-one-of-them-does-nothing-on-its-own",
-      "bgColor": "#daeeff",
-      "parent": "#v88t4a"
+      "bgColor": "#b6d2ff",
+      "parent": "#hzsqn4"
     },
     {
-      "@id": "#vz8rhu",
+      "@id": "#dtqx4z",
       "name": "The per-swap drain cap",
-      "x": 661,
-      "y": 313,
+      "x": 566,
+      "y": 252,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#the-per-swap-drain-cap-maxoutfrac-default-030",
-      "bgColor": "#daeeff",
-      "parent": "#g45zx9"
+      "bgColor": "#dfecff",
+      "parent": "#jtyjdw"
     },
     {
-      "@id": "#35gtrs",
+      "@id": "#u2s2vv",
       "name": "The reserve floor",
-      "x": 659,
-      "y": 442,
+      "x": 511,
+      "y": 313,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#the-reserve-floor-floorfrac-default-025",
-      "bgColor": "#daeeff",
-      "parent": "#g45zx9"
+      "bgColor": "#dfecff",
+      "parent": "#jtyjdw"
     },
     {
-      "@id": "#fiqrfa",
+      "@id": "#vx2z65",
       "name": "Parameters, and how they were derived",
-      "x": 195,
-      "y": 391,
+      "x": 192,
+      "y": 327,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#5-parameters-and-how-they-were-derived",
-      "bgColor": "#daeeff",
-      "parent": "#v88t4a"
+      "bgColor": "#cccbff",
+      "parent": "#hzsqn4"
     },
     {
-      "@id": "#fad69b",
+      "@id": "#xwei9g",
       "name": "Deriving the seed ratio",
-      "x": 439,
-      "y": 517,
+      "x": 396,
+      "y": 417,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#deriving-the-seed-ratio",
-      "bgColor": "#daeeff",
-      "parent": "#fiqrfa"
+      "bgColor": "#e9e8ff",
+      "parent": "#vx2z65"
     },
     {
-      "@id": "#fnrzmm",
+      "@id": "#6bzs4i",
       "name": "The counter-intuitive finding",
-      "x": 330,
-      "y": 667,
+      "x": 283,
+      "y": 476,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#the-counter-intuitive-finding",
-      "bgColor": "#daeeff",
-      "parent": "#fiqrfa"
+      "bgColor": "#e9e8ff",
+      "parent": "#vx2z65"
     },
     {
-      "@id": "#3y3s3p",
+      "@id": "#fkywkd",
       "name": "A methodological warning",
-      "x": 134,
-      "y": 621,
+      "x": 156,
+      "y": 520,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#a-methodological-warning",
-      "bgColor": "#daeeff",
-      "parent": "#fiqrfa"
+      "bgColor": "#e9e8ff",
+      "parent": "#vx2z65"
     },
     {
-      "@id": "#ujs2ci",
+      "@id": "#j8deiz",
+      "name": "Domain integration",
+      "x": -3,
+      "y": 425,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#6-domain-integration-layer-4-the-tideholm-specific-decisions",
+      "bgColor": "#daeeff",
+      "parent": "#hzsqn4"
+    },
+    {
+      "@id": "#aya9s9",
       "name": "sections 2/2",
-      "x": -249,
-      "y": -14,
+      "x": -228,
+      "y": -28,
       "bgColor": "#febdc6",
       "parent": "#this"
     },
     {
-      "@id": "#442pm7",
-      "name": "Domain integration",
-      "x": -256,
-      "y": 365,
-      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#6-domain-integration-layer-4-the-tideholm-specific-decisions",
-      "bgColor": "#ffe2e6",
-      "parent": "#ujs2ci"
-    },
-    {
-      "@id": "#imr4n9",
+      "@id": "#vn2imx",
       "name": "Failure modes",
-      "x": -541,
-      "y": 200,
+      "x": -376,
+      "y": 177,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#7-failure-modes-read-this-section-before-writing-any-of-it",
-      "bgColor": "#ffe2e6",
-      "parent": "#ujs2ci"
+      "bgColor": "#f0bfe6",
+      "parent": "#aya9s9"
     },
     {
-      "@id": "#tpktj6",
+      "@id": "#2tznvh",
       "name": "Family A: resource printers and destroyers",
-      "x": -579,
-      "y": 405,
+      "x": -450,
+      "y": 374,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#family-a-resource-printers-and-destroyers-in-pure-maths",
-      "bgColor": "#ffe2e6",
-      "parent": "#imr4n9"
+      "bgColor": "#fbe3f5",
+      "parent": "#vn2imx"
     },
     {
-      "@id": "#u94rpy",
+      "@id": "#cnh2fk",
       "name": "Family B: seams between layers",
-      "x": -772,
-      "y": 282,
+      "x": -552,
+      "y": 258,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#family-b-seams-between-layers",
-      "bgColor": "#ffe2e6",
-      "parent": "#imr4n9"
+      "bgColor": "#fbe3f5",
+      "parent": "#vn2imx"
     },
     {
-      "@id": "#7txfyn",
+      "@id": "#dk76uz",
       "name": "Family C: assertions that passed for the…",
-      "x": -744,
-      "y": 80,
+      "x": -613,
+      "y": 123,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#family-c-assertions-that-passed-for-the-wrong-reason",
-      "bgColor": "#ffe2e6",
-      "parent": "#imr4n9"
+      "bgColor": "#fbe3f5",
+      "parent": "#vn2imx"
     },
     {
-      "@id": "#v5njcx",
+      "@id": "#5aggpq",
       "name": "State and lifecycle",
-      "x": -440,
-      "y": -202,
+      "x": -467,
+      "y": -152,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#8-state-and-lifecycle",
-      "bgColor": "#ffe2e6",
-      "parent": "#ujs2ci"
+      "bgColor": "#fcc2a8",
+      "parent": "#aya9s9"
     },
     {
-      "@id": "#z8kicz",
+      "@id": "#eqmaaw",
       "name": "A world always starts closed",
-      "x": -719,
-      "y": -182,
+      "x": -621,
+      "y": -89,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#a-world-always-starts-closed",
-      "bgColor": "#ffe2e6",
-      "parent": "#v5njcx"
+      "bgColor": "#ffe5d8",
+      "parent": "#5aggpq"
     },
     {
-      "@id": "#7348h9",
+      "@id": "#pjbq25",
       "name": "The seed stake belongs to nobody",
-      "x": -726,
-      "y": -359,
+      "x": -581,
+      "y": -207,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#the-seed-stake-belongs-to-nobody",
-      "bgColor": "#ffe2e6",
-      "parent": "#v5njcx"
+      "bgColor": "#ffe5d8",
+      "parent": "#5aggpq"
     },
     {
-      "@id": "#jtny2v",
+      "@id": "#tz98k5",
       "name": "Reopening resumes",
-      "x": -557,
-      "y": -427,
+      "x": -522,
+      "y": -300,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#reopening-resumes",
-      "bgColor": "#ffe2e6",
-      "parent": "#v5njcx"
+      "bgColor": "#ffe5d8",
+      "parent": "#5aggpq"
     },
     {
-      "@id": "#zvvi4r",
+      "@id": "#437yyk",
       "name": "Build order",
-      "x": -332,
-      "y": -414,
+      "x": -292,
+      "y": -268,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#9-build-order-why-it-shipped-in-seven-steps",
       "bgColor": "#ffe2e6",
-      "parent": "#ujs2ci"
+      "parent": "#aya9s9"
     },
     {
-      "@id": "#ezqtt6",
+      "@id": "#j3k2bu",
       "name": "Test surface",
-      "x": -196,
-      "y": -391,
+      "x": -291,
+      "y": -361,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#10-test-surface",
       "bgColor": "#ffe2e6",
-      "parent": "#ujs2ci"
+      "parent": "#aya9s9"
     },
     {
-      "@id": "#8edjsn",
+      "@id": "#uhqx6j",
+      "name": "Porting checklist",
+      "x": -141,
+      "y": -341,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/AMM.md#11-porting-checklist",
+      "bgColor": "#ffe2e6",
+      "parent": "#aya9s9"
+    },
+    {
+      "@id": "#aurbbn",
       "name": "← tideholm",
-      "x": 55,
-      "y": -207,
+      "x": 53,
+      "y": -190,
       "link": "./index.jsonld",
       "bgColor": "#ececec",
       "parent": "#this"
@@ -318,15 +327,15 @@
       "end": 14
     },
     {
-      "start": 0,
+      "start": 1,
       "end": 15
     },
     {
-      "start": 15,
+      "start": 0,
       "end": 16
     },
     {
-      "start": 15,
+      "start": 16,
       "end": 17
     },
     {
@@ -342,7 +351,7 @@
       "end": 20
     },
     {
-      "start": 15,
+      "start": 16,
       "end": 21
     },
     {
@@ -358,16 +367,20 @@
       "end": 24
     },
     {
-      "start": 15,
+      "start": 16,
       "end": 25
     },
     {
-      "start": 15,
+      "start": 16,
       "end": 26
     },
     {
-      "start": 0,
+      "start": 16,
       "end": 27
+    },
+    {
+      "start": 0,
+      "end": 28
     }
   ],
   "selectedNode": 0

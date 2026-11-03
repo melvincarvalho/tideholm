@@ -1,0 +1,194 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "News 4/4",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-4-opened-2026-07-29-1630-utc",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#9e878e",
+      "name": "Season 4",
+      "x": 178,
+      "y": 195,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-4-opened-2026-07-29-1630-utc",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#cp2str",
+      "name": "2026-08-05 · The res bar survives scrolling",
+      "x": 382,
+      "y": -168,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-05-the-res-bar-survives-scrolling",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#swzzzt",
+      "name": "2026-08-05 · The hourglass chip",
+      "x": 500,
+      "y": -13,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-05-the-hourglass-chip",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#pj9sd5",
+      "name": "2026-08-05 · Mid-season quality-of-life wave",
+      "x": 392,
+      "y": 150,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-05-mid-season-quality-of-life-wave",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#9incsq",
+      "name": "2026-07-31 04:29 · Colony Ships get dearer…",
+      "x": 296,
+      "y": 319,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-31-0429-colony-ships-get-dearer-as-you-spread",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#gwp9qx",
+      "name": "2026-07-31 04:29 · Support costs your home…",
+      "x": 52,
+      "y": 364,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-31-0429-support-costs-your-home-islands-population",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#7csjb6",
+      "name": "2026-07-31 04:09 · Merchant slots",
+      "x": -165,
+      "y": 408,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-31-0409-merchant-slots",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#cyfvb8",
+      "name": "2026-07-30 19:29 · The Tidepool opens",
+      "x": -297,
+      "y": 264,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-30-1929-the-tidepool-opens",
+      "bgColor": "#daeeff",
+      "parent": "#9e878e"
+    },
+    {
+      "@id": "#ngjuhg",
+      "name": "Season 3",
+      "x": -198,
+      "y": -100,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-3-opened-2026-07-20",
+      "bgColor": "#febdc6",
+      "parent": "#this"
+    },
+    {
+      "@id": "#ad25k5",
+      "name": "2026-07-27 · Mail: link a Nostr identity",
+      "x": -428,
+      "y": -35,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-27-mail-link-a-nostr-identity",
+      "bgColor": "#ffe2e6",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#6zhwac",
+      "name": "2026-07-27 · The Tidepool opens",
+      "x": -371,
+      "y": -184,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-27-the-tidepool-opens",
+      "bgColor": "#ffe2e6",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#sigj2h",
+      "name": "2026-07-27 · Buildings capped at level 14",
+      "x": -245,
+      "y": -301,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-07-27-buildings-capped-at-level-14",
+      "bgColor": "#ffe2e6",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#2gvkzt",
+      "name": "← News",
+      "x": 33,
+      "y": -193,
+      "link": "./doc-news.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 1,
+      "end": 3
+    },
+    {
+      "start": 1,
+      "end": 4
+    },
+    {
+      "start": 1,
+      "end": 5
+    },
+    {
+      "start": 1,
+      "end": 6
+    },
+    {
+      "start": 1,
+      "end": 7
+    },
+    {
+      "start": 1,
+      "end": 8
+    },
+    {
+      "start": 0,
+      "end": 9
+    },
+    {
+      "start": 9,
+      "end": 10
+    },
+    {
+      "start": 9,
+      "end": 11
+    },
+    {
+      "start": 9,
+      "end": 12
+    },
+    {
+      "start": 0,
+      "end": 13
+    }
+  ],
+  "selectedNode": 0
+}

@@ -1,0 +1,604 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "tideholm: Data",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/tree/gh-pages",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#v88t4a",
+      "name": "Run · 37",
+      "x": -83,
+      "y": 200,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#skzt29",
+      "name": "fields 1/6",
+      "x": 491,
+      "y": -81,
+      "bgColor": "#97deef",
+      "parent": "#v88t4a"
+    },
+    {
+      "@id": "#t4pwzt",
+      "name": "PORT: 3000",
+      "x": 659,
+      "y": -288,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#jhaa84",
+      "name": "GAME_SPEED: 5",
+      "x": 787,
+      "y": -263,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#wavvy9",
+      "name": "BOTS: 20",
+      "x": 719,
+      "y": -183,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#i9w3v4",
+      "name": "FREE_ISLES: 30",
+      "x": 824,
+      "y": -139,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#e9sufn",
+      "name": "LAND_RESPAWN: 0",
+      "x": 746,
+      "y": -69,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#g45zx9",
+      "name": "WORLD_THEME: generated",
+      "x": 840,
+      "y": -8,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#vz8rhu",
+      "name": "WIN_SHARE: 0.6",
+      "x": 747,
+      "y": 54,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d2f2fa",
+      "parent": "#skzt29"
+    },
+    {
+      "@id": "#35gtrs",
+      "name": "fields 2/6",
+      "x": 479,
+      "y": 293,
+      "bgColor": "#9ddbf8",
+      "parent": "#v88t4a"
+    },
+    {
+      "@id": "#fiqrfa",
+      "name": "WONDER_WIN_LEVEL: 5",
+      "x": 714,
+      "y": 194,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#fad69b",
+      "name": "NIGHT_BONUS: —",
+      "x": 791,
+      "y": 282,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#fnrzmm",
+      "name": "ADMIN_TOKEN: —",
+      "x": 646,
+      "y": 308,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#3y3s3p",
+      "name": "WORLD_START: now",
+      "x": 721,
+      "y": 403,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#ujs2ci",
+      "name": "SEASON_AUTO: off",
+      "x": 560,
+      "y": 409,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#442pm7",
+      "name": "SEASON_END_GRACE_HOURS: 48",
+      "x": 580,
+      "y": 542,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#imr4n9",
+      "name": "SEASON_SIGNUP_HOURS: 24",
+      "x": 449,
+      "y": 496,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d4f0fe",
+      "parent": "#35gtrs"
+    },
+    {
+      "@id": "#tpktj6",
+      "name": "fields 3/6",
+      "x": 10,
+      "y": 425,
+      "bgColor": "#a6d8ff",
+      "parent": "#v88t4a"
+    },
+    {
+      "@id": "#u94rpy",
+      "name": "PROTECT_GRACE_HOURS: 72 ÷ speed",
+      "x": 264,
+      "y": 591,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#7txfyn",
+      "name": "PROTECTED_POINTS: 40",
+      "x": 197,
+      "y": 695,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#v5njcx",
+      "name": "BULLY_RATIO: 3",
+      "x": 119,
+      "y": 636,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#z8kicz",
+      "name": "MORALE_FLOOR: 0.3",
+      "x": 17,
+      "y": 714,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#7348h9",
+      "name": "BOT_MORALE_FLOOR: = MORALEFLOOR",
+      "x": -92,
+      "y": 641,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#jtny2v",
+      "name": "SPEARMAN_POP: 1 / 1",
+      "x": -193,
+      "y": 695,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#zvvi4r",
+      "name": "WONDER_TIME_FACTOR: 1",
+      "x": -250,
+      "y": 597,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#d8efff",
+      "parent": "#tpktj6"
+    },
+    {
+      "@id": "#ezqtt6",
+      "name": "fields 4/6",
+      "x": -482,
+      "y": 289,
+      "bgColor": "#b2d3ff",
+      "parent": "#v88t4a"
+    },
+    {
+      "@id": "#8edjsn",
+      "name": "WONDER_WIN_COUNT: 1",
+      "x": -400,
+      "y": 526,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#75s7ir",
+      "name": "CHAIN_API:…",
+      "x": -554,
+      "y": 546,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#7x3k79",
+      "name": "CHAIN_PIN: 150400:00000000c4ad…6df6",
+      "x": -554,
+      "y": 442,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#4af2dc",
+      "name": "TIDEGATE_NETWORK: txbt4",
+      "x": -694,
+      "y": 396,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#7iui3z",
+      "name": "WIN_BASIS: all",
+      "x": -648,
+      "y": 301,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#bq9ccn",
+      "name": "WIN_BASE: 0",
+      "x": -783,
+      "y": 274,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#3yirdr",
+      "name": "ALLIANCE_WIN_SHARE: WINSHARE",
+      "x": -722,
+      "y": 174,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#ddedff",
+      "parent": "#ezqtt6"
+    },
+    {
+      "@id": "#ptf2jy",
+      "name": "fields 5/6",
+      "x": -458,
+      "y": -171,
+      "bgColor": "#bfcfff",
+      "parent": "#v88t4a"
+    },
+    {
+      "@id": "#4bfy6j",
+      "name": "POOL_TRADE_SPEED: 8 / 30 / off",
+      "x": -750,
+      "y": -20,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#4wkdd9",
+      "name": "TRANSIT_POP_FACTOR: 0",
+      "x": -829,
+      "y": -116,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#yiscsp",
+      "name": "FLAGSHIP_COST_GROWTH: 1",
+      "x": -721,
+      "y": -176,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#2fzfhg",
+      "name": "FLAGSHIP_STORAGE_CLAMP: 1",
+      "x": -772,
+      "y": -276,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#6ab87r",
+      "name": "BOT_RESPAWN: 1",
+      "x": -650,
+      "y": -321,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#uyfscv",
+      "name": "BOT_GARRISON_RATIO: ∞",
+      "x": -679,
+      "y": -408,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#z5cumb",
+      "name": "BOT_GARRISON_SETTLER: BOTGARRISONRATIO",
+      "x": -534,
+      "y": -454,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e2eaff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#7iejm3",
+      "name": "fields 6/6",
+      "x": -265,
+      "y": -448,
+      "bgColor": "#cccbff",
+      "parent": "#v88t4a"
+    },
+    {
+      "@id": "#452y5w",
+      "name": "TRADE_SLOTS_PER_HARBOR: 1",
+      "x": -375,
+      "y": -552,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e9e8ff",
+      "parent": "#7iejm3"
+    },
+    {
+      "@id": "#yyjnxk",
+      "name": "COLONY_COST_GROWTH: 1",
+      "x": -327,
+      "y": -658,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#e9e8ff",
+      "parent": "#7iejm3"
+    },
+    {
+      "@id": "#hrvxpy",
+      "name": "← tideholm",
+      "x": 83,
+      "y": -200,
+      "link": "./index.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 2,
+      "end": 3
+    },
+    {
+      "start": 2,
+      "end": 4
+    },
+    {
+      "start": 2,
+      "end": 5
+    },
+    {
+      "start": 2,
+      "end": 6
+    },
+    {
+      "start": 2,
+      "end": 7
+    },
+    {
+      "start": 2,
+      "end": 8
+    },
+    {
+      "start": 2,
+      "end": 9
+    },
+    {
+      "start": 1,
+      "end": 10
+    },
+    {
+      "start": 10,
+      "end": 11
+    },
+    {
+      "start": 10,
+      "end": 12
+    },
+    {
+      "start": 10,
+      "end": 13
+    },
+    {
+      "start": 10,
+      "end": 14
+    },
+    {
+      "start": 10,
+      "end": 15
+    },
+    {
+      "start": 10,
+      "end": 16
+    },
+    {
+      "start": 10,
+      "end": 17
+    },
+    {
+      "start": 1,
+      "end": 18
+    },
+    {
+      "start": 18,
+      "end": 19
+    },
+    {
+      "start": 18,
+      "end": 20
+    },
+    {
+      "start": 18,
+      "end": 21
+    },
+    {
+      "start": 18,
+      "end": 22
+    },
+    {
+      "start": 18,
+      "end": 23
+    },
+    {
+      "start": 18,
+      "end": 24
+    },
+    {
+      "start": 18,
+      "end": 25
+    },
+    {
+      "start": 1,
+      "end": 26
+    },
+    {
+      "start": 26,
+      "end": 27
+    },
+    {
+      "start": 26,
+      "end": 28
+    },
+    {
+      "start": 26,
+      "end": 29
+    },
+    {
+      "start": 26,
+      "end": 30
+    },
+    {
+      "start": 26,
+      "end": 31
+    },
+    {
+      "start": 26,
+      "end": 32
+    },
+    {
+      "start": 26,
+      "end": 33
+    },
+    {
+      "start": 1,
+      "end": 34
+    },
+    {
+      "start": 34,
+      "end": 35
+    },
+    {
+      "start": 34,
+      "end": 36
+    },
+    {
+      "start": 34,
+      "end": 37
+    },
+    {
+      "start": 34,
+      "end": 38
+    },
+    {
+      "start": 34,
+      "end": 39
+    },
+    {
+      "start": 34,
+      "end": 40
+    },
+    {
+      "start": 34,
+      "end": 41
+    },
+    {
+      "start": 1,
+      "end": 42
+    },
+    {
+      "start": 42,
+      "end": 43
+    },
+    {
+      "start": 42,
+      "end": 44
+    },
+    {
+      "start": 0,
+      "end": 45
+    }
+  ],
+  "selectedNode": 0
+}

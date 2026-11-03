@@ -19,90 +19,90 @@
       "bgColor": "#ebc573"
     },
     {
-      "@id": "#varvfj",
+      "@id": "#ta2q85",
       "name": "unlabelled · 29 ›",
-      "x": 204,
-      "y": -122,
+      "x": 188,
+      "y": -113,
       "link": "./issues-unlabelled.jsonld",
       "bgColor": "#acd5ff",
       "parent": "#this"
     },
     {
-      "@id": "#ucttef",
+      "@id": "#f6qx4w",
       "name": "enhancement · 7",
-      "x": -155,
-      "y": 228,
+      "x": -145,
+      "y": 215,
       "bgColor": "#febdc6",
       "parent": "#this"
     },
     {
-      "@id": "#vzipyd",
+      "@id": "#su9mmy",
       "name": "#72 No way to recall anything: a miscli…",
-      "x": 449,
-      "y": 188,
+      "x": 386,
+      "y": 162,
       "link": "https://github.com/melvincarvalho/tideholm/issues/72",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#miy6ts",
+      "@id": "#puabcz",
       "name": "#70 Nostr identity is unverified: anyon…",
-      "x": 360,
-      "y": 424,
+      "x": 267,
+      "y": 333,
       "link": "https://github.com/melvincarvalho/tideholm/issues/70",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#ft3k8u",
+      "@id": "#pggewd",
       "name": "#64 Balance: gold is over-produced ~1.5…",
-      "x": 20,
-      "y": 425,
+      "x": 57,
+      "y": 379,
       "link": "https://github.com/melvincarvalho/tideholm/issues/64",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#it6792",
+      "@id": "#7cv7qa",
       "name": "#39 Barbarians are the hardest islands…",
-      "x": -318,
-      "y": 433,
+      "x": -281,
+      "y": 367,
       "link": "https://github.com/melvincarvalho/tideholm/issues/39",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#dnz3gb",
+      "@id": "#4evz5w",
       "name": "#26 Balance: loyalty regen makes single…",
-      "x": -439,
-      "y": 203,
+      "x": -378,
+      "y": 171,
       "link": "https://github.com/melvincarvalho/tideholm/issues/26",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#3ifse5",
+      "@id": "#vh32g5",
       "name": "#21 Adjacent games: genres that fit the…",
-      "x": -589,
-      "y": -26,
+      "x": -499,
+      "y": -22,
       "link": "https://github.com/melvincarvalho/tideholm/issues/21",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#ju3xzh",
+      "@id": "#6ktxue",
       "name": "#20 Scaling: multi-world growth path —…",
-      "x": -414,
-      "y": -238,
+      "x": -356,
+      "y": -205,
       "link": "https://github.com/melvincarvalho/tideholm/issues/20",
       "bgColor": "#ffe2e6",
-      "parent": "#ucttef"
+      "parent": "#f6qx4w"
     },
     {
-      "@id": "#p46jmx",
+      "@id": "#qrakrq",
       "name": "← tideholm",
-      "x": 23,
-      "y": -212,
+      "x": 21,
+      "y": -195,
       "link": "./index.jsonld",
       "bgColor": "#ececec",
       "parent": "#this"

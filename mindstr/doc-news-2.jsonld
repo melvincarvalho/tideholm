@@ -1,0 +1,231 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "News 2/4",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-10-season-6-law-the-vault-has-a-ceiling",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#a464iu",
+      "name": "2026-09-10 · Season 6 law: the vault has a…",
+      "x": -49,
+      "y": 191,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-10-season-6-law-the-vault-has-a-ceiling",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#simp87",
+      "name": "parts 1/2",
+      "x": 353,
+      "y": 199,
+      "bgColor": "#97deef",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#tzmucf",
+      "name": "2026-09-09 · Quality of life: rooms on…",
+      "x": 611,
+      "y": -130,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-09-quality-of-life-rooms-on-top-clickable-links-sortable-isles-past-seasons-as-a-footnote",
+      "bgColor": "#d2f2fa",
+      "parent": "#simp87"
+    },
+    {
+      "@id": "#xmtzgz",
+      "name": "2026-09-07 · Quality of life: the rooms,…",
+      "x": 698,
+      "y": 49,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-07-quality-of-life-the-rooms-indigo-allies-the-slip-lands-on-the-market",
+      "bgColor": "#d2f2fa",
+      "parent": "#simp87"
+    },
+    {
+      "@id": "#b9snuz",
+      "name": "2026-09-07 · Season 6 law: the storehouse…",
+      "x": 586,
+      "y": 220,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-07-season-6-law-the-storehouse-sets-the-price",
+      "bgColor": "#d2f2fa",
+      "parent": "#simp87"
+    },
+    {
+      "@id": "#nxqgmq",
+      "name": "2026-08-31 · Season 6 law: it takes two…",
+      "x": 508,
+      "y": 410,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-31-season-6-law-it-takes-two-towers",
+      "bgColor": "#d2f2fa",
+      "parent": "#simp87"
+    },
+    {
+      "@id": "#dguykc",
+      "name": "2026-08-31 · Season 6 law: the crown…",
+      "x": 298,
+      "y": 472,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-31-season-6-law-the-crown-counts-the-living",
+      "bgColor": "#d2f2fa",
+      "parent": "#simp87"
+    },
+    {
+      "@id": "#28eue2",
+      "name": "2026-08-27 · Season 6 law: the Tidepool…",
+      "x": 122,
+      "y": 586,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-the-tidepool-trims-its-sails",
+      "bgColor": "#d2f2fa",
+      "parent": "#simp87"
+    },
+    {
+      "@id": "#f4n9qu",
+      "name": "parts 2/2",
+      "x": -423,
+      "y": 67,
+      "bgColor": "#cccbff",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#krwt6e",
+      "name": "2026-08-27 · Season 6 law: half the world…",
+      "x": -325,
+      "y": 459,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-half-the-world-crowns-you",
+      "bgColor": "#e9e8ff",
+      "parent": "#f4n9qu"
+    },
+    {
+      "@id": "#emecna",
+      "name": "2026-08-27 · Season 6 law: half rations at…",
+      "x": -543,
+      "y": 375,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-half-rations-at-sea",
+      "bgColor": "#e9e8ff",
+      "parent": "#f4n9qu"
+    },
+    {
+      "@id": "#u8v9bw",
+      "name": "2026-08-27 · Season 6 law: the Beacon's…",
+      "x": -593,
+      "y": 180,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-the-beacons-final-fire",
+      "bgColor": "#e9e8ff",
+      "parent": "#f4n9qu"
+    },
+    {
+      "@id": "#j6zbf9",
+      "name": "2026-08-27 · Season 6 law: the conquest…",
+      "x": -700,
+      "y": 8,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-the-conquest-door-pays-too",
+      "bgColor": "#e9e8ff",
+      "parent": "#f4n9qu"
+    },
+    {
+      "@id": "#2z3p7w",
+      "name": "2026-08-27 · Season 6 law: bots are mortal",
+      "x": -597,
+      "y": -170,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-bots-are-mortal",
+      "bgColor": "#e9e8ff",
+      "parent": "#f4n9qu"
+    },
+    {
+      "@id": "#pvzwd8",
+      "name": "2026-08-27 · Season 6 law: the expansion…",
+      "x": -552,
+      "y": -366,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-27-season-6-law-the-expansion-tax-rises",
+      "bgColor": "#e9e8ff",
+      "parent": "#f4n9qu"
+    },
+    {
+      "@id": "#57iy7q",
+      "name": "← News",
+      "x": 49,
+      "y": -191,
+      "link": "./doc-news.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 2,
+      "end": 3
+    },
+    {
+      "start": 2,
+      "end": 4
+    },
+    {
+      "start": 2,
+      "end": 5
+    },
+    {
+      "start": 2,
+      "end": 6
+    },
+    {
+      "start": 2,
+      "end": 7
+    },
+    {
+      "start": 2,
+      "end": 8
+    },
+    {
+      "start": 1,
+      "end": 9
+    },
+    {
+      "start": 9,
+      "end": 10
+    },
+    {
+      "start": 9,
+      "end": 11
+    },
+    {
+      "start": 9,
+      "end": 12
+    },
+    {
+      "start": 9,
+      "end": 13
+    },
+    {
+      "start": 9,
+      "end": 14
+    },
+    {
+      "start": 9,
+      "end": 15
+    },
+    {
+      "start": 0,
+      "end": 16
+    }
+  ],
+  "selectedNode": 0
+}

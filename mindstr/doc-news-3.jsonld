@@ -1,0 +1,295 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "News 3/4",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-5-opens-2026-08-06-1500-utc",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#qprvms",
+      "name": "Season 5",
+      "x": -62,
+      "y": 188,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-5-opens-2026-08-06-1500-utc",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#7fucmt",
+      "name": "parts 1/3",
+      "x": 395,
+      "y": 116,
+      "bgColor": "#97deef",
+      "parent": "#qprvms"
+    },
+    {
+      "@id": "#t922yq",
+      "name": "2026-08-12 · The harbour gets its signs…",
+      "x": 601,
+      "y": -161,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-12-the-harbour-gets-its-signs-painted",
+      "bgColor": "#d2f2fa",
+      "parent": "#7fucmt"
+    },
+    {
+      "@id": "#26rfi6",
+      "name": "2026-08-11 · The Tavern opens its doors",
+      "x": 699,
+      "y": -25,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-11-the-tavern-opens-its-doors",
+      "bgColor": "#d2f2fa",
+      "parent": "#7fucmt"
+    },
+    {
+      "@id": "#u28rkq",
+      "name": "2026-08-11 · The Tidegate anchors to Bitcoin",
+      "x": 636,
+      "y": 124,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-11-the-tidegate-anchors-to-bitcoin",
+      "bgColor": "#d2f2fa",
+      "parent": "#7fucmt"
+    },
+    {
+      "@id": "#varvfj",
+      "name": "2026-08-10 · The Vault opens",
+      "x": 622,
+      "y": 274,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-10-the-vault-opens",
+      "bgColor": "#d2f2fa",
+      "parent": "#7fucmt"
+    },
+    {
+      "@id": "#ucttef",
+      "name": "2026-08-10 · The map marks where you are",
+      "x": 478,
+      "y": 349,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-10-the-map-marks-where-you-are",
+      "bgColor": "#d2f2fa",
+      "parent": "#7fucmt"
+    },
+    {
+      "@id": "#vzipyd",
+      "name": "2026-08-10 · The resbar grows meters",
+      "x": 398,
+      "y": 489,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-10-the-resbar-grows-meters",
+      "bgColor": "#d2f2fa",
+      "parent": "#7fucmt"
+    },
+    {
+      "@id": "#miy6ts",
+      "name": "parts 2/3",
+      "x": -228,
+      "y": 310,
+      "bgColor": "#acd5ff",
+      "parent": "#qprvms"
+    },
+    {
+      "@id": "#ft3k8u",
+      "name": "2026-08-07 · The tabs grow icons",
+      "x": 53,
+      "y": 534,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-07-the-tabs-grow-icons",
+      "bgColor": "#daeeff",
+      "parent": "#miy6ts"
+    },
+    {
+      "@id": "#it6792",
+      "name": "2026-08-09 · Troop counts stop resetting…",
+      "x": -113,
+      "y": 587,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-09-troop-counts-stop-resetting-as-you-type",
+      "bgColor": "#daeeff",
+      "parent": "#miy6ts"
+    },
+    {
+      "@id": "#dnz3gb",
+      "name": "2026-08-10 · The Islands tab gets an Army…",
+      "x": -267,
+      "y": 491,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-10-the-islands-tab-gets-an-army-section",
+      "bgColor": "#daeeff",
+      "parent": "#miy6ts"
+    },
+    {
+      "@id": "#3ifse5",
+      "name": "2026-08-10 · A tidy and a couple of fixes",
+      "x": -458,
+      "y": 447,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-10-a-tidy-and-a-couple-of-fixes",
+      "bgColor": "#daeeff",
+      "parent": "#miy6ts"
+    },
+    {
+      "@id": "#ju3xzh",
+      "name": "2026-08-10 · The Tideholm Almanac",
+      "x": -517,
+      "y": 306,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-10-the-tideholm-almanac",
+      "bgColor": "#daeeff",
+      "parent": "#miy6ts"
+    },
+    {
+      "@id": "#p46jmx",
+      "name": "2026-08-09 · Wealth at sea, counted",
+      "x": -651,
+      "y": 218,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-09-wealth-at-sea-counted-by-player-request",
+      "bgColor": "#daeeff",
+      "parent": "#miy6ts"
+    },
+    {
+      "@id": "#bu7kuh",
+      "name": "parts 3/3",
+      "x": -376,
+      "y": -178,
+      "bgColor": "#cccbff",
+      "parent": "#qprvms"
+    },
+    {
+      "@id": "#2iffkx",
+      "name": "2026-08-06 16:45 · The Tidepool opens for…",
+      "x": -625,
+      "y": -67,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-06-1645-the-tidepool-opens-for-season-5",
+      "bgColor": "#e9e8ff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#ssgz3q",
+      "name": "2026-08-06 16:20 · The dock drops its…",
+      "x": -647,
+      "y": -228,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-06-1620-the-dock-drops-its-coordinates",
+      "bgColor": "#e9e8ff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#gksydt",
+      "name": "2026-08-06 15:08 · The season-5 opener",
+      "x": -502,
+      "y": -323,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-06-1508-the-season-5-opener",
+      "bgColor": "#e9e8ff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#8su7v6",
+      "name": "2026-08-06 14:52 · Season 4 ends: the…",
+      "x": -433,
+      "y": -467,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-08-06-1452-season-4-ends-the-beacon-burns-over-v4",
+      "bgColor": "#e9e8ff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#2da7xj",
+      "name": "← News",
+      "x": 62,
+      "y": -188,
+      "link": "./doc-news.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 2,
+      "end": 3
+    },
+    {
+      "start": 2,
+      "end": 4
+    },
+    {
+      "start": 2,
+      "end": 5
+    },
+    {
+      "start": 2,
+      "end": 6
+    },
+    {
+      "start": 2,
+      "end": 7
+    },
+    {
+      "start": 2,
+      "end": 8
+    },
+    {
+      "start": 1,
+      "end": 9
+    },
+    {
+      "start": 9,
+      "end": 10
+    },
+    {
+      "start": 9,
+      "end": 11
+    },
+    {
+      "start": 9,
+      "end": 12
+    },
+    {
+      "start": 9,
+      "end": 13
+    },
+    {
+      "start": 9,
+      "end": 14
+    },
+    {
+      "start": 9,
+      "end": 15
+    },
+    {
+      "start": 1,
+      "end": 16
+    },
+    {
+      "start": 16,
+      "end": 17
+    },
+    {
+      "start": 16,
+      "end": 18
+    },
+    {
+      "start": 16,
+      "end": 19
+    },
+    {
+      "start": 16,
+      "end": 20
+    },
+    {
+      "start": 0,
+      "end": 21
+    }
+  ],
+  "selectedNode": 0
+}

@@ -1,0 +1,64 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "tideholm: deploy · 2",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/tree/gh-pages/deploy",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#zpagjg",
+      "name": "Season boundary checklist · 4 ›",
+      "x": 277,
+      "y": 0,
+      "link": "./doc-deploy-boundary.jsonld",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#sptvks",
+      "name": "Deploying Tideholm · 4 ›",
+      "x": -115,
+      "y": 169,
+      "link": "./doc-deploy-deploy.jsonld",
+      "bgColor": "#febdc6",
+      "parent": "#this"
+    },
+    {
+      "@id": "#u6iz6f",
+      "name": "← tideholm",
+      "x": -115,
+      "y": -169,
+      "link": "./index.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 0,
+      "end": 2
+    },
+    {
+      "start": 0,
+      "end": 3
+    }
+  ],
+  "selectedNode": 0
+}

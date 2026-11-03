@@ -19,233 +19,233 @@
       "bgColor": "#ebc573"
     },
     {
-      "@id": "#r8zm2z",
+      "@id": "#ysvez3",
       "name": "sections 1/2",
-      "x": 242,
-      "y": 52,
+      "x": 223,
+      "y": 48,
       "bgColor": "#acd5ff",
       "parent": "#this"
     },
     {
-      "@id": "#wzv4c3",
+      "@id": "#83zuf9",
       "name": "One paragraph",
-      "x": 371,
-      "y": -289,
+      "x": 319,
+      "y": -251,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#1-one-paragraph",
       "bgColor": "#daeeff",
-      "parent": "#r8zm2z"
+      "parent": "#ysvez3"
     },
     {
-      "@id": "#7fnz2s",
+      "@id": "#vrzefk",
       "name": "Identity [NORMATIVE]",
-      "x": 514,
-      "y": -243,
+      "x": 436,
+      "y": -206,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#2-identity-normative",
       "bgColor": "#daeeff",
-      "parent": "#r8zm2z"
+      "parent": "#ysvez3"
     },
     {
-      "@id": "#p89exh",
+      "@id": "#hvyxxr",
       "name": "The transition [NORMATIVE]",
-      "x": 492,
-      "y": -78,
+      "x": 423,
+      "y": -67,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#3-the-transition-normative",
-      "bgColor": "#daeeff",
-      "parent": "#r8zm2z"
+      "bgColor": "#97deef",
+      "parent": "#ysvez3"
     },
     {
-      "@id": "#urtpxv",
+      "@id": "#qahfae",
       "name": "3.1 Signing convention",
-      "x": 723,
-      "y": -169,
+      "x": 607,
+      "y": -142,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#31-signing-convention",
-      "bgColor": "#daeeff",
-      "parent": "#p89exh"
+      "bgColor": "#d2f2fa",
+      "parent": "#hvyxxr"
     },
     {
-      "@id": "#4dg5c4",
+      "@id": "#tgdsut",
       "name": "3.2 Bet evidence",
-      "x": 837,
-      "y": -62,
+      "x": 628,
+      "y": -46,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#32-bet-evidence-positive-deltas",
-      "bgColor": "#daeeff",
-      "parent": "#p89exh"
+      "bgColor": "#d2f2fa",
+      "parent": "#hvyxxr"
     },
     {
-      "@id": "#kwm3he",
+      "@id": "#ijf3kk",
       "name": "The trail document [NORMATIVE]",
-      "x": 579,
-      "y": 95,
+      "x": 491,
+      "y": 81,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#4-the-trail-document-normative",
       "bgColor": "#daeeff",
-      "parent": "#r8zm2z"
+      "parent": "#ysvez3"
     },
     {
-      "@id": "#qvd9cw",
+      "@id": "#anp567",
       "name": "Peg-in and peg-out [CURRENT]",
-      "x": 417,
-      "y": 234,
+      "x": 359,
+      "y": 201,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#5-peg-in-and-peg-out-current",
-      "bgColor": "#daeeff",
-      "parent": "#r8zm2z"
+      "bgColor": "#acd5ff",
+      "parent": "#ysvez3"
     },
     {
-      "@id": "#sf37xb",
+      "@id": "#svn3gp",
       "name": "5.1 The money move",
-      "x": 667,
-      "y": 291,
+      "x": 560,
+      "y": 245,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#51-the-money-move",
       "bgColor": "#daeeff",
-      "parent": "#qvd9cw"
+      "parent": "#anp567"
     },
     {
-      "@id": "#fuhjpf",
+      "@id": "#vbyvwg",
       "name": "5.2 The soft-record rule",
-      "x": 657,
-      "y": 444,
+      "x": 493,
+      "y": 333,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#52-the-soft-record-rule",
       "bgColor": "#daeeff",
-      "parent": "#qvd9cw"
+      "parent": "#anp567"
     },
     {
-      "@id": "#dry8wx",
+      "@id": "#ahre4u",
       "name": "The courier loop [NORMATIVE]",
-      "x": 281,
-      "y": 441,
+      "x": 238,
+      "y": 374,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#6-the-courier-loop-normative",
-      "bgColor": "#daeeff",
-      "parent": "#r8zm2z"
+      "bgColor": "#cccbff",
+      "parent": "#ysvez3"
     },
     {
-      "@id": "#rmckuv",
+      "@id": "#ibdfdz",
       "name": "6.1 Sync validation",
-      "x": 436,
-      "y": 519,
+      "x": 366,
+      "y": 436,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#61-sync-validation-the-ladder-normative",
-      "bgColor": "#daeeff",
-      "parent": "#dry8wx"
+      "bgColor": "#e9e8ff",
+      "parent": "#ahre4u"
     },
     {
-      "@id": "#6cicry",
+      "@id": "#z7edqb",
       "name": "6.2 What sync does not prove",
-      "x": 331,
-      "y": 656,
+      "x": 248,
+      "y": 492,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#62-what-sync-does-not-prove-the-154-hole-open",
-      "bgColor": "#daeeff",
-      "parent": "#dry8wx"
+      "bgColor": "#e9e8ff",
+      "parent": "#ahre4u"
     },
     {
-      "@id": "#7c28q6",
+      "@id": "#2qq2fn",
       "name": "sections 2/2",
-      "x": -249,
-      "y": 17,
+      "x": -229,
+      "y": 15,
       "bgColor": "#febdc6",
       "parent": "#this"
     },
     {
-      "@id": "#4qbh3e",
+      "@id": "#ri2pzw",
       "name": "Anchoring [CURRENT]",
-      "x": -405,
-      "y": 249,
+      "x": -348,
+      "y": 214,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#7-anchoring-current",
       "bgColor": "#ffe2e6",
-      "parent": "#7c28q6"
+      "parent": "#2qq2fn"
     },
     {
-      "@id": "#m3xps2",
+      "@id": "#qbizrq",
       "name": "7.1 What an anchor is",
-      "x": -292,
-      "y": 581,
+      "x": -221,
+      "y": 488,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#71-what-an-anchor-is",
       "bgColor": "#ffe2e6",
-      "parent": "#4qbh3e"
+      "parent": "#ri2pzw"
     },
     {
-      "@id": "#yxjf84",
+      "@id": "#yyfuzg",
       "name": "7.2 The stamp [NORMATIVE]",
-      "x": -505,
-      "y": 576,
+      "x": -435,
+      "y": 480,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#72-the-stamp-normative",
       "bgColor": "#ffe2e6",
-      "parent": "#4qbh3e"
+      "parent": "#ri2pzw"
     },
     {
-      "@id": "#mrv4db",
+      "@id": "#xet7zf",
       "name": "7.3 Who anchors, when",
-      "x": -558,
-      "y": 426,
+      "x": -469,
+      "y": 358,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#73-who-anchors-when",
       "bgColor": "#ffe2e6",
-      "parent": "#4qbh3e"
+      "parent": "#ri2pzw"
     },
     {
-      "@id": "#i6483q",
+      "@id": "#wjzwqw",
       "name": "7.4 Chain lifecycle: closed, retired,…",
-      "x": -746,
-      "y": 329,
+      "x": -621,
+      "y": 274,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#74-chain-lifecycle-closed-retired-re-genesis-normative",
       "bgColor": "#ffe2e6",
-      "parent": "#4qbh3e"
+      "parent": "#ri2pzw"
     },
     {
-      "@id": "#kmcrgd",
+      "@id": "#cpmgtf",
       "name": "7.5 The public projection [NORMATIVE]",
-      "x": -740,
-      "y": 105,
+      "x": -621,
+      "y": 88,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#75-the-public-projection-normative",
       "bgColor": "#ffe2e6",
-      "parent": "#4qbh3e"
+      "parent": "#ri2pzw"
     },
     {
-      "@id": "#ktiw89",
+      "@id": "#a85fzz",
       "name": "Threat model",
-      "x": -577,
-      "y": -105,
+      "x": -489,
+      "y": -89,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#8-threat-model",
       "bgColor": "#ffe2e6",
-      "parent": "#7c28q6"
+      "parent": "#2qq2fn"
     },
     {
-      "@id": "#c74y5q",
+      "@id": "#eitj67",
       "name": "Verification, third-party",
-      "x": -451,
-      "y": -183,
+      "x": -388,
+      "y": -158,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#9-verification-third-party",
       "bgColor": "#ffe2e6",
-      "parent": "#7c28q6"
+      "parent": "#2qq2fn"
     },
     {
-      "@id": "#374kep",
+      "@id": "#bpmjzd",
       "name": "Testability [OPEN",
-      "x": -472,
-      "y": -316,
+      "x": -418,
+      "y": -268,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#10-testability-open-the-extraction",
       "bgColor": "#ffe2e6",
-      "parent": "#7c28q6"
+      "parent": "#2qq2fn"
     },
     {
-      "@id": "#ba2cgp",
+      "@id": "#r8aetn",
       "name": "Display contract",
-      "x": -308,
-      "y": -330,
+      "x": -254,
+      "y": -284,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#11-display-contract",
       "bgColor": "#ffe2e6",
-      "parent": "#7c28q6"
+      "parent": "#2qq2fn"
     },
     {
-      "@id": "#h7ym9k",
+      "@id": "#j3rh5f",
       "name": "Open questions",
-      "x": -268,
-      "y": -447,
+      "x": -227,
+      "y": -379,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/TRAIL.md#12-open-questions-decisions-this-spec-forces",
       "bgColor": "#ffe2e6",
-      "parent": "#7c28q6"
+      "parent": "#2qq2fn"
     },
     {
-      "@id": "#ius84b",
+      "@id": "#mhgzj7",
       "name": "← tideholm",
-      "x": 50,
-      "y": -208,
+      "x": 46,
+      "y": -192,
       "link": "./index.jsonld",
       "bgColor": "#ececec",
       "parent": "#this"

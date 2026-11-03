@@ -1,0 +1,308 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "News 1/4",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-7",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#i6483q",
+      "name": "Season 7",
+      "x": 160,
+      "y": -141,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-7",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#kmcrgd",
+      "name": "2026-10-02 · Season 7 opens, and its laws",
+      "x": 298,
+      "y": -263,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-10-02-season-7-opens-and-its-laws",
+      "bgColor": "#daeeff",
+      "parent": "#i6483q"
+    },
+    {
+      "@id": "#ktiw89",
+      "name": "Season 6",
+      "x": -115,
+      "y": 169,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#season-6",
+      "bgColor": "#febdc6",
+      "parent": "#this"
+    },
+    {
+      "@id": "#c74y5q",
+      "name": "parts 1/3",
+      "x": 364,
+      "y": 195,
+      "bgColor": "#f0bfe6",
+      "parent": "#ktiw89"
+    },
+    {
+      "@id": "#374kep",
+      "name": "2026-10-01 · Season 6 is won",
+      "x": 628,
+      "y": 38,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-10-01-season-6-is-won",
+      "bgColor": "#fbe3f5",
+      "parent": "#c74y5q"
+    },
+    {
+      "@id": "#ba2cgp",
+      "name": "2026-09-28 · Train counts keep their place…",
+      "x": 668,
+      "y": 178,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-28-train-counts-keep-their-place-while-you-type",
+      "bgColor": "#fbe3f5",
+      "parent": "#c74y5q"
+    },
+    {
+      "@id": "#h7ym9k",
+      "name": "2026-09-27 · The bots trade at the…",
+      "x": 535,
+      "y": 283,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-27-the-bots-trade-at-the-tidepool-a-little",
+      "bgColor": "#fbe3f5",
+      "parent": "#c74y5q"
+    },
+    {
+      "@id": "#ius84b",
+      "name": "2026-09-27 · The Tidepool is open",
+      "x": 497,
+      "y": 414,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-27-the-tidepool-is-open",
+      "bgColor": "#fbe3f5",
+      "parent": "#c74y5q"
+    },
+    {
+      "@id": "#583aqh",
+      "name": "2026-09-27 · All twenty bots think with…",
+      "x": 329,
+      "y": 460,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-27-all-twenty-bots-think-with-brains-of-their-own",
+      "bgColor": "#fbe3f5",
+      "parent": "#c74y5q"
+    },
+    {
+      "@id": "#sbf4ee",
+      "name": "parts 2/3",
+      "x": -189,
+      "y": 328,
+      "bgColor": "#febdc6",
+      "parent": "#ktiw89"
+    },
+    {
+      "@id": "#t6q67m",
+      "name": "2026-09-24 · Every bot has a brain of its…",
+      "x": 32,
+      "y": 535,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-24-every-bot-has-a-brain-of-its-own-gull-cry-is-the-first-to-use-hers",
+      "bgColor": "#ffe2e6",
+      "parent": "#sbf4ee"
+    },
+    {
+      "@id": "#abq85r",
+      "name": "2026-09-22 · The bots have minds of their…",
+      "x": -152,
+      "y": 581,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-22-the-bots-have-minds-of-their-own",
+      "bgColor": "#ffe2e6",
+      "parent": "#sbf4ee"
+    },
+    {
+      "@id": "#sy2ncx",
+      "name": "2026-09-20 · ▲ on the training table",
+      "x": -287,
+      "y": 490,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-20-on-the-training-table",
+      "bgColor": "#ffe2e6",
+      "parent": "#sbf4ee"
+    },
+    {
+      "@id": "#fertai",
+      "name": "2026-09-18 · The seal writes on txbt4",
+      "x": -457,
+      "y": 444,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-18-the-seal-writes-on-txbt4",
+      "bgColor": "#ffe2e6",
+      "parent": "#sbf4ee"
+    },
+    {
+      "@id": "#9u36xp",
+      "name": "2026-09-16 · The attack quotient, and an…",
+      "x": -518,
+      "y": 305,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-16-the-attack-quotient-and-an-offer-is-one-merchants-load",
+      "bgColor": "#ffe2e6",
+      "parent": "#sbf4ee"
+    },
+    {
+      "@id": "#5q2nc4",
+      "name": "parts 3/3",
+      "x": -393,
+      "y": -148,
+      "bgColor": "#fcc2a8",
+      "parent": "#ktiw89"
+    },
+    {
+      "@id": "#eegh3a",
+      "name": "2026-09-12 · Drag a resource onto another…",
+      "x": -627,
+      "y": 50,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-12-drag-a-resource-onto-another-isle",
+      "bgColor": "#ffe5d8",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#tmtdcb",
+      "name": "2026-09-12 · Quality of life: fill bands…",
+      "x": -689,
+      "y": -103,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-12-quality-of-life-fill-bands-in-two-colours-the-alliance-room-first-only-real-keys",
+      "bgColor": "#ffe5d8",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#ziixui",
+      "name": "2026-09-11 · The Season DAO, how to use it",
+      "x": -569,
+      "y": -229,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-11-the-season-dao-how-to-use-it-and-the-prize",
+      "bgColor": "#ffe5d8",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#qnf7j2",
+      "name": "2026-09-11 · The Season DAO opens",
+      "x": -541,
+      "y": -377,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-11-the-season-dao-opens",
+      "bgColor": "#ffe5d8",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#rx55k2",
+      "name": "2026-09-10 · Season 6 law: three towers,…",
+      "x": -377,
+      "y": -429,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/NEWS.md#2026-09-10-season-6-law-three-towers-and-a-beacon-that-weighs-the-same-all-round",
+      "bgColor": "#ffe5d8",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#ux93wm",
+      "name": "← News",
+      "x": 64,
+      "y": -188,
+      "link": "./doc-news.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 0,
+      "end": 3
+    },
+    {
+      "start": 3,
+      "end": 4
+    },
+    {
+      "start": 4,
+      "end": 5
+    },
+    {
+      "start": 4,
+      "end": 6
+    },
+    {
+      "start": 4,
+      "end": 7
+    },
+    {
+      "start": 4,
+      "end": 8
+    },
+    {
+      "start": 4,
+      "end": 9
+    },
+    {
+      "start": 3,
+      "end": 10
+    },
+    {
+      "start": 10,
+      "end": 11
+    },
+    {
+      "start": 10,
+      "end": 12
+    },
+    {
+      "start": 10,
+      "end": 13
+    },
+    {
+      "start": 10,
+      "end": 14
+    },
+    {
+      "start": 10,
+      "end": 15
+    },
+    {
+      "start": 3,
+      "end": 16
+    },
+    {
+      "start": 16,
+      "end": 17
+    },
+    {
+      "start": 16,
+      "end": 18
+    },
+    {
+      "start": 16,
+      "end": 19
+    },
+    {
+      "start": 16,
+      "end": 20
+    },
+    {
+      "start": 16,
+      "end": 21
+    },
+    {
+      "start": 0,
+      "end": 22
+    }
+  ],
+  "selectedNode": 0
+}

@@ -1,0 +1,90 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "Season boundary checklist",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/deploy/BOUNDARY.md#season-boundary-checklist",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#67qhwk",
+      "name": "Before the boundary",
+      "x": 210,
+      "y": -80,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/deploy/BOUNDARY.md#before-the-boundary-dev-box-any-time",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#s9du6c",
+      "name": "At the boundary",
+      "x": 154,
+      "y": 145,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/deploy/BOUNDARY.md#at-the-boundary",
+      "bgColor": "#e9c1ef",
+      "parent": "#this"
+    },
+    {
+      "@id": "#tjeu4p",
+      "name": "Just after",
+      "x": -115,
+      "y": 169,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/deploy/BOUNDARY.md#just-after",
+      "bgColor": "#fec0b1",
+      "parent": "#this"
+    },
+    {
+      "@id": "#x9rczq",
+      "name": "First hours of the new season",
+      "x": -225,
+      "y": -64,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/deploy/BOUNDARY.md#first-hours-of-the-new-season",
+      "bgColor": "#d7d59b",
+      "parent": "#this"
+    },
+    {
+      "@id": "#48j6uy",
+      "name": "← deploy",
+      "x": -24,
+      "y": -194,
+      "link": "./docs-deploy.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 0,
+      "end": 2
+    },
+    {
+      "start": 0,
+      "end": 3
+    },
+    {
+      "start": 0,
+      "end": 4
+    },
+    {
+      "start": 0,
+      "end": 5
+    }
+  ],
+  "selectedNode": 0
+}

@@ -1,0 +1,77 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "Plugin-zero findings log",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/jss-plugin/NOTES.md#plugin-zero-findings-log",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#vb6nak",
+      "name": "Confirmed",
+      "x": 222,
+      "y": -51,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/jss-plugin/NOTES.md#confirmed-in-issues-already",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#zv6fek",
+      "name": "From building the browser bridge",
+      "x": 60,
+      "y": 189,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/jss-plugin/NOTES.md#from-building-the-browser-bridge",
+      "bgColor": "#f3bee1",
+      "parent": "#this"
+    },
+    {
+      "@id": "#y6p8te",
+      "name": "Open questions for playtesting",
+      "x": -222,
+      "y": 64,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/jss-plugin/NOTES.md#open-questions-for-playtesting",
+      "bgColor": "#f1c99c",
+      "parent": "#this"
+    },
+    {
+      "@id": "#kpttum",
+      "name": "← jss-plugin",
+      "x": -60,
+      "y": -189,
+      "link": "./docs-jss-plugin.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 0,
+      "end": 2
+    },
+    {
+      "start": 0,
+      "end": 3
+    },
+    {
+      "start": 0,
+      "end": 4
+    }
+  ],
+  "selectedNode": 0
+}

@@ -21,7 +21,7 @@
     {
       "@id": "#ab9ysn",
       "name": "sections 1/2",
-      "x": 250,
+      "x": 230,
       "y": 5,
       "bgColor": "#acd5ff",
       "parent": "#this"
@@ -29,8 +29,8 @@
     {
       "@id": "#qhtzie",
       "name": "Run",
-      "x": 398,
-      "y": -258,
+      "x": 342,
+      "y": -221,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
       "bgColor": "#daeeff",
       "parent": "#ab9ysn"
@@ -38,8 +38,8 @@
     {
       "@id": "#2sgmjt",
       "name": "Config",
-      "x": 597,
-      "y": -386,
+      "x": 501,
+      "y": -324,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#config-env-vars",
       "bgColor": "#daeeff",
       "parent": "#qhtzie"
@@ -47,8 +47,8 @@
     {
       "@id": "#j9h6ge",
       "name": "Gameplay",
-      "x": 578,
-      "y": -100,
+      "x": 490,
+      "y": -85,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#gameplay",
       "bgColor": "#daeeff",
       "parent": "#ab9ysn"
@@ -56,8 +56,8 @@
     {
       "@id": "#ejt2c7",
       "name": "Combat model",
-      "x": 485,
-      "y": 105,
+      "x": 417,
+      "y": 90,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#combat-model",
       "bgColor": "#daeeff",
       "parent": "#ab9ysn"
@@ -65,8 +65,8 @@
     {
       "@id": "#tvx8v7",
       "name": "Roadmap",
-      "x": 452,
-      "y": 323,
+      "x": 383,
+      "y": 273,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#roadmap",
       "bgColor": "#daeeff",
       "parent": "#ab9ysn"
@@ -74,16 +74,16 @@
     {
       "@id": "#4bfmpa",
       "name": "sections 2/2",
-      "x": -178,
-      "y": 149,
+      "x": -164,
+      "y": 137,
       "bgColor": "#febdc6",
       "parent": "#this"
     },
     {
       "@id": "#c2mpq8",
       "name": "Running it for real",
-      "x": 10,
-      "y": 425,
+      "x": 9,
+      "y": 365,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#running-it-for-real",
       "bgColor": "#ffe2e6",
       "parent": "#4bfmpa"
@@ -91,8 +91,8 @@
     {
       "@id": "#yykmee",
       "name": "Run inside a Solid server",
-      "x": -306,
-      "y": 429,
+      "x": -260,
+      "y": 363,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run-inside-a-solid-server-jss",
       "bgColor": "#ffe2e6",
       "parent": "#4bfmpa"
@@ -100,8 +100,8 @@
     {
       "@id": "#7kgwkb",
       "name": "Layout",
-      "x": -448,
-      "y": 189,
+      "x": -385,
+      "y": 163,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#layout",
       "bgColor": "#ffe2e6",
       "parent": "#4bfmpa"
@@ -109,8 +109,8 @@
     {
       "@id": "#x7t4w7",
       "name": "The Season DAO",
-      "x": -590,
-      "y": -18,
+      "x": -500,
+      "y": -15,
       "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#the-season-dao-189",
       "bgColor": "#ffe2e6",
       "parent": "#4bfmpa"
@@ -118,8 +118,8 @@
     {
       "@id": "#dsw684",
       "name": "← tideholm",
-      "x": -69,
-      "y": -204,
+      "x": -63,
+      "y": -188,
       "link": "./index.jsonld",
       "bgColor": "#ececec",
       "parent": "#this"
