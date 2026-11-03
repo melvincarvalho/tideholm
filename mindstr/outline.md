@@ -155,6 +155,7 @@
       - [quote()](https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js)
     - [tests.app.js](https://github.com/melvincarvalho/tideholm/blob/gh-pages/tests.app.js)
     - [tests.js](https://github.com/melvincarvalho/tideholm/blob/gh-pages/tests.js)
+- [Next: Roadmap](https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#roadmap)
 - [Open issues · 36 ›](./issues.jsonld)
   - [unlabelled · 29 ›](./issues-unlabelled.jsonld)
     - unlabelled 1/5
@@ -199,8 +200,6 @@
     - [#26 Balance: loyalty regen makes single…](https://github.com/melvincarvalho/tideholm/issues/26)
     - [#21 Adjacent games: genres that fit the…](https://github.com/melvincarvalho/tideholm/issues/21)
     - [#20 Scaling: multi-world growth path —…](https://github.com/melvincarvalho/tideholm/issues/20)
-- [Island empire browser strategy game in the…](https://github.com/melvincarvalho/tideholm)
-  - [332 commits, 2026-07-02 to 2026-10-03](https://github.com/melvincarvalho/tideholm/commits/gh-pages)
-  - branches: building-games-venue-registry, chor…
-  - [melvincarvalho.github.io/tideholm/](https://melvincarvalho.github.io/tideholm/)
-  - [2 stars](https://github.com/melvincarvalho/tideholm/stargazers)
+- [Island empire browser strategy game in the classic…](https://github.com/melvincarvalho/tideholm)
+  - [since Jul 2026 · last 3 Oct 2026](https://github.com/melvincarvalho/tideholm/commits/gh-pages)
+  - [melvincarvalho.github.io/tideholm](https://melvincarvalho.github.io/tideholm/)
