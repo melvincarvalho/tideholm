@@ -1,0 +1,788 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "tideholm",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#bu7kuh",
+      "name": "README · 8 ›",
+      "x": 254,
+      "y": -151,
+      "link": "./readme.jsonld",
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#2iffkx",
+      "name": "Run",
+      "x": 300,
+      "y": -340,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#ssgz3q",
+      "name": "Gameplay",
+      "x": 400,
+      "y": -369,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#gameplay",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#gksydt",
+      "name": "Combat model",
+      "x": 369,
+      "y": -282,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#combat-model",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#8su7v6",
+      "name": "Roadmap",
+      "x": 482,
+      "y": -293,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#roadmap",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#2da7xj",
+      "name": "Running it for real",
+      "x": 434,
+      "y": -232,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#running-it-for-real",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#9e878e",
+      "name": "Run inside a Solid server",
+      "x": 542,
+      "y": -188,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#run-inside-a-solid-server-jss",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#cp2str",
+      "name": "Layout",
+      "x": 479,
+      "y": -122,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/README.md#layout",
+      "bgColor": "#daeeff",
+      "parent": "#bu7kuh"
+    },
+    {
+      "@id": "#swzzzt",
+      "name": "Docs · 4",
+      "x": 249,
+      "y": 18,
+      "bgColor": "#e9c1ef",
+      "parent": "#this"
+    },
+    {
+      "@id": "#pj9sd5",
+      "name": "AMM.md · 24 ›",
+      "x": 498,
+      "y": -34,
+      "link": "./doc-amm.jsonld",
+      "bgColor": "#f7e4f9",
+      "parent": "#swzzzt"
+    },
+    {
+      "@id": "#9incsq",
+      "name": "BUILDING-GAMES.md · 18 ›",
+      "x": 590,
+      "y": 16,
+      "link": "./doc-building-games.jsonld",
+      "bgColor": "#f7e4f9",
+      "parent": "#swzzzt"
+    },
+    {
+      "@id": "#gwp9qx",
+      "name": "NEWS.md · 24 ›",
+      "x": 495,
+      "y": 61,
+      "link": "./doc-news.jsonld",
+      "bgColor": "#f7e4f9",
+      "parent": "#swzzzt"
+    },
+    {
+      "@id": "#7csjb6",
+      "name": "TRAIL.md · 23 ›",
+      "x": 572,
+      "y": 122,
+      "link": "./doc-trail.jsonld",
+      "bgColor": "#f7e4f9",
+      "parent": "#swzzzt"
+    },
+    {
+      "@id": "#cyfvb8",
+      "name": "Source · 12 files",
+      "x": -144,
+      "y": 174,
+      "link": "https://github.com/melvincarvalho/tideholm/tree/gh-pages",
+      "bgColor": "#fec0b1",
+      "parent": "#this"
+    },
+    {
+      "@id": "#ngjuhg",
+      "name": "files 1/2",
+      "x": 134,
+      "y": 409,
+      "bgColor": "#ffe3dc",
+      "parent": "#cyfvb8"
+    },
+    {
+      "@id": "#ad25k5",
+      "name": "app.js · 1",
+      "x": 531,
+      "y": 450,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/app.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#6zhwac",
+      "name": "createApp()",
+      "x": 708,
+      "y": 600,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/app.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ad25k5"
+    },
+    {
+      "@id": "#sigj2h",
+      "name": "bots.js",
+      "x": 538,
+      "y": 548,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/bots.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#2gvkzt",
+      "name": "brain.js · 3",
+      "x": 384,
+      "y": 548,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/brain.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#5gpqg5",
+      "name": "botView()",
+      "x": 565,
+      "y": 701,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/brain.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#2gvkzt"
+    },
+    {
+      "@id": "#wzta82",
+      "name": "VERBS()",
+      "x": 557,
+      "y": 799,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/brain.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#2gvkzt"
+    },
+    {
+      "@id": "#jw3kjf",
+      "name": "applyActions()",
+      "x": 456,
+      "y": 755,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/brain.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#2gvkzt"
+    },
+    {
+      "@id": "#r76gtv",
+      "name": "dao.js · 8",
+      "x": 133,
+      "y": 705,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#qmk4u7",
+      "name": "DAO_SUPPLY()",
+      "x": 352,
+      "y": 799,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#ysvez3",
+      "name": "DAO_PRICE()",
+      "x": 307,
+      "y": 889,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#83zuf9",
+      "name": "DAO_MAX_BUY()",
+      "x": 217,
+      "y": 829,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#vrzefk",
+      "name": "daoKey()",
+      "x": 172,
+      "y": 915,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#hvyxxr",
+      "name": "daoSold()",
+      "x": 94,
+      "y": 846,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#qahfae",
+      "name": "daoBuy()",
+      "x": 34,
+      "y": 926,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#tgdsut",
+      "name": "daoRemaining()",
+      "x": -33,
+      "y": 850,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/dao.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#r76gtv"
+    },
+    {
+      "@id": "#ijf3kk",
+      "name": "game.js",
+      "x": -113,
+      "y": 630,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/game.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#anp567",
+      "name": "playtest.js",
+      "x": -202,
+      "y": 693,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/playtest.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ngjuhg"
+    },
+    {
+      "@id": "#svn3gp",
+      "name": "files 2/2",
+      "x": -565,
+      "y": 144,
+      "bgColor": "#ffe3dc",
+      "parent": "#cyfvb8"
+    },
+    {
+      "@id": "#vbyvwg",
+      "name": "pool.js",
+      "x": -412,
+      "y": 533,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/pool.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#svn3gp"
+    },
+    {
+      "@id": "#ahre4u",
+      "name": "regatta.js · 9",
+      "x": -656,
+      "y": 446,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#svn3gp"
+    },
+    {
+      "@id": "#ibdfdz",
+      "name": "WEIGHT_SPACE()",
+      "x": -633,
+      "y": 649,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#z7edqb",
+      "name": "EDGE_BPS()",
+      "x": -764,
+      "y": 667,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#2qq2fn",
+      "name": "BOATS()",
+      "x": -734,
+      "y": 573,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#ri2pzw",
+      "name": "rollFromHash()",
+      "x": -854,
+      "y": 579,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#qbizrq",
+      "name": "winnerIndex()",
+      "x": -817,
+      "y": 487,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#yyfuzg",
+      "name": "quote()",
+      "x": -933,
+      "y": 481,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#xet7zf",
+      "name": "settle()",
+      "x": -886,
+      "y": 394,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/regatta.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#ahre4u"
+    },
+    {
+      "@id": "#wjzwqw",
+      "name": "server.js",
+      "x": -702,
+      "y": 225,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/server.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#svn3gp"
+    },
+    {
+      "@id": "#cpmgtf",
+      "name": "tavern.js · 13",
+      "x": -840,
+      "y": 17,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#svn3gp"
+    },
+    {
+      "@id": "#a85fzz",
+      "name": "DEFAULT_EDGE_BPS()",
+      "x": -973,
+      "y": 197,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#eitj67",
+      "name": "DEFAULT_MAX_RISK_FRAC()",
+      "x": -1076,
+      "y": 147,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#bpmjzd",
+      "name": "SIDES()",
+      "x": -996,
+      "y": 73,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#r8aetn",
+      "name": "amount()",
+      "x": -1090,
+      "y": 16,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#j3rh5f",
+      "name": "rollFromHash()",
+      "x": -999,
+      "y": -43,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#mhgzj7",
+      "name": "verifyRound()",
+      "x": -1082,
+      "y": -109,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#67qhwk",
+      "name": "quote()",
+      "x": -983,
+      "y": -157,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tavern.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#cpmgtf"
+    },
+    {
+      "@id": "#s9du6c",
+      "name": "tests.app.js",
+      "x": -714,
+      "y": -196,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tests.app.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#svn3gp"
+    },
+    {
+      "@id": "#tjeu4p",
+      "name": "tests.js",
+      "x": -772,
+      "y": -281,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/tests.js",
+      "bgColor": "#ffe3dc",
+      "parent": "#svn3gp"
+    },
+    {
+      "@id": "#x9rczq",
+      "name": "Open issues · 36 ›",
+      "x": -123,
+      "y": -173,
+      "link": "./issues.jsonld",
+      "bgColor": "#d7d59b",
+      "parent": "#this"
+    },
+    {
+      "@id": "#48j6uy",
+      "name": "Island empire browser strategy game in the…",
+      "x": 23,
+      "y": -219,
+      "link": "https://github.com/melvincarvalho/tideholm",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    },
+    {
+      "@id": "#9kbx2m",
+      "name": "332 commits, 2026-07-02 to 2026-10-03",
+      "x": -87,
+      "y": -444,
+      "link": "https://github.com/melvincarvalho/tideholm/commits/gh-pages",
+      "bgColor": "#ececec",
+      "parent": "#48j6uy"
+    },
+    {
+      "@id": "#9gbbfy",
+      "name": "branches: building-games-venue-registry, chor…",
+      "x": 24,
+      "y": -504,
+      "bgColor": "#ececec",
+      "parent": "#48j6uy"
+    },
+    {
+      "@id": "#kue24d",
+      "name": "melvincarvalho.github.io/tideholm/",
+      "x": 125,
+      "y": -398,
+      "link": "https://melvincarvalho.github.io/tideholm/",
+      "bgColor": "#ececec",
+      "parent": "#48j6uy"
+    },
+    {
+      "@id": "#ezqvf7",
+      "name": "2 stars",
+      "x": 229,
+      "y": -460,
+      "link": "https://github.com/melvincarvalho/tideholm/stargazers",
+      "bgColor": "#ececec",
+      "parent": "#48j6uy"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 1,
+      "end": 3
+    },
+    {
+      "start": 1,
+      "end": 4
+    },
+    {
+      "start": 1,
+      "end": 5
+    },
+    {
+      "start": 1,
+      "end": 6
+    },
+    {
+      "start": 1,
+      "end": 7
+    },
+    {
+      "start": 1,
+      "end": 8
+    },
+    {
+      "start": 0,
+      "end": 9
+    },
+    {
+      "start": 9,
+      "end": 10
+    },
+    {
+      "start": 9,
+      "end": 11
+    },
+    {
+      "start": 9,
+      "end": 12
+    },
+    {
+      "start": 9,
+      "end": 13
+    },
+    {
+      "start": 0,
+      "end": 14
+    },
+    {
+      "start": 14,
+      "end": 15
+    },
+    {
+      "start": 15,
+      "end": 16
+    },
+    {
+      "start": 16,
+      "end": 17
+    },
+    {
+      "start": 15,
+      "end": 18
+    },
+    {
+      "start": 15,
+      "end": 19
+    },
+    {
+      "start": 19,
+      "end": 20
+    },
+    {
+      "start": 19,
+      "end": 21
+    },
+    {
+      "start": 19,
+      "end": 22
+    },
+    {
+      "start": 15,
+      "end": 23
+    },
+    {
+      "start": 23,
+      "end": 24
+    },
+    {
+      "start": 23,
+      "end": 25
+    },
+    {
+      "start": 23,
+      "end": 26
+    },
+    {
+      "start": 23,
+      "end": 27
+    },
+    {
+      "start": 23,
+      "end": 28
+    },
+    {
+      "start": 23,
+      "end": 29
+    },
+    {
+      "start": 23,
+      "end": 30
+    },
+    {
+      "start": 15,
+      "end": 31
+    },
+    {
+      "start": 15,
+      "end": 32
+    },
+    {
+      "start": 14,
+      "end": 33
+    },
+    {
+      "start": 33,
+      "end": 34
+    },
+    {
+      "start": 33,
+      "end": 35
+    },
+    {
+      "start": 35,
+      "end": 36
+    },
+    {
+      "start": 35,
+      "end": 37
+    },
+    {
+      "start": 35,
+      "end": 38
+    },
+    {
+      "start": 35,
+      "end": 39
+    },
+    {
+      "start": 35,
+      "end": 40
+    },
+    {
+      "start": 35,
+      "end": 41
+    },
+    {
+      "start": 35,
+      "end": 42
+    },
+    {
+      "start": 33,
+      "end": 43
+    },
+    {
+      "start": 33,
+      "end": 44
+    },
+    {
+      "start": 44,
+      "end": 45
+    },
+    {
+      "start": 44,
+      "end": 46
+    },
+    {
+      "start": 44,
+      "end": 47
+    },
+    {
+      "start": 44,
+      "end": 48
+    },
+    {
+      "start": 44,
+      "end": 49
+    },
+    {
+      "start": 44,
+      "end": 50
+    },
+    {
+      "start": 44,
+      "end": 51
+    },
+    {
+      "start": 33,
+      "end": 52
+    },
+    {
+      "start": 33,
+      "end": 53
+    },
+    {
+      "start": 0,
+      "end": 54
+    },
+    {
+      "start": 0,
+      "end": 55
+    },
+    {
+      "start": 55,
+      "end": 56
+    },
+    {
+      "start": 55,
+      "end": 57
+    },
+    {
+      "start": 55,
+      "end": 58
+    },
+    {
+      "start": 55,
+      "end": 59
+    }
+  ],
+  "selectedNode": 0
+}

@@ -1,0 +1,296 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "Building games on the seal: an integration…",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#building-games-on-the-seal-an-integration",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#75s7ir",
+      "name": "sections 1/2",
+      "x": 194,
+      "y": 134,
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#7x3k79",
+      "name": "The core idea",
+      "x": 401,
+      "y": -254,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#1-the-core-idea",
+      "bgColor": "#daeeff",
+      "parent": "#75s7ir"
+    },
+    {
+      "@id": "#4af2dc",
+      "name": "The pieces you consume",
+      "x": 580,
+      "y": -91,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#2-the-pieces-you-consume",
+      "bgColor": "#daeeff",
+      "parent": "#75s7ir"
+    },
+    {
+      "@id": "#7iui3z",
+      "name": "tidegate",
+      "x": 701,
+      "y": -228,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#tidegate-the-seal-library-melvincarvalhogithubiotidegate",
+      "bgColor": "#daeeff",
+      "parent": "#4af2dc"
+    },
+    {
+      "@id": "#bq9ccn",
+      "name": "tavern",
+      "x": 826,
+      "y": -129,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#tavern-provably-fair-wagers-tide-gamesgithubiotavern",
+      "bgColor": "#daeeff",
+      "parent": "#4af2dc"
+    },
+    {
+      "@id": "#3yirdr",
+      "name": "blocktrails",
+      "x": 750,
+      "y": 1,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#blocktrails-the-anchoring-crypto",
+      "bgColor": "#daeeff",
+      "parent": "#4af2dc"
+    },
+    {
+      "@id": "#ptf2jy",
+      "name": "The three server endpoints a game exposes",
+      "x": 274,
+      "y": 356,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#3-the-three-server-endpoints-a-game-exposes",
+      "bgColor": "#daeeff",
+      "parent": "#75s7ir"
+    },
+    {
+      "@id": "#4bfy6j",
+      "name": "GET /api/tidegate/trail",
+      "x": 689,
+      "y": 252,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#get-apitidegatetrail-read-the-signed-trail",
+      "bgColor": "#daeeff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#4wkdd9",
+      "name": "POST /api/tidegate/anchor",
+      "x": 659,
+      "y": 443,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#post-apitidegateanchor-record-an-on-chain-commitment",
+      "bgColor": "#daeeff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#yiscsp",
+      "name": "POST /api/tidegate/sync",
+      "x": 448,
+      "y": 511,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#post-apitidegatesync-redeem-a-courier-slip",
+      "bgColor": "#daeeff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#2fzfhg",
+      "name": "GET…",
+      "x": 332,
+      "y": 656,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#get-apitidegateblocktrailspubkeyblocktrailsjson",
+      "bgColor": "#daeeff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#6ab87r",
+      "name": "GET /api/tidegate/trail/<pubkey>/trail.json",
+      "x": 63,
+      "y": 635,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#get-apitidegatetrailpubkeytrailjson",
+      "bgColor": "#daeeff",
+      "parent": "#ptf2jy"
+    },
+    {
+      "@id": "#uyfscv",
+      "name": "The player's lifecycle",
+      "x": -239,
+      "y": 459,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#4-the-players-lifecycle-what-to-build-ui-for",
+      "bgColor": "#daeeff",
+      "parent": "#75s7ir"
+    },
+    {
+      "@id": "#z5cumb",
+      "name": "sections 2/2",
+      "x": -240,
+      "y": -64,
+      "bgColor": "#febdc6",
+      "parent": "#this"
+    },
+    {
+      "@id": "#7iejm3",
+      "name": "The courier pattern",
+      "x": -487,
+      "y": 96,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#5-the-courier-pattern-value-between-apps-with-no-backchannel",
+      "bgColor": "#ffe2e6",
+      "parent": "#z5cumb"
+    },
+    {
+      "@id": "#452y5w",
+      "name": "The rule that keeps players honest",
+      "x": -708,
+      "y": 210,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#the-rule-that-keeps-players-honest-partly-read-the-caveat",
+      "bgColor": "#ffe2e6",
+      "parent": "#7iejm3"
+    },
+    {
+      "@id": "#yyjnxk",
+      "name": "The venue registry",
+      "x": -839,
+      "y": 37,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#the-venue-registry-how-a-new-venue-plugs-in",
+      "bgColor": "#ffe2e6",
+      "parent": "#7iejm3"
+    },
+    {
+      "@id": "#hrvxpy",
+      "name": "Conventions and invariants",
+      "x": -567,
+      "y": -138,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#6-conventions-and-invariants-copy-these-exactly",
+      "bgColor": "#ffe2e6",
+      "parent": "#z5cumb"
+    },
+    {
+      "@id": "#hzsqn4",
+      "name": "A minimal new game, start to finish",
+      "x": -393,
+      "y": -262,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#7-a-minimal-new-game-start-to-finish",
+      "bgColor": "#ffe2e6",
+      "parent": "#z5cumb"
+    },
+    {
+      "@id": "#dttxwc",
+      "name": "Honest status",
+      "x": -313,
+      "y": -425,
+      "link": "https://github.com/melvincarvalho/tideholm/blob/gh-pages/BUILDING-GAMES.md#8-honest-status",
+      "bgColor": "#ffe2e6",
+      "parent": "#z5cumb"
+    },
+    {
+      "@id": "#p8ysyk",
+      "name": "← tideholm",
+      "x": 32,
+      "y": -211,
+      "link": "./index.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 1,
+      "end": 3
+    },
+    {
+      "start": 3,
+      "end": 4
+    },
+    {
+      "start": 3,
+      "end": 5
+    },
+    {
+      "start": 3,
+      "end": 6
+    },
+    {
+      "start": 1,
+      "end": 7
+    },
+    {
+      "start": 7,
+      "end": 8
+    },
+    {
+      "start": 7,
+      "end": 9
+    },
+    {
+      "start": 7,
+      "end": 10
+    },
+    {
+      "start": 7,
+      "end": 11
+    },
+    {
+      "start": 7,
+      "end": 12
+    },
+    {
+      "start": 1,
+      "end": 13
+    },
+    {
+      "start": 0,
+      "end": 14
+    },
+    {
+      "start": 14,
+      "end": 15
+    },
+    {
+      "start": 15,
+      "end": 16
+    },
+    {
+      "start": 15,
+      "end": 17
+    },
+    {
+      "start": 14,
+      "end": 18
+    },
+    {
+      "start": 14,
+      "end": 19
+    },
+    {
+      "start": 14,
+      "end": 20
+    },
+    {
+      "start": 0,
+      "end": 21
+    }
+  ],
+  "selectedNode": 0
+}

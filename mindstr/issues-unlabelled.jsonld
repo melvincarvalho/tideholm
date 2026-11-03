@@ -1,0 +1,475 @@
+{
+  "@context": {
+    "@vocab": "https://mindstr.org/ns#",
+    "link": {
+      "@type": "@id"
+    },
+    "parent": {
+      "@type": "@id"
+    }
+  },
+  "version": "0.2",
+  "nodes": [
+    {
+      "@id": "#this",
+      "name": "tideholm issues: unlabelled · 29",
+      "x": 0,
+      "y": 0,
+      "link": "https://github.com/melvincarvalho/tideholm/issues",
+      "bgColor": "#ebc573"
+    },
+    {
+      "@id": "#583aqh",
+      "name": "unlabelled 1/5",
+      "x": 229,
+      "y": -86,
+      "bgColor": "#acd5ff",
+      "parent": "#this"
+    },
+    {
+      "@id": "#sbf4ee",
+      "name": "#195 Sign-up on a pod host is confusing:…",
+      "x": 327,
+      "y": -348,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/195",
+      "bgColor": "#daeeff",
+      "parent": "#583aqh"
+    },
+    {
+      "@id": "#t6q67m",
+      "name": "#194 Single-player skirmish against bots…",
+      "x": 458,
+      "y": -302,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/194",
+      "bgColor": "#daeeff",
+      "parent": "#583aqh"
+    },
+    {
+      "@id": "#abq85r",
+      "name": "#193 Season-end DAO keepsake on the Cape…",
+      "x": 437,
+      "y": -206,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/193",
+      "bgColor": "#daeeff",
+      "parent": "#583aqh"
+    },
+    {
+      "@id": "#sy2ncx",
+      "name": "#192 Dominance counts against the foundi…",
+      "x": 558,
+      "y": -162,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/192",
+      "bgColor": "#daeeff",
+      "parent": "#583aqh"
+    },
+    {
+      "@id": "#fertai",
+      "name": "#191 Support contingents from a captured…",
+      "x": 494,
+      "y": -65,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/191",
+      "bgColor": "#daeeff",
+      "parent": "#583aqh"
+    },
+    {
+      "@id": "#9u36xp",
+      "name": "#190 Refactor by extraction before seaso…",
+      "x": 590,
+      "y": 12,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/190",
+      "bgColor": "#daeeff",
+      "parent": "#583aqh"
+    },
+    {
+      "@id": "#5q2nc4",
+      "name": "unlabelled 2/5",
+      "x": 166,
+      "y": 159,
+      "bgColor": "#e0c4f6",
+      "parent": "#this"
+    },
+    {
+      "@id": "#eegh3a",
+      "name": "#189 Season DAO: a million shares bought…",
+      "x": 460,
+      "y": 166,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/189",
+      "bgColor": "#f2e5fd",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#tmtdcb",
+      "name": "#186 Bring your own captain: brains that…",
+      "x": 494,
+      "y": 256,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/186",
+      "bgColor": "#f2e5fd",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#ziixui",
+      "name": "#183 Alliance room: a private chat keyed…",
+      "x": 364,
+      "y": 300,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/183",
+      "bgColor": "#f2e5fd",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#qnf7j2",
+      "name": "#182 FLAGSHIP_STORAGE_CLAMP: the storeho…",
+      "x": 353,
+      "y": 416,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/182",
+      "bgColor": "#f2e5fd",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#rx55k2",
+      "name": "#175 For the record: a timed second-wave…",
+      "x": 224,
+      "y": 372,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/175",
+      "bgColor": "#f2e5fd",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#ux93wm",
+      "name": "#157 429 storms: three pollers × open ta…",
+      "x": 184,
+      "y": 481,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/157",
+      "bgColor": "#f2e5fd",
+      "parent": "#5q2nc4"
+    },
+    {
+      "@id": "#a464iu",
+      "name": "unlabelled 3/5",
+      "x": -127,
+      "y": 183,
+      "bgColor": "#febdc6",
+      "parent": "#this"
+    },
+    {
+      "@id": "#simp87",
+      "name": "#156 Delete stage.html: the experiment w…",
+      "x": -12,
+      "y": 426,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/156",
+      "bgColor": "#ffe2e6",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#tzmucf",
+      "name": "#154 Tide payouts are not yet unpredicta…",
+      "x": -164,
+      "y": 484,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/154",
+      "bgColor": "#ffe2e6",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#xmtzgz",
+      "name": "#149 Sync trusts any self-signed move: a…",
+      "x": -214,
+      "y": 369,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/149",
+      "bgColor": "#ffe2e6",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#b9snuz",
+      "name": "#146 Seal ↔ Tavern: stake sealed gold on…",
+      "x": -360,
+      "y": 415,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/146",
+      "bgColor": "#ffe2e6",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#nxqgmq",
+      "name": "#135 The Tidegate: seal vaulted gold cro…",
+      "x": -357,
+      "y": 317,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/135",
+      "bgColor": "#ffe2e6",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#dguykc",
+      "name": "#112 Retire the island dropdown in the t…",
+      "x": -487,
+      "y": 273,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/112",
+      "bgColor": "#ffe2e6",
+      "parent": "#a464iu"
+    },
+    {
+      "@id": "#28eue2",
+      "name": "unlabelled 4/5",
+      "x": -273,
+      "y": -44,
+      "bgColor": "#f1c99c",
+      "parent": "#this"
+    },
+    {
+      "@id": "#f4n9qu",
+      "name": "#111 Achievements & persistent reputatio…",
+      "x": -488,
+      "y": 94,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/111",
+      "bgColor": "#fbe8d3",
+      "parent": "#28eue2"
+    },
+    {
+      "@id": "#krwt6e",
+      "name": "#100 A season's history is unrecoverable…",
+      "x": -589,
+      "y": 23,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/100",
+      "bgColor": "#fbe8d3",
+      "parent": "#28eue2"
+    },
+    {
+      "@id": "#emecna",
+      "name": "#99 Identity topology: three homes, two…",
+      "x": -516,
+      "y": -54,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/99",
+      "bgColor": "#fbe8d3",
+      "parent": "#28eue2"
+    },
+    {
+      "@id": "#u8v9bw",
+      "name": "#97 AP actor routes are host-rooted whi…",
+      "x": -563,
+      "y": -149,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/97",
+      "bgColor": "#fbe8d3",
+      "parent": "#28eue2"
+    },
+    {
+      "@id": "#j6zbf9",
+      "name": "#71 SolidPay: a trust-based payment rai…",
+      "x": -445,
+      "y": -194,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/71",
+      "bgColor": "#fbe8d3",
+      "parent": "#28eue2"
+    },
+    {
+      "@id": "#2z3p7w",
+      "name": "#23 Config: committed presets vs live e…",
+      "x": -471,
+      "y": -292,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/23",
+      "bgColor": "#fbe8d3",
+      "parent": "#28eue2"
+    },
+    {
+      "@id": "#pvzwd8",
+      "name": "unlabelled 5/5",
+      "x": -60,
+      "y": -206,
+      "bgColor": "#c1dba8",
+      "parent": "#this"
+    },
+    {
+      "@id": "#57iy7q",
+      "name": "#7 Balance: the difficulty curve pinch…",
+      "x": -272,
+      "y": -338,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/7",
+      "bgColor": "#e3f0d8",
+      "parent": "#pvzwd8"
+    },
+    {
+      "@id": "#qprvms",
+      "name": "#6 Fleet interception: naval battles f…",
+      "x": -233,
+      "y": -470,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/6",
+      "bgColor": "#e3f0d8",
+      "parent": "#pvzwd8"
+    },
+    {
+      "@id": "#7fucmt",
+      "name": "#5 Offline attack alerts via player-se…",
+      "x": -118,
+      "y": -382,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/5",
+      "bgColor": "#e3f0d8",
+      "parent": "#pvzwd8"
+    },
+    {
+      "@id": "#t922yq",
+      "name": "#3 Retaliate button on battle reports",
+      "x": -43,
+      "y": -514,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/3",
+      "bgColor": "#e3f0d8",
+      "parent": "#pvzwd8"
+    },
+    {
+      "@id": "#26rfi6",
+      "name": "#1 Catapult: TW-style target-building…",
+      "x": 45,
+      "y": -426,
+      "link": "https://github.com/melvincarvalho/tideholm/issues/1",
+      "bgColor": "#e3f0d8",
+      "parent": "#pvzwd8"
+    },
+    {
+      "@id": "#u28rkq",
+      "name": "← issues",
+      "x": 95,
+      "y": -197,
+      "link": "./issues.jsonld",
+      "bgColor": "#ececec",
+      "parent": "#this"
+    }
+  ],
+  "connections": [
+    {
+      "start": 0,
+      "end": 1
+    },
+    {
+      "start": 1,
+      "end": 2
+    },
+    {
+      "start": 1,
+      "end": 3
+    },
+    {
+      "start": 1,
+      "end": 4
+    },
+    {
+      "start": 1,
+      "end": 5
+    },
+    {
+      "start": 1,
+      "end": 6
+    },
+    {
+      "start": 1,
+      "end": 7
+    },
+    {
+      "start": 0,
+      "end": 8
+    },
+    {
+      "start": 8,
+      "end": 9
+    },
+    {
+      "start": 8,
+      "end": 10
+    },
+    {
+      "start": 8,
+      "end": 11
+    },
+    {
+      "start": 8,
+      "end": 12
+    },
+    {
+      "start": 8,
+      "end": 13
+    },
+    {
+      "start": 8,
+      "end": 14
+    },
+    {
+      "start": 0,
+      "end": 15
+    },
+    {
+      "start": 15,
+      "end": 16
+    },
+    {
+      "start": 15,
+      "end": 17
+    },
+    {
+      "start": 15,
+      "end": 18
+    },
+    {
+      "start": 15,
+      "end": 19
+    },
+    {
+      "start": 15,
+      "end": 20
+    },
+    {
+      "start": 15,
+      "end": 21
+    },
+    {
+      "start": 0,
+      "end": 22
+    },
+    {
+      "start": 22,
+      "end": 23
+    },
+    {
+      "start": 22,
+      "end": 24
+    },
+    {
+      "start": 22,
+      "end": 25
+    },
+    {
+      "start": 22,
+      "end": 26
+    },
+    {
+      "start": 22,
+      "end": 27
+    },
+    {
+      "start": 22,
+      "end": 28
+    },
+    {
+      "start": 0,
+      "end": 29
+    },
+    {
+      "start": 29,
+      "end": 30
+    },
+    {
+      "start": 29,
+      "end": 31
+    },
+    {
+      "start": 29,
+      "end": 32
+    },
+    {
+      "start": 29,
+      "end": 33
+    },
+    {
+      "start": 29,
+      "end": 34
+    },
+    {
+      "start": 0,
+      "end": 35
+    }
+  ],
+  "selectedNode": 0
+}

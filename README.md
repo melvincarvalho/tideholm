@@ -1,5 +1,7 @@
 # Tideholm
 
+[![Mind map](https://mindstr.org/badge.svg)](https://mindstr.org/?uri=https://melvincarvalho.github.io/tideholm/mindstr/index.jsonld)
+
 A browser-based island empire game in the spirit of the classic early-2000s
 German browser strategy games — slow real-time timers, table-driven UI,
 alliances-and-raids gameplay. Original name, assets, text and numbers.
