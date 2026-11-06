@@ -2041,10 +2041,16 @@ async function getTidegate() {
   });
   return _tidegate;
 }
+// A UI guard only, not a rule: the server still caps a peg-in at the vault.
+const PEG_IN_MAX = 10_000_000;
 async function pegMove(dir) {
   $('tidegate-msg').textContent = '';
   const amount = Math.floor(Number($('tidegate-amount').value));
   if (!(amount > 0)) { $('tidegate-msg').textContent = T('err.badRequest'); return; }
+  if (dir === 'in' && amount > PEG_IN_MAX) {
+    $('tidegate-msg').textContent = T('err.pegInMax', { cap: fmtNum(PEG_IN_MAX) });
+    return;
+  }
   try {
     const tg = await getTidegate();
     const did = state.player.did || ('tideholm:' + state.player.name);
